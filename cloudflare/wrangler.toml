@@ -1,0 +1,8 @@
+name = "teo-studio-api-mini"
+main = "worker.js"
+compatibility_date = "2026-09-18"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "teo-studio-mini"
+database_id = "YOUR_D1_DATABASE_ID"
