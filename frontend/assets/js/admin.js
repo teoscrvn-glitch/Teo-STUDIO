@@ -1,7 +1,8 @@
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 const cfg=window.TEO_CONFIG||{};const api=p=>(cfg.API_BASE_URL||'').replace(/\/$/,'')+p;
-function key(){return sessionStorage.getItem('TEO_ADMIN_KEY')||''}function askKey(){if(!key()){const k=prompt('Nhập Admin Key:');if(k)sessionStorage.setItem('TEO_ADMIN_KEY',k)}}
-async function req(p,o={}){const h={'content-type':'application/json',...(o.headers||{}),authorization:'Bearer '+key()};const r=await fetch(api(p),{...o,headers:h});let x={};try{x=await r.json()}catch{}if(!r.ok)throw Error(x.error||`API ${r.status}`);return x}
+function key(){return sessionStorage.getItem('TEO_ADMIN_SESSION')||''}
+async function login(){let p='';while(!key()){p=prompt('Nhập mật khẩu Admin:');if(p===null)throw Error('LOGIN_CANCELLED');if(!p)continue;const r=await fetch(api('/api/admin/login'),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:p})});const x=await r.json().catch(()=>({}));if(!r.ok){alert(x.error==='INVALID_PASSWORD'?'Sai mật khẩu Admin.':'Không thể đăng nhập.');continue}sessionStorage.setItem('TEO_ADMIN_SESSION',x.token)}return key()}
+async function req(p,o={}){const h={'content-type':'application/json',...(o.headers||{}),authorization:'Bearer '+key()};const r=await fetch(api(p),{...o,headers:h});let x={};try{x=await r.json()}catch{}if(r.status===401){sessionStorage.removeItem('TEO_ADMIN_SESSION');throw Error('ADMIN_REQUIRED')}if(!r.ok)throw Error(x.error||`API ${r.status}`);return x}
 let state={products:[],tags:[],settings:{}};
 window.openPanel=id=>{document.querySelectorAll('.admin-panel').forEach(x=>x.classList.toggle('active',x.id===id));document.querySelectorAll('.admin-nav').forEach(x=>x.classList.toggle('active',x.dataset.panel===id));if(id==='products')loadProducts();if(id==='tags')loadTags();if(id==='notices'||id==='settings')loadSettings()};
 function toast(t){const x=$('#toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2500)}
@@ -21,4 +22,6 @@ async function saveSettings(data,msg){try{await req('/api/admin/settings',{metho
 $('#noticeForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);saveSettings({announcementTitle:f.get('announcementTitle'),announcementText:f.get('announcementText'),announcementEnabled:f.get('announcementEnabled')==='true'},'Đã cập nhật thông báo toàn web.')};
 $('#settingsForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);saveSettings({siteName:f.get('siteName'),studio:f.get('studio'),heroTitle:f.get('heroTitle'),heroText:f.get('heroText'),avatar:f.get('avatar'),groupLink:f.get('groupLink'),adminContact:f.get('adminContact')},'Đã cập nhật giao diện toàn web.')};
 document.querySelectorAll('.admin-nav').forEach(b=>b.onclick=()=>openPanel(b.dataset.panel));
-(async()=>{askKey();try{await req('/api/health');await loadProducts();await loadTags();await loadSettings();toast('Admin đã kết nối Cloud.')}catch(e){toast(e.message)}})();
+(async()=>{try{await login();await req('/api/health');await loadProducts();await loadTags();await loadSettings();toast('Admin đã kết nối Cloud.')}catch(e){toast(e.message)}})();
+
+$('#passwordForm').onsubmit=async e=>{e.preventDefault();const p=e.target.newPassword.value;try{await req('/api/admin/change-password',{method:'POST',body:JSON.stringify({newPassword:p})});e.target.reset();toast('Đã đổi mật khẩu Admin.')}catch(x){toast(x.message)}};

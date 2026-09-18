@@ -25,3 +25,7 @@ Bản này giữ lại giao diện/vibe chính nhưng bỏ toàn bộ hệ thố
 6. Upload thư mục `frontend` lên GitHub Pages/hosting tĩnh.
 
 Admin key chỉ được nhập trong trình duyệt admin và gửi qua HTTPS tới Worker. Không đặt ADMIN_KEY trong source frontend.
+
+
+## Admin auth v2
+Admin now uses a D1-backed session login. On first initialization, the default password is `123456`; change it immediately in Admin → Giao diện → Đổi mật khẩu. No ADMIN_KEY Worker secret is required.
