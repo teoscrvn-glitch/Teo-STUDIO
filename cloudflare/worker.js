@@ -6,7 +6,6 @@ async function products(e){const ps=(await e.DB.prepare('SELECT * FROM products 
 async function adminProducts(e){return (await e.DB.prepare('SELECT * FROM products ORDER BY updated_at DESC').all()).results||[]}
 export default{async fetch(r,e){if(r.method==='OPTIONS')return new Response(null,{headers:C});const u=new URL(r.url),p=u.pathname.replace(/\/$/,'');try{
 if(p==='/api/health')return J({ok:true,service:'teo-studio-api-mini',version:'1.2'});
-if(p==='/api/admin/check'&&r.method==='GET'){if(!isAdmin(r,e))return J({ok:false,error:'ADMIN_REQUIRED'},401);return J({ok:true,admin:true});}
 if(p==='/api/products'&&r.method==='GET')return J({ok:true,products:await products(e)});
 if(p==='/api/tags'&&r.method==='GET')return J({ok:true,tags:await tags(e)});
 if(p==='/api/settings'&&r.method==='GET')return J({ok:true,settings:await settings(e)});
@@ -19,7 +18,6 @@ let t=p.match(/^\/api\/admin\/tags\/([^/]+)$/);if(t){const id=t[1];if(r.method==
 if(p==='/api/admin/settings'&&r.method==='GET')return J({ok:true,settings:await settings(e)});
 if(p==='/api/admin/settings'&&r.method==='PUT'){const b=await r.json();for(const [k,v] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','announcementTitle','announcementText','announcementEnabled','groupLink','adminContact'].includes(k))continue;await e.DB.prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind(k,JSON.stringify(v)).run()}return J({ok:true})}
 if(p==='/api/admin/products'&&r.method==='GET')return J({ok:true,products:await adminProducts(e)});
-if(p.startsWith('/api/'))return J({ok:false,error:'NOT_FOUND'},404);
 if(e.ASSETS)return e.ASSETS.fetch(r);
 return J({ok:false,error:'NOT_FOUND'},404)
 }catch(x){return J({ok:false,error:'SERVER_ERROR',detail:String(x.message||x)},500)}}};
