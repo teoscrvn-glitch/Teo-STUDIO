@@ -29,3 +29,13 @@ Admin key chỉ được nhập trong trình duyệt admin và gửi qua HTTPS t
 
 ## Admin auth v2
 Admin now uses a D1-backed session login. On first initialization, the default password is `123456`; change it immediately in Admin → Giao diện → Đổi mật khẩu. No ADMIN_KEY Worker secret is required.
+
+## v3.0 update
+- Vietnam time is formatted at the UI layer (`Asia/Ho_Chi_Minh`) without rewriting existing D1 timestamps.
+- Real product view tracking + daily site/product/outbound analytics.
+- Admin dashboard: today totals, 30-day/1-year history, per-file views and outbound counts; auto-refreshes every 3 minutes.
+- Public comments at the bottom of the home page, with 10-minute auto-refresh.
+- Parent/sub-tag hierarchy; tag creation is now inside File / Code instead of a separate admin section.
+- Donate Téo button + configurable QR in Admin > Giao diện.
+- UI/button/card animations with reduced-motion support.
+- Video tries autoplay with sound first; browsers that block audible autoplay fall back to muted playback with the sound toggle.
