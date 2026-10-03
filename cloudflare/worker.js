@@ -2,122 +2,6 @@ const C={"content-type":"application/json;charset=utf-8","access-control-allow-o
 const J=(x,s=200)=>new Response(JSON.stringify(x),{status:s,headers:C});
 const clean=(x,n=5000)=>String(x??'').trim().slice(0,n);
 const tokenFrom=r=>(r.headers.get('authorization')||'').replace(/^Bearer\s+/i,'').trim();
-
-const BOT_COOKIE='teo_bot_verified';
-const BOT_ACTION='site-access';
-const BOT_TTL=24*60*60*1000;
-
-async function hmacHex(secret,message){
-  const key=await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(secret),
-    {name:'HMAC',hash:'SHA-256'},
-    false,
-    ['sign']
-  );
-  const sig=await crypto.subtle.sign(
-    'HMAC',
-    key,
-    new TextEncoder().encode(message)
-  );
-  return [...new Uint8Array(sig)].map(x=>x.toString(16).padStart(2,'0')).join('');
-}
-
-async function botCookieValid(r,e){
-  const secret=String(e.TURNSTILE_SECRET||'');
-  if(!secret)return false;
-
-  const raw=(r.headers.get('cookie')||'')
-    .split(';')
-    .map(x=>x.trim())
-    .find(x=>x.startsWith(BOT_COOKIE+'='));
-
-  if(!raw)return false;
-
-  const v=raw.slice(BOT_COOKIE.length+1);
-  const [exp,sig]=v.split('.');
-  const n=Number(exp);
-
-  if(!Number.isFinite(n)||n<Date.now()||!sig)return false;
-
-  return sig===(await hmacHex(secret,String(exp)));
-}
-
-function escHtml(x){
-  return String(x??'').replace(/[&<>'"]/g,c=>({
-    '&':'&amp;',
-    '<':'&lt;',
-    '>':'&gt;',
-    "'":'&#39;',
-    '"':'&quot;'
-  }[c]));
-}
-
-function challengeResponse(r,e){
-  const u=new URL(r.url);
-  const redirect=u.pathname+u.search+u.hash||'/';
-  const siteKey=escHtml(e.TURNSTILE_SITE_KEY||'');
-
-  const html='<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Xác minh truy cập</title><style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b0d12;color:#fff;font-family:system-ui,-apple-system,Segoe UI,sans-serif}.box{width:min(92vw,430px);padding:30px 24px;border:1px solid #252a35;border-radius:20px;background:#11151d;text-align:center;box-shadow:0 20px 60px #0008}h1{margin:0 0 10px;font-size:24px}p{margin:0 0 22px;color:#aeb5c2;line-height:1.5}.cf-turnstile{display:flex;justify-content:center;min-height:65px}.status{margin-top:16px;color:#aeb5c2;font-size:14px}.err{color:#ff7474}</style></head><body><main class="box"><h1>🛡️ Xác minh truy cập</h1><p>Vui lòng hoàn thành kiểm tra bảo mật để vào Téo Studio.</p>'+(!siteKey?'<div class="status err">Turnstile chưa được cấu hình.</div>':'<div class="cf-turnstile" data-sitekey="'+siteKey+'" data-action="'+BOT_ACTION+'" data-callback="onTurnstile"></div><div id="status" class="status">Đang chờ xác minh...</div>')+'</main><script>const redirect='+JSON.stringify(redirect)+';async function onTurnstile(token){const s=document.getElementById("status");if(s)s.textContent="Đang xác minh...";try{const r=await fetch("/api/verify-turnstile",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({token})});const x=await r.json().catch(()=>({}));if(r.ok&&x.ok){location.replace(redirect);return}if(s){s.className="status err";s.textContent="Xác minh thất bại, hãy thử lại."}if(window.turnstile)window.turnstile.reset()}catch{if(s){s.className="status err";s.textContent="Không thể kết nối máy chủ. Hãy thử lại."}if(window.turnstile)window.turnstile.reset()}}</script><script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script></body></html>';
-
-  return new Response(html,{
-    status:403,
-    headers:{
-      'content-type':'text/html;charset=utf-8',
-      'cache-control':'no-store'
-    }
-  });
-}
-
-async function verifyTurnstile(r,e){
-  const secret=String(e.TURNSTILE_SECRET||'');
-  const siteKey=String(e.TURNSTILE_SITE_KEY||'');
-
-  if(!secret||!siteKey){
-    return J({ok:false,error:'TURNSTILE_NOT_CONFIGURED'},500);
-  }
-
-  const b=await r.json().catch(()=>({}));
-  const token=typeof b.token==='string'?b.token.trim():'';
-
-  if(!token||token.length>2048){
-    return J({ok:false,error:'INVALID_TURNSTILE_TOKEN'},400);
-  }
-
-  try{
-    const vr=await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify',{
-      method:'POST',
-      headers:{'content-type':'application/json'},
-      body:JSON.stringify({
-        secret,
-        response:token,
-        remoteip:r.headers.get('CF-Connecting-IP')||''
-      })
-    });
-
-    const result=await vr.json().catch(()=>({success:false}));
-    const hostname=new URL(r.url).hostname;
-
-    if(!vr.ok||!result.success||result.action!==BOT_ACTION||result.hostname!==hostname){
-      return J({ok:false,error:'TURNSTILE_FAILED'},403);
-    }
-
-    const exp=Date.now()+BOT_TTL;
-    const sig=await hmacHex(secret,String(exp));
-
-    return new Response(
-      JSON.stringify({ok:true,expiresIn:BOT_TTL}),
-      {
-        headers:{
-          ...C,
-          'set-cookie':BOT_COOKIE+'='+exp+'.'+sig+'; Max-Age='+Math.floor(BOT_TTL/1000)+'; Path=/; Secure; HttpOnly; SameSite=Lax'
-        }
-      }
-    );
-  }catch{
-    return J({ok:false,error:'TURNSTILE_VERIFY_ERROR'},502);
-  }
-}
 let schemaReady=null;
 async function sha256(s){const b=new TextEncoder().encode(s);const h=await crypto.subtle.digest('SHA-256',b);return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 async function ensureSchema(e){
@@ -150,15 +34,6 @@ async function bumpView(e,kind,productId=''){
 async function comments(e){return (await e.DB.prepare('SELECT id,name,text,image,created_at FROM comments WHERE visible=1 ORDER BY created_at DESC LIMIT 50').all()).results||[]}
 async function stats(e,days=30){const n=Math.max(7,Math.min(Number(days)||30,365));const rows=(await e.DB.prepare(`SELECT day,kind,product_id,views FROM view_daily WHERE day>=date(?, '-'||?||' days') ORDER BY day ASC`).bind(dayVN(),n-1).all()).results||[];const prods=await e.DB.prepare('SELECT id,title,views FROM products ORDER BY views DESC,updated_at DESC').all();return {days:n,rows,products:prods.results||[],today:rows.filter(x=>x.day===dayVN()).reduce((a,x)=>a+Number(x.views||0),0)} }
 export default{async fetch(r,e){if(r.method==='OPTIONS')return new Response(null,{headers:C});const u=new URL(r.url),p=u.pathname.replace(/\/$/,'');try{
-
-    if(p==='/api/verify-turnstile'&&r.method==='POST'){
-      return await verifyTurnstile(r,e);
-    }
-
-    // Health stays public so it can be used for a basic uptime check.
-    if(p!=='/api/health'&&!(await botCookieValid(r,e))){
-      return challengeResponse(r,e);
-    }
   await ensureSchema(e);
   if(p==='/api/health')return J({ok:true,service:'teo-studio-api-mini',version:'3.0',auth:'d1-session'});
   if(p==='/api/products'&&r.method==='GET')return J({ok:true,products:await products(e)});
