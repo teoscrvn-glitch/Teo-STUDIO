@@ -1,41 +1,29 @@
-# Lại Húp File — bản rút gọn từ Téo Studio v10
+# Téo Studio
 
-Bản này giữ lại giao diện/vibe chính nhưng bỏ toàn bộ hệ thống kiếm tiền, điểm, rút tiền, tài khoản, giới thiệu, duyệt nguồn và nhiệm vụ.
+Bản này giữ nguyên Worker + D1 hiện tại và bổ sung hệ thống **thuê Share File riêng**.
 
-## Còn lại
-- Trang chia sẻ file
-- Tag / game và lọc file
-- Tìm kiếm
-- Chi tiết + link tải
-- Popup thông báo
-- Khu thông báo cập nhật (file / tag / video)
-- Video MP4 trang trí trên đầu trang: đã cài sẵn link Téo cung cấp
-- Admin: thêm/sửa/xóa file
-- Admin: thêm/sửa/xóa tag
-- Admin: sửa thông báo
-- Admin: sửa vài thông tin giao diện
-- Dữ liệu dùng chung qua Cloudflare Worker + D1
+## D1 hiện tại — KHÔNG đổi
+- Database: `teo-studio`
+- Database ID: `567f1c65-c144-414e-8bc4-26a3a0d276ca`
+- Binding: `DB`
 
-## Deploy
-1. Tạo D1 và thay `YOUR_D1_DATABASE_ID` trong `cloudflare/wrangler.toml`.
-2. Chạy: `npx wrangler d1 execute teo-studio-mini --remote --file=cloudflare/schema.sql`
-3. Tạo secret: `npx wrangler secret put ADMIN_KEY`
-4. Deploy Worker: `cd cloudflare && npx wrangler deploy`
-5. Nếu Worker URL khác URL hiện tại, sửa `frontend/assets/js/config.js`.
-6. Upload thư mục `frontend` lên GitHub Pages/hosting tĩnh.
+Worker sẽ tự tạo các bảng `tenant_*` cần thiết khi chạy lần đầu; không drop/xóa các bảng cũ.
 
-Admin key chỉ được nhập trong trình duyệt admin và gửi qua HTTPS tới Worker. Không đặt ADMIN_KEY trong source frontend.
+## Luồng thuê Share File
+- Người dùng vào `rent.html` → đăng nhập ID + mật khẩu hoặc IB Zalo Téo.
+- Master Admin tạo tenant, đặt ID + mật khẩu + số ngày thuê.
+- Mỗi tenant có slug/link Share File cố định và link Admin cố định.
+- ID tenant không thể đổi.
+- Tenant có file, tag, bình luận, giao diện và thống kê riêng.
+- Tenant đổi được mật khẩu; đổi mật khẩu sẽ đăng xuất các phiên cũ.
+- Master Admin có tìm kiếm ID, gia hạn ngày, đổi mật khẩu, khóa/mở khóa, xem link và xóa tenant.
+- Cảnh báo khi còn 7 ngày; hết hạn sẽ khóa truy cập. Sau 6 ngày kể từ hạn, Cron tự xóa dữ liệu tenant.
+- Không có chức năng kiếm tiền trong bản này.
 
+## Deploy Worker
+```bash
+cd cloudflare
+npx wrangler deploy
+```
 
-## Admin auth v2
-Admin now uses a D1-backed session login. On first initialization, the default password is `123456`; change it immediately in Admin → Giao diện → Đổi mật khẩu. No ADMIN_KEY Worker secret is required.
-
-## v3.0 update
-- Vietnam time is formatted at the UI layer (`Asia/Ho_Chi_Minh`) without rewriting existing D1 timestamps.
-- Real product view tracking + daily site/product/outbound analytics.
-- Admin dashboard: today totals, 30-day/1-year history, per-file views and outbound counts; auto-refreshes every 3 minutes.
-- Public comments at the bottom of the home page, with 10-minute auto-refresh.
-- Parent/sub-tag hierarchy; tag creation is now inside File / Code instead of a separate admin section.
-- Donate Téo button + configurable QR in Admin > Giao diện.
-- UI/button/card animations with reduced-motion support.
-- Video tries autoplay with sound first; browsers that block audible autoplay fall back to muted playback with the sound toggle.
+Wrangler đã cấu hình Cron chạy mỗi giờ để dọn tenant hết hạn quá 6 ngày.
