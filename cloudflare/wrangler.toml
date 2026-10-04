@@ -10,6 +10,3 @@ binding = "ASSETS"
 binding = "DB"
 database_name = "teo-studio"
 database_id = "567f1c65-c144-414e-8bc4-26a3a0d276ca"
-
-[triggers]
-crons = ["0 * * * *"]
