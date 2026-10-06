@@ -1,3 +1,4 @@
+-- Rental schema for Teo Studio. The Worker also performs safe IF NOT EXISTS creation/migration.
 PRAGMA foreign_keys=ON;
 CREATE TABLE IF NOT EXISTS tenant_accounts (id TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT(datetime('now')), starts_at TEXT NOT NULL, expires_at TEXT NOT NULL, locked INTEGER NOT NULL DEFAULT 0, deleted_at TEXT DEFAULT NULL);
 CREATE TABLE IF NOT EXISTS tenant_sessions (token TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, expires_at INTEGER NOT NULL);
