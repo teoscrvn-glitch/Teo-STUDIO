@@ -28,7 +28,7 @@ Admin key chỉ được nhập trong trình duyệt admin và gửi qua HTTPS t
 
 
 ## Admin auth v2
-Admin now uses a D1-backed session login. On first initialization, the default password is `123456`; change it immediately in Admin → Giao diện → Đổi mật khẩu. No ADMIN_KEY Worker secret is required.
+Admin login uses the Cloudflare Worker Secret `ADMIN_KEY` only. Enter that Admin Key in the Admin login screen; D1 stores only the temporary admin session token.
 
 ## v3.0 update
 - Vietnam time is formatted at the UI layer (`Asia/Ho_Chi_Minh`) without rewriting existing D1 timestamps.
