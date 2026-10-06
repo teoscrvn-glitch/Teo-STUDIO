@@ -39,3 +39,6 @@ Admin login uses the Cloudflare Worker Secret `ADMIN_KEY` only. Enter that Admin
 - Donate Téo button + configurable QR in Admin > Giao diện.
 - UI/button/card animations with reduced-motion support.
 - Video tries autoplay with sound first; browsers that block audible autoplay fall back to muted playback with the sound toggle.
+
+
+Admin auth in this rental build: the master Admin login uses the Cloudflare Worker Secret `ADMIN_KEY`; D1 is used for admin sessions/data and is not the master password source.
