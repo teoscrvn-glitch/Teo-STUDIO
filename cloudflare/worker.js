@@ -104,6 +104,12 @@ async function ensureTenantSchema(e){
     await tenantExec(e,`CREATE TABLE IF NOT EXISTS tenant_sessions (
       token TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, expires_at INTEGER NOT NULL
     )`);
+    // Legacy rental builds may already have tenant_sessions with a different/older
+    // shape. CREATE TABLE IF NOT EXISTS does not migrate an existing table, so make
+    // the three fields used by the current auth flow available additively.
+    await tenantAddColumn(e,'tenant_sessions','token','TEXT');
+    await tenantAddColumn(e,'tenant_sessions','tenant_id','TEXT');
+    await tenantAddColumn(e,'tenant_sessions','expires_at','INTEGER');
     await tenantExec(e,`CREATE TABLE IF NOT EXISTS tenant_products (
       id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, title TEXT NOT NULL, game TEXT NOT NULL DEFAULT '',
       description TEXT DEFAULT '', thumb TEXT DEFAULT '', download_link TEXT NOT NULL,
@@ -219,7 +225,16 @@ function tenantDaysLeft(x){
   return Number.isFinite(ex)?Math.max(0,Math.ceil((ex-Date.now())/86400000)):0;
 }
 function tenantInfo(x){return {id:x?.id??x?.tenant_id,slug:x?.slug??x?.tenant_id??x?.id,startsAt:x?.starts_at,expiresAt:x?.expires_at,daysLeft:tenantDaysLeft(x),status:tenantStatus(x),locked:!!x?.locked,createdAt:x?.created_at}}
-async function tenantBySlug(e,slug){await ensureTenantSchema(e);return e.DB.prepare('SELECT * FROM tenant_accounts WHERE slug=? AND deleted_at IS NULL').bind(tenantSlug(slug)).first()}
+async function tenantBySlug(e,slug){
+  await ensureTenantSchema(e);
+  const raw=clean(slug,80);
+  const normalized=tenantSlug(raw);
+  // Older tenants may have been created with mixed-case IDs before the rental
+  // build normalized slugs. Login should not break those existing accounts.
+  return e.DB.prepare(
+    `SELECT * FROM tenant_accounts WHERE (slug=? OR lower(slug)=lower(?)) AND (deleted_at IS NULL OR deleted_at='') LIMIT 1`
+  ).bind(normalized,raw).first();
+}
 async function tenantFromSession(r,e){const t=tokenFrom(r);if(!t)return null;await ensureTenantSchema(e);const key=await tenantAccountKeyColumn(e);const row=await e.DB.prepare(`SELECT a.* FROM tenant_sessions s JOIN tenant_accounts a ON a.${key}=s.tenant_id WHERE s.token=? AND s.expires_at>? AND (a.deleted_at IS NULL OR a.deleted_at='')`).bind(t,Date.now()).first();return normalizeTenantRow(e,row)}
 async function tenantSettings(e,tid){const rows=(await e.DB.prepare('SELECT key,value FROM tenant_settings WHERE tenant_id=?').bind(tid).all()).results||[];const out={siteName:'Lại Húp File',studio:'Téo Studio',heroTitle:'Kho Share File riêng',heroText:'Kho file riêng của bạn.',avatar:'assets/img/default-avatar.svg',groupLink:'#',adminContact:'#',announcementEnabled:false,announcementTitle:'Thông báo',announcementText:''};for(const x of rows){try{out[x.key]=JSON.parse(x.value)}catch{out[x.key]=x.value}}return out}
 async function tenantProducts(e,tid,admin=false){return (await e.DB.prepare(`SELECT * FROM tenant_products WHERE tenant_id=? ${admin?'':'AND visible=1'} ORDER BY updated_at DESC`).bind(tid).all()).results||[]}
@@ -421,7 +436,7 @@ async function bumpView(e,kind,productId=''){
 async function comments(e){return (await e.DB.prepare('SELECT id,name,text,image,created_at FROM comments WHERE visible=1 ORDER BY created_at DESC LIMIT 50').all()).results||[]}
 async function stats(e,days=30){const n=Math.max(7,Math.min(Number(days)||30,365));const rows=(await e.DB.prepare(`SELECT day,kind,product_id,views FROM view_daily WHERE day>=date(?, '-'||?||' days') ORDER BY day ASC`).bind(dayVN(),n-1).all()).results||[];const prods=await e.DB.prepare('SELECT id,title,views FROM products ORDER BY views DESC,updated_at DESC').all();return {days:n,rows,products:prods.results||[],today:rows.filter(x=>x.day===dayVN()).reduce((a,x)=>a+Number(x.views||0),0)} }
 export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}},async fetch(r,e){if(r.method==='OPTIONS')return new Response(null,{headers:C});const u=new URL(r.url),p=u.pathname.replace(/\/$/,'');try{
-  if(p==='/api/health')return J({ok:true,service:'teo-studio-api-mini',version:'rental-v18-safe',auth:'admin-key-session'});
+  if(p==='/api/health')return J({ok:true,service:'teo-studio-api-mini',version:'rental-v24-safe',auth:'admin-key-session'});
   if(p==='/api/admin/login'&&r.method==='POST'){await ensureAdminSessionSchema(e);const b=await r.json().catch(()=>({}));const supplied=clean(b.adminKey??b.password??'',500);const expected=clean(e.ADMIN_KEY??'',500);if(!expected)return J({ok:false,error:'ADMIN_KEY_MISSING'},500);if(!supplied||supplied!==expected)return J({ok:false,error:'INVALID_ADMIN_KEY'},401);const token=crypto.randomUUID()+crypto.randomUUID();await e.DB.prepare('INSERT INTO admin_sessions(token,expires_at) VALUES(?,?)').bind(token,Date.now()+7*24*60*60*1000).run();return J({ok:true,token,expiresIn:7*24*60*60*1000})}
   await ensureSchema(e);
   if(p==='/api/products'&&r.method==='GET')return J({ok:true,products:await products(e)});
@@ -433,7 +448,25 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   if(p==='/api/track/site'&&r.method==='POST'){await bumpView(e,'site');return J({ok:true})}
   let tv=p.match(/^\/api\/track\/product\/([^/]+)$/);if(tv&&r.method==='POST'){const id=decodeURIComponent(tv[1]);const product=await productById(e,id);if(!product)return J({ok:false,error:'NOT_FOUND'},404);await bumpView(e,'product',id);return J({ok:true,views:Number(product.views||0)+1})}
   let to=p.match(/^\/api\/track\/outbound\/([^/]+)$/);if(to&&r.method==='POST'){const id=decodeURIComponent(to[1]);const product=await productById(e,id);if(!product)return J({ok:false,error:'NOT_FOUND'},404);await bumpView(e,'outbound',id);return J({ok:true})}
-  if(p==='/api/tenant/login'&&r.method==='POST'){await ensureTenantSchema(e);const b=await r.json().catch(()=>({}));const t=await tenantBySlug(e,b.tenant||b.id);if(!t)return J({ok:false,error:'INVALID_LOGIN'},401);const st=tenantStatus(t);if(st==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);if(st==='expired')return J({ok:false,error:'TENANT_EXPIRED'},403);if((await sha256(String(b.password||'')))!==t.password_hash)return J({ok:false,error:'INVALID_LOGIN'},401);const token=crypto.randomUUID()+crypto.randomUUID();await e.DB.prepare('INSERT INTO tenant_sessions(token,tenant_id,expires_at) VALUES(?,?,?)').bind(token,t.id,Date.now()+7*86400000).run();return J({ok:true,token,tenant:tenantInfo(t),adminUrl:`/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`/share.html?tenant=${encodeURIComponent(t.slug)}`})}
+  if(p==='/api/tenant/login'&&r.method==='POST'){
+    try{
+      await ensureTenantSchema(e);
+      const b=await r.json().catch(()=>({}));
+      const t0=await tenantBySlug(e,b.tenant||b.id);
+      if(!t0)return J({ok:false,error:'INVALID_LOGIN'},401);
+      const t=await normalizeTenantRow(e,t0);
+      const st=tenantStatus(t);
+      if(st==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);
+      if(st==='expired')return J({ok:false,error:'TENANT_EXPIRED'},403);
+      if((await sha256(String(b.password||'')))!==t.password_hash)return J({ok:false,error:'INVALID_LOGIN'},401);
+      const token=crypto.randomUUID()+crypto.randomUUID();
+      const accountKey=await tenantAccountKeyColumn(e);
+      const sessionTenantId=t?.[accountKey]??t.id??t.tenant_id;
+      if(!sessionTenantId)return J({ok:false,error:'TENANT_KEY_MISSING'},500);
+      await e.DB.prepare('INSERT INTO tenant_sessions(token,tenant_id,expires_at) VALUES(?,?,?)').bind(token,sessionTenantId,Date.now()+7*86400000).run();
+      return J({ok:true,token,tenant:tenantInfo(t),adminUrl:`/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`/share.html?tenant=${encodeURIComponent(t.slug)}`});
+    }catch(x){return J({ok:false,error:'TENANT_LOGIN_DB_ERROR',detail:String(x?.message||x)},500)}
+  }
   if(p.startsWith('/api/public-tenant/'))return await handleTenantPublic(r,e);
   if(p.startsWith('/api/tenant/')&&p!=='/api/tenant/login')return await handleTenantAdmin(r,e);
   if(p.startsWith('/api/admin/tenants'))return await handleMasterTenant(r,e);
