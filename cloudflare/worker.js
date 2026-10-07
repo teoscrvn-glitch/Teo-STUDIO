@@ -299,7 +299,22 @@ async function tenantByIdentifier(e,value){
   const deleted=names.has('deleted_at')?" AND (deleted_at IS NULL OR deleted_at='')":'';
   return e.DB.prepare(`SELECT * FROM tenant_accounts WHERE (${where.join(' OR ')})${deleted} LIMIT 1`).bind(...binds).first();
 }
-async function tenantFromSession(r,e){const t=tokenFrom(r);if(!t)return null;await ensureTenantSchema(e);const key=await tenantAccountKeyColumn(e);const row=await e.DB.prepare(`SELECT a.* FROM tenant_sessions s JOIN tenant_accounts a ON a.${key}=s.tenant_id WHERE s.token=? AND s.expires_at>? AND (a.deleted_at IS NULL OR a.deleted_at='')`).bind(t,Date.now()).first();return normalizeTenantRow(e,row)}
+async function tenantFromSession(r,e){
+  const tok=tokenFrom(r);if(!tok)return null;await ensureTenantSchema(e);
+  const row=await e.DB.prepare('SELECT tenant_id FROM tenant_sessions WHERE token=? AND expires_at>?').bind(tok,Date.now()).first();
+  if(!row?.tenant_id)return null;
+  const cols=(await e.DB.prepare('PRAGMA table_info(tenant_accounts)').all()).results||[];
+  const names=new Set(cols.map(x=>x.name));
+  const where=[],vals=[]; const sid=clean(row.tenant_id,100);
+  for(const col of ['id','tenant_id','slug']){
+    if(!names.has(col))continue;
+    where.push(`(${col}=? OR lower(${col})=lower(?))`);vals.push(sid,sid);
+  }
+  if(!where.length)return null;
+  const a=await e.DB.prepare(`SELECT * FROM tenant_accounts WHERE (${where.join(' OR ')}) AND (deleted_at IS NULL OR deleted_at='') ORDER BY rowid DESC LIMIT 1`).bind(...vals).first();
+  return normalizeTenantRow(e,a);
+}
+
 async function tenantSettings(e,t){const k=tenantInSql(t);const rows=(await e.DB.prepare(`SELECT key,value FROM tenant_settings WHERE ${k.clause}`).bind(...k.vals).all()).results||[];const out={siteName:'Lại Húp File',studio:'Téo Studio',heroTitle:'Kho Share File riêng',heroText:'Kho file riêng của bạn.',avatar:'assets/img/default-avatar.svg',avatarVideoUrl:'',groupLink:'#',adminContact:'#',announcementEnabled:true,announcementTitle:'Thông báo từ Téo Studio',announcementText:'Hãy đọc kỹ thông báo trước khi vào web.',donateTitle:'Ủng hộ Téo',donateText:'Nếu thấy web hữu ích, bạn có thể donate để Téo có thêm động lực duy trì và nâng cấp web.',donateQr:'',ownerName:'Téo Studio',ownerText:'Kho Share File được vận hành bởi Téo Studio.',adText:'',adLink:'#',heroBackground:''};for(const x of rows){try{out[x.key]=JSON.parse(x.value)}catch{out[x.key]=x.value}}return out}
 async function tenantProducts(e,t,admin=false){const k=tenantInSql(t);return (await e.DB.prepare(`SELECT * FROM tenant_products WHERE ${k.clause} ${admin?'':'AND visible=1'} ORDER BY updated_at DESC`).bind(...k.vals).all()).results||[]}
 async function tenantTags(e,t){const k=tenantInSql(t);return (await e.DB.prepare(`SELECT id,name,parent_id,created_at FROM tenant_tags WHERE ${k.clause} ORDER BY name COLLATE NOCASE`).bind(...k.vals).all()).results||[]}
@@ -409,29 +424,32 @@ async function handleTenantAdmin(r,e){
   if(tc){const id=decodeURIComponent(tc[1]);if(r.method==='DELETE'){{const k=tenantInSql(t);await e.DB.prepare(`DELETE FROM tenant_comments WHERE ${k.clause} AND id=?`).bind(...k.vals,id).run()};return J({ok:true})}if(r.method==='PUT'){const b=await r.json().catch(()=>({}));if(typeof b.visible!=='boolean')return J({ok:false,error:'VISIBLE_REQUIRED'},400);{const k=tenantInSql(t);await e.DB.prepare(`UPDATE tenant_comments SET visible=? WHERE ${k.clause} AND id=?`).bind(b.visible?1:0,...k.vals,id).run()};await tenantLog(e,t.id,t.id,b.visible?'comment_show':'comment_hide',id);return J({ok:true,visible:b.visible})}}
   if(p==='/api/tenant/settings'&&r.method==='GET')return J({ok:true,settings:await tenantSettings(e,t)});
   if(p==='/api/tenant/settings'&&r.method==='PUT'){const b=await r.json().catch(()=>({}));const keys=tenantKeyValues(t);for(const [k,v] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','heroBackground','avatarVideoUrl','groupLink','adminContact','announcementEnabled','announcementTitle','announcementText','donateTitle','donateText','donateQr','ownerName','ownerText','adText','adLink'].includes(k))continue;for(const tid of keys){await e.DB.prepare('INSERT INTO tenant_settings(tenant_id,key,value) VALUES(?,?,?) ON CONFLICT(tenant_id,key) DO UPDATE SET value=excluded.value').bind(tid,k,JSON.stringify(v)).run()}}return J({ok:true})}
-  if(p==='/api/tenant/confirm-status'&&r.method==='GET')return J({ok:true,configured:!!t.admin_confirm_password_hash});
-  if(p==='/api/tenant/confirm-setup'&&r.method==='POST'){
-    const b=await r.json().catch(()=>({})),loginPass=String(b.loginPassword||''),confirmPass=String(b.confirmPassword||'');
-    if(confirmPass.length<6)return J({ok:false,error:'CONFIRM_PASSWORD_TOO_SHORT'},400);
-    if(!(await tenantPasswordMatches(e,t,loginPass)))return J({ok:false,error:'INVALID_LOGIN_PASSWORD'},401);
+  if(p==='/api/tenant/confirm-status'&&r.method==='GET'){
+    return J({ok:true,configured:!!String(t.admin_confirm_password_hash||'')});
+  }
+  if(p==='/api/tenant/confirm-password'&&r.method==='POST'){
+    const b=await r.json().catch(()=>({}));const np=String(b.newPassword||'');
+    if(np.length<6)return J({ok:false,error:'CONFIRM_PASSWORD_TOO_SHORT'},400);
+    if(String(t.admin_confirm_password_hash||''))return J({ok:false,error:'CONFIRM_PASSWORD_ALREADY_SET'},409);
     const key=await tenantAccountKeyColumn(e);if(!key)return J({ok:false,error:'TENANT_SCHEMA_KEY_MISSING'},500);
-    const hash=await sha256(confirmPass);await e.DB.prepare(`UPDATE tenant_accounts SET admin_confirm_password_hash=? WHERE ${key}=?`).bind(hash,t.id).run();
+    const hash=await sha256(np);await e.DB.prepare(`UPDATE tenant_accounts SET admin_confirm_password_hash=? WHERE ${key}=?`).bind(hash,t.id).run();
     return J({ok:true,configured:true});
   }
   if(p==='/api/tenant/verify-confirm-password'&&r.method==='POST'){
-    const b=await r.json().catch(()=>({})),pass=String(b.password||'');
+    const b=await r.json().catch(()=>({}));const pass=String(b.password||'');
+    if(!String(t.admin_confirm_password_hash||''))return J({ok:false,error:'CONFIRM_PASSWORD_NOT_SET'},409);
     if(!pass)return J({ok:false,error:'PASSWORD_REQUIRED'},400);
-    if(!t.admin_confirm_password_hash)return J({ok:false,error:'CONFIRM_PASSWORD_NOT_SET'},409);
-    if(String(await sha256(pass))!==String(t.admin_confirm_password_hash))return J({ok:false,error:'INVALID_CONFIRM_PASSWORD'},401);
+    const ok=String(t.admin_confirm_password_hash)===await sha256(pass);
+    if(!ok)return J({ok:false,error:'INVALID_CONFIRM_PASSWORD'},401);
     return J({ok:true,verified:true});
   }
-  if(p==='/api/tenant/change-confirm-password'&&r.method==='PUT'){
-    const b=await r.json().catch(()=>({})),oldPass=String(b.oldPassword||''),newPass=String(b.newPassword||'');
-    if(newPass.length<6)return J({ok:false,error:'CONFIRM_PASSWORD_TOO_SHORT'},400);
-    if(!t.admin_confirm_password_hash)return J({ok:false,error:'CONFIRM_PASSWORD_NOT_SET'},409);
-    if(String(await sha256(oldPass))!==String(t.admin_confirm_password_hash))return J({ok:false,error:'INVALID_CONFIRM_PASSWORD'},401);
+  if(p==='/api/tenant/confirm-password'&&r.method==='PUT'){
+    const b=await r.json().catch(()=>({}));const old=String(b.oldPassword||''),np=String(b.newPassword||'');
+    if(np.length<6)return J({ok:false,error:'CONFIRM_PASSWORD_TOO_SHORT'},400);
+    if(!String(t.admin_confirm_password_hash||''))return J({ok:false,error:'CONFIRM_PASSWORD_NOT_SET'},409);
+    if(String(t.admin_confirm_password_hash)!==await sha256(old))return J({ok:false,error:'INVALID_CONFIRM_PASSWORD'},401);
     const key=await tenantAccountKeyColumn(e);if(!key)return J({ok:false,error:'TENANT_SCHEMA_KEY_MISSING'},500);
-    await e.DB.prepare(`UPDATE tenant_accounts SET admin_confirm_password_hash=? WHERE ${key}=?`).bind(await sha256(newPass),t.id).run();
+    await e.DB.prepare(`UPDATE tenant_accounts SET admin_confirm_password_hash=? WHERE ${key}=?`).bind(await sha256(np),t.id).run();
     return J({ok:true,configured:true});
   }
   if(p==='/api/tenant/password'&&r.method==='PUT'){
@@ -565,11 +583,10 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
       if(st==='expired')return J({ok:false,error:'TENANT_EXPIRED'},403);
       if(!(await tenantPasswordMatches(e,t,b.password)))return J({ok:false,error:'INVALID_LOGIN'},401);
       const token=crypto.randomUUID()+crypto.randomUUID();
-      const accountKey=await tenantAccountKeyColumn(e);
-      const sessionTenantId=t?.[accountKey]??t.id??t.tenant_id;
+      const sessionTenantId=clean(t?.id??t?.tenant_id??t?.slug,100);
       if(!sessionTenantId)return J({ok:false,error:'TENANT_KEY_MISSING'},500);
       await e.DB.prepare('INSERT INTO tenant_sessions(token,tenant_id,expires_at) VALUES(?,?,?)').bind(token,sessionTenantId,Date.now()+7*86400000).run();
-      return J({ok:true,token,confirmConfigured:!!t.admin_confirm_password_hash,tenant:tenantInfo(t),adminUrl:`/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`/share.html?tenant=${encodeURIComponent(t.slug)}`});
+      return J({ok:true,token,tenant:tenantInfo(t),adminUrl:`/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`/share.html?tenant=${encodeURIComponent(t.slug)}`});
     }catch(x){return J({ok:false,error:'TENANT_LOGIN_DB_ERROR',detail:String(x?.message||x)},500)}
   }
   if(p.startsWith('/api/public-tenant/'))return await handleTenantPublic(r,e);
