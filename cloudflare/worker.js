@@ -76,6 +76,17 @@ async function tenantAddColumn(e,table,column,type){
   // Add nullable columns first, then backfill them separately.
   try{await tenantExec(e,`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`)}catch{}
 }
+
+async function tenantAccountKeyColumn(e){
+  if(await tenantHasColumn(e,'tenant_accounts','id'))return 'id';
+  if(await tenantHasColumn(e,'tenant_accounts','tenant_id'))return 'tenant_id';
+  return 'id';
+}
+async function normalizeTenantRow(e,x){
+  if(!x)return null;
+  const key=x.id ?? x.tenant_id ?? x.slug;
+  return {...x,id:key,slug:x.slug ?? x.tenant_id ?? key};
+}
 async function ensureTenantSchema(e){
   if(tenantSchemaReady)return tenantSchemaReady;
   tenantSchemaReady=(async()=>{
@@ -119,6 +130,32 @@ async function ensureTenantSchema(e){
     // Safe migrations for databases created by earlier rental builds.
     // Use constant/nullable ALTER TABLE definitions; SQLite rejects expressions such as
     // DEFAULT(datetime('now')) when adding a column to an existing table.
+    //
+    // IMPORTANT: some early rental builds used `tenant_id` as the account key instead
+    // of `id`. CREATE TABLE IF NOT EXISTS cannot change that existing table, so newer
+    // INSERT/SELECT statements would fail with `no column named id`. Add the new `id`
+    // column in-place and preserve the old key values. This is additive and does not
+    // reset or delete any existing tenant data.
+    const tenantAccountHasId=await tenantHasColumn(e,'tenant_accounts','id');
+    const tenantAccountHasTenantId=await tenantHasColumn(e,'tenant_accounts','tenant_id');
+    // Older rental builds may have tenant_id as the primary key and may also lack
+    // some newer account fields. Add only nullable columns; never rebuild/drop the table.
+    await tenantAddColumn(e,'tenant_accounts','slug','TEXT');
+    await tenantAddColumn(e,'tenant_accounts','password_hash','TEXT');
+    await tenantAddColumn(e,'tenant_accounts','starts_at','TEXT');
+    await tenantAddColumn(e,'tenant_accounts','expires_at','TEXT');
+    if(!tenantAccountHasId){
+      await tenantAddColumn(e,'tenant_accounts','id','TEXT');
+      if(tenantAccountHasTenantId){
+        try{await tenantExec(e,"UPDATE tenant_accounts SET id=tenant_id WHERE id IS NULL OR id=''")}catch{}
+      }
+      if(!tenantAccountHasTenantId){
+        try{await tenantExec(e,"UPDATE tenant_accounts SET id=slug WHERE id IS NULL OR id=''")}catch{}
+      }
+    }
+    if(await tenantHasColumn(e,'tenant_accounts','tenant_id')){
+      try{await tenantExec(e,"UPDATE tenant_accounts SET slug=tenant_id WHERE (slug IS NULL OR slug='') AND tenant_id IS NOT NULL")}catch{}
+    }
     await tenantAddColumn(e,'tenant_accounts','locked','INTEGER');
     await tenantAddColumn(e,'tenant_accounts','deleted_at','TEXT');
     await tenantAddColumn(e,'tenant_accounts','created_at','TEXT');
@@ -168,12 +205,13 @@ function tenantDaysLeft(x){
   const ex=Date.parse(String(x?.expires_at||'').replace(' ','T')+'Z');
   return Number.isFinite(ex)?Math.max(0,Math.ceil((ex-Date.now())/86400000)):0;
 }
-function tenantInfo(x){return {id:x.id,slug:x.slug,startsAt:x.starts_at,expiresAt:x.expires_at,daysLeft:tenantDaysLeft(x),status:tenantStatus(x),locked:!!x.locked,createdAt:x.created_at}}
+function tenantInfo(x){return {id:x?.id??x?.tenant_id,slug:x?.slug??x?.tenant_id??x?.id,startsAt:x?.starts_at,expiresAt:x?.expires_at,daysLeft:tenantDaysLeft(x),status:tenantStatus(x),locked:!!x?.locked,createdAt:x?.created_at}}
 async function tenantBySlug(e,slug){await ensureTenantSchema(e);return e.DB.prepare('SELECT * FROM tenant_accounts WHERE slug=? AND deleted_at IS NULL').bind(tenantSlug(slug)).first()}
-async function tenantFromSession(r,e){const t=tokenFrom(r);if(!t)return null;await ensureTenantSchema(e);const row=await e.DB.prepare('SELECT a.* FROM tenant_sessions s JOIN tenant_accounts a ON a.id=s.tenant_id WHERE s.token=? AND s.expires_at>? AND a.deleted_at IS NULL').bind(t,Date.now()).first();return row||null}
+async function tenantFromSession(r,e){const t=tokenFrom(r);if(!t)return null;await ensureTenantSchema(e);const key=await tenantAccountKeyColumn(e);const row=await e.DB.prepare(`SELECT a.* FROM tenant_sessions s JOIN tenant_accounts a ON a.${key}=s.tenant_id WHERE s.token=? AND s.expires_at>? AND (a.deleted_at IS NULL OR a.deleted_at='')`).bind(t,Date.now()).first();return normalizeTenantRow(e,row)}
 async function tenantSettings(e,tid){const rows=(await e.DB.prepare('SELECT key,value FROM tenant_settings WHERE tenant_id=?').bind(tid).all()).results||[];const out={siteName:'Lại Húp File',studio:'Téo Studio',heroTitle:'Kho Share File riêng',heroText:'Kho file riêng của bạn.',avatar:'assets/img/default-avatar.svg',groupLink:'#',adminContact:'#',announcementEnabled:false,announcementTitle:'Thông báo',announcementText:''};for(const x of rows){try{out[x.key]=JSON.parse(x.value)}catch{out[x.key]=x.value}}return out}
 async function tenantProducts(e,tid,admin=false){return (await e.DB.prepare(`SELECT * FROM tenant_products WHERE tenant_id=? ${admin?'':'AND visible=1'} ORDER BY updated_at DESC`).bind(tid).all()).results||[]}
 async function tenantTags(e,tid){return (await e.DB.prepare('SELECT id,name,parent_id,created_at FROM tenant_tags WHERE tenant_id=? ORDER BY name COLLATE NOCASE').bind(tid).all()).results||[]}
+async function tenantComments(e,tid,admin=false){return (await e.DB.prepare(`SELECT id,name,text,image,created_at,visible FROM tenant_comments WHERE tenant_id=? ${admin?'':'AND visible=1'} ORDER BY created_at DESC`).bind(tid).all()).results||[]}
 async function tenantAudit(e,tid){return (await e.DB.prepare('SELECT actor,action,detail,created_at FROM tenant_audit_log WHERE tenant_id=? ORDER BY created_at DESC LIMIT 100').bind(tid).all()).results||[]}
 async function tenantLog(e,tid,actor,action,detail=''){await e.DB.prepare('INSERT INTO tenant_audit_log(id,tenant_id,actor,action,detail) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),tid,actor,action,clean(detail,1000)).run()}
 async function tenantBump(e,tid,kind,pid=''){const day=dayVN();await e.DB.prepare(`INSERT INTO tenant_views(tenant_id,day,kind,product_id,views) VALUES(?,?,?,?,1) ON CONFLICT(tenant_id,day,kind,product_id) DO UPDATE SET views=views+1`).bind(tid,day,kind,pid).run();if(kind==='product'&&pid)await e.DB.prepare('UPDATE tenant_products SET views=COALESCE(views,0)+1 WHERE tenant_id=? AND id=?').bind(tid,pid).run()}
@@ -181,17 +219,22 @@ async function tenantStats(e,tid,days=30){const n=Math.max(7,Math.min(Number(day
 async function purgeExpired(e){
   await ensureTenantSchema(e);
   const rows=(await e.DB.prepare('SELECT * FROM tenant_accounts').all()).results||[];
+  const key=await tenantAccountKeyColumn(e);
   const now=Date.now();
-  for(const x of rows){
+  for(const raw of rows){const x=await normalizeTenantRow(e,raw);
     if(x.deleted_at)continue;
     const ex=Date.parse(String(x.expires_at||'').replace(' ','T')+'Z');
     if(Number.isFinite(ex)&&now>ex+6*86400000){
-      try{await e.DB.prepare("UPDATE tenant_accounts SET deleted_at=datetime('now') WHERE id=?").bind(x.id).run()}catch{}
-      try{await e.DB.prepare('DELETE FROM tenant_sessions WHERE tenant_id=?').bind(x.id).run()}catch{}
-      try{await tenantLog(e,x.id,'system','auto_delete','Hết hạn gia hạn 6 ngày')}catch{}
+      // Delete the whole tenant dataset after the 6-day grace period.
+      try{await tenantLog(e,x.id,'system','auto_delete','Hết hạn gia hạn 6 ngày — xóa toàn bộ dữ liệu')}catch{}
+      for(const table of ['tenant_sessions','tenant_products','tenant_tags','tenant_comments','tenant_settings','tenant_views','tenant_audit_log']){
+        try{await e.DB.prepare(`DELETE FROM ${table} WHERE tenant_id=?`).bind(x.id).run()}catch{}
+      }
+      try{await e.DB.prepare(`DELETE FROM tenant_accounts WHERE ${key}=?`).bind(x.id).run()}catch{}
     }
   }
 }
+
 async function handleTenantPublic(r,e){
   await ensureTenantSchema(e);
   const u=new URL(r.url),parts=u.pathname.split('/').filter(Boolean);
@@ -206,7 +249,7 @@ async function handleTenantPublic(r,e){
     await tenantBump(e,t.id,'product',id);
     return J({ok:true,product:p,tenant:tenantInfo(t)});
   }
-  if(parts[3]==='comments'&&r.method==='GET')return J({ok:true,comments:(await e.DB.prepare('SELECT id,name,text,image,created_at FROM tenant_comments WHERE tenant_id=? AND visible=1 ORDER BY created_at DESC LIMIT 50').bind(t.id).all()).results||[]});
+  if(parts[3]==='comments'&&r.method==='GET')return J({ok:true,comments:(await e.DB.prepare('SELECT id,name,text,image,created_at FROM tenant_comments WHERE tenant_id=? AND visible=1 ORDER BY created_at DESC LIMIT 5').bind(t.id).all()).results||[]});
   if(parts[3]==='comments'&&r.method==='POST'){
     const b=await r.json().catch(()=>({})),text=clean(b.text,700),name=clean(b.name,40)||'Ẩn danh',image=clean(b.image,1000000);
     if(!text&&!image)return J({ok:false,error:'COMMENT_EMPTY'},400);
@@ -214,14 +257,63 @@ async function handleTenantPublic(r,e){
   }
   return J({ok:false,error:'NOT_FOUND'},404)
 }
-async function handleTenantAdmin(r,e){await ensureTenantSchema(e);const t=await tenantFromSession(r,e);if(!t)return J({ok:false,error:'TENANT_REQUIRED'},401);const status=tenantStatus(t);if(status==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);if(status==='expired')return J({ok:false,error:'TENANT_EXPIRED'},403);const u=new URL(r.url),p=u.pathname;if(p==='/api/tenant/me')return J({ok:true,tenant:tenantInfo(t),settings:await tenantSettings(e,t.id)});if(p==='/api/tenant/products'&&r.method==='GET')return J({ok:true,products:await tenantProducts(e,t.id,true)});if(p==='/api/tenant/products'&&r.method==='POST'){const b=await r.json();if(!b.title||!b.download_link)return J({ok:false,error:'title_and_download_link_required'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO tenant_products(id,tenant_id,title,game,description,thumb,download_link,warning,visible) VALUES(?,?,?,?,?,?,?,?,1)').bind(id,t.id,clean(b.title,200),clean(b.game,100),clean(b.description),clean(b.thumb,1500000),clean(b.download_link,10000),clean(b.warning)).run();await tenantLog(e,t.id,t.id,'product_create',id);return J({ok:true,id},201)}let m=p.match(/^\/api\/tenant\/products\/([^/]+)$/);if(m){const id=m[1];if(r.method==='DELETE'){await e.DB.prepare('DELETE FROM tenant_products WHERE tenant_id=? AND id=?').bind(t.id,id).run();return J({ok:true})}if(r.method==='PUT'){const b=await r.json();await e.DB.prepare('UPDATE tenant_products SET title=?,game=?,description=?,thumb=?,download_link=?,warning=?,visible=?,updated_at=datetime(\'now\') WHERE tenant_id=? AND id=?').bind(clean(b.title,200),clean(b.game,100),clean(b.description),clean(b.thumb,1500000),clean(b.download_link,10000),clean(b.warning),b.visible===false?0:1,t.id,id).run();return J({ok:true})}}if(p==='/api/tenant/tags'&&r.method==='GET')return J({ok:true,tags:await tenantTags(e,t.id)});if(p==='/api/tenant/tags'&&r.method==='POST'){const b=await r.json(),name=clean(b.name,100);if(!name)return J({ok:false,error:'name_required'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO tenant_tags(id,tenant_id,name,parent_id) VALUES(?,?,?,?)').bind(id,t.id,name,clean(b.parent_id,100)||null).run();return J({ok:true,id},201)}let tg=p.match(/^\/api\/tenant\/tags\/([^/]+)$/);if(tg&&r.method==='DELETE'){await e.DB.prepare('DELETE FROM tenant_tags WHERE tenant_id=? AND (id=? OR parent_id=?)').bind(t.id,tg[1],tg[1]).run();return J({ok:true})}if(p==='/api/tenant/settings'&&r.method==='GET')return J({ok:true,settings:await tenantSettings(e,t.id)});if(p==='/api/tenant/settings'&&r.method==='PUT'){const b=await r.json();for(const [k,v] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','groupLink','adminContact','announcementEnabled','announcementTitle','announcementText'].includes(k))continue;await e.DB.prepare('INSERT INTO tenant_settings(tenant_id,key,value) VALUES(?,?,?) ON CONFLICT(tenant_id,key) DO UPDATE SET value=excluded.value').bind(t.id,k,JSON.stringify(v)).run()}return J({ok:true})}if(p==='/api/tenant/password'&&r.method==='PUT'){const b=await r.json();if(String(b.newPassword||'').length<6)return J({ok:false,error:'PASSWORD_TOO_SHORT'},400);await e.DB.prepare('UPDATE tenant_accounts SET password_hash=? WHERE id=?').bind(await sha256(String(b.newPassword)),t.id).run();await tenantLog(e,t.id,t.id,'password_change');return J({ok:true})}if(p==='/api/tenant/stats'&&r.method==='GET')return J({ok:true,...await tenantStats(e,t.id,u.searchParams.get('days')||30)});if(p==='/api/tenant/audit'&&r.method==='GET')return J({ok:true,logs:await tenantAudit(e,t.id)});if(p==='/api/tenant/logout'&&r.method==='POST'){const tok=tokenFrom(r);await e.DB.prepare('DELETE FROM tenant_sessions WHERE token=?').bind(tok).run();return J({ok:true})}return J({ok:false,error:'NOT_FOUND'},404)}
-async function handleMasterTenant(r,e){if(!(await isAdmin(r,e)))return J({ok:false,error:'ADMIN_REQUIRED'},401);await ensureTenantSchema(e);const u=new URL(r.url),p=u.pathname;if(p==='/api/admin/tenants'&&r.method==='GET'){
+async function handleTenantAdmin(r,e){
+  await ensureTenantSchema(e);
+  const t=await tenantFromSession(r,e);
+  if(!t)return J({ok:false,error:'TENANT_REQUIRED'},401);
+  const status=tenantStatus(t);
+  if(status==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);
+  if(status==='expired')return J({ok:false,error:'TENANT_EXPIRED'},403);
+  const u=new URL(r.url),p=u.pathname;
+  if(p==='/api/tenant/me')return J({ok:true,tenant:tenantInfo(t),settings:await tenantSettings(e,t.id)});
+  if(p==='/api/tenant/products'&&r.method==='GET')return J({ok:true,products:await tenantProducts(e,t.id,true)});
+  if(p==='/api/tenant/products'&&r.method==='POST'){
+    const b=await r.json().catch(()=>({}));
+    if(!b.title||!b.download_link)return J({ok:false,error:'title_and_download_link_required'},400);
+    const id=crypto.randomUUID();
+    await e.DB.prepare('INSERT INTO tenant_products(id,tenant_id,title,game,description,thumb,download_link,warning,visible) VALUES(?,?,?,?,?,?,?,?,1)').bind(id,t.id,clean(b.title,200),clean(b.game,100),clean(b.description),clean(b.thumb,1500000),clean(b.download_link,10000),clean(b.warning)).run();
+    await tenantLog(e,t.id,t.id,'product_create',id);
+    return J({ok:true,id},201)
+  }
+  let m=p.match(/^\/api\/tenant\/products\/([^/]+)$/);
+  if(m){
+    const id=decodeURIComponent(m[1]);
+    if(r.method==='DELETE'){await e.DB.prepare('DELETE FROM tenant_products WHERE tenant_id=? AND id=?').bind(t.id,id).run();await tenantLog(e,t.id,t.id,'product_delete',id);return J({ok:true})}
+    if(r.method==='PUT'){
+      const b=await r.json().catch(()=>({}));
+      if(Object.keys(b).length===1&&typeof b.visible==='boolean'){await e.DB.prepare('UPDATE tenant_products SET visible=?,updated_at=datetime(\'now\') WHERE tenant_id=? AND id=?').bind(b.visible?1:0,t.id,id).run();await tenantLog(e,t.id,t.id,b.visible?'product_show':'product_hide',id);return J({ok:true,visible:b.visible})}
+      await e.DB.prepare('UPDATE tenant_products SET title=?,game=?,description=?,thumb=?,download_link=?,warning=?,visible=?,updated_at=datetime(\'now\') WHERE tenant_id=? AND id=?').bind(clean(b.title,200),clean(b.game,100),clean(b.description),clean(b.thumb,1500000),clean(b.download_link,10000),clean(b.warning),b.visible===false?0:1,t.id,id).run();
+      return J({ok:true})
+    }
+  }
+  if(p==='/api/tenant/tags'&&r.method==='GET')return J({ok:true,tags:await tenantTags(e,t.id)});
+  if(p==='/api/tenant/tags'&&r.method==='POST'){const b=await r.json().catch(()=>({})),name=clean(b.name,100);if(!name)return J({ok:false,error:'name_required'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO tenant_tags(id,tenant_id,name,parent_id) VALUES(?,?,?,?)').bind(id,t.id,name,clean(b.parent_id,100)||null).run();return J({ok:true,id},201)}
+  let tg=p.match(/^\/api\/tenant\/tags\/([^/]+)$/);
+  if(tg&&r.method==='DELETE'){await e.DB.prepare('DELETE FROM tenant_tags WHERE tenant_id=? AND (id=? OR parent_id=?)').bind(t.id,tg[1],tg[1]).run();return J({ok:true})}
+  if(p==='/api/tenant/comments'&&r.method==='GET')return J({ok:true,comments:await tenantComments(e,t.id,true)});
+  let tc=p.match(/^\/api\/tenant\/comments\/([^/]+)$/);
+  if(tc){const id=decodeURIComponent(tc[1]);if(r.method==='DELETE'){await e.DB.prepare('DELETE FROM tenant_comments WHERE tenant_id=? AND id=?').bind(t.id,id).run();return J({ok:true})}if(r.method==='PUT'){const b=await r.json().catch(()=>({}));if(typeof b.visible!=='boolean')return J({ok:false,error:'VISIBLE_REQUIRED'},400);await e.DB.prepare('UPDATE tenant_comments SET visible=? WHERE tenant_id=? AND id=?').bind(b.visible?1:0,t.id,id).run();await tenantLog(e,t.id,t.id,b.visible?'comment_show':'comment_hide',id);return J({ok:true,visible:b.visible})}}
+  if(p==='/api/tenant/settings'&&r.method==='GET')return J({ok:true,settings:await tenantSettings(e,t.id)});
+  if(p==='/api/tenant/settings'&&r.method==='PUT'){const b=await r.json().catch(()=>({}));for(const [k,v] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','groupLink','adminContact','announcementEnabled','announcementTitle','announcementText'].includes(k))continue;await e.DB.prepare('INSERT INTO tenant_settings(tenant_id,key,value) VALUES(?,?,?) ON CONFLICT(tenant_id,key) DO UPDATE SET value=excluded.value').bind(t.id,k,JSON.stringify(v)).run()}return J({ok:true})}
+  if(p==='/api/tenant/password'&&r.method==='PUT'){const b=await r.json().catch(()=>({}));if(String(b.newPassword||'').length<6)return J({ok:false,error:'PASSWORD_TOO_SHORT'},400);const key=await tenantAccountKeyColumn(e);await e.DB.prepare(`UPDATE tenant_accounts SET password_hash=? WHERE ${key}=?`).bind(await sha256(String(b.newPassword)),t.id).run();await tenantLog(e,t.id,t.id,'password_change');return J({ok:true})}
+  if(p==='/api/tenant/stats'&&r.method==='GET')return J({ok:true,...await tenantStats(e,t.id,u.searchParams.get('days')||30)});
+  if(p==='/api/tenant/audit'&&r.method==='GET')return J({ok:true,logs:await tenantAudit(e,t.id)});
+  if(p==='/api/tenant/logout'&&r.method==='POST'){const tok=tokenFrom(r);await e.DB.prepare('DELETE FROM tenant_sessions WHERE token=?').bind(tok).run();return J({ok:true})}
+  return J({ok:false,error:'NOT_FOUND'},404)
+}
+
+async function handleMasterTenant(r,e){
+  if(!(await isAdmin(r,e)))return J({ok:false,error:'ADMIN_REQUIRED'},401);
+  await ensureTenantSchema(e);
+  const u=new URL(r.url),p=u.pathname,key=await tenantAccountKeyColumn(e);
+  if(p==='/api/admin/tenants'&&r.method==='GET'){
     try{await purgeExpired(e)}catch{}
     const q=clean(u.searchParams.get('q')||'',80);
     const rows=(await e.DB.prepare('SELECT * FROM tenant_accounts ORDER BY rowid DESC').all()).results||[];
-    const filtered=rows.filter(x=>!x.deleted_at&&(!q||String(x.id||'').includes(q)||String(x.slug||'').includes(q)));
+    const filtered=rows.filter(x=>{const n=tenantInfo(x);return !x.deleted_at&&(!q||String(n.id||'').includes(q)||String(n.slug||'').includes(q))});
     return J({ok:true,tenants:filtered.map(tenantInfo)})
-  }if(p==='/api/admin/tenants'&&r.method==='POST'){
+  }
+  if(p==='/api/admin/tenants'&&r.method==='POST'){
     const b=await r.json().catch(()=>({}));
     const id=clean(b.id??b.tenantId??b.username??b.slug,80),slug=tenantSlug(id),password=String(b.password??b.pass??''),days=Math.max(1,Math.min(3650,Number(b.days)||30));
     if(!slug)return J({ok:false,error:'ID_REQUIRED'},400);
@@ -232,14 +324,43 @@ async function handleMasterTenant(r,e){if(!(await isAdmin(r,e)))return J({ok:fal
       const tid='t-'+slug+'-'+crypto.randomUUID().slice(0,8);
       const st=new Date(),ex=new Date(Date.now()+days*86400000);
       const starts=st.toISOString().slice(0,19).replace('T',' '),expires=ex.toISOString().slice(0,19).replace('T',' ');
-      await e.DB.prepare('INSERT INTO tenant_accounts(id,slug,password_hash,starts_at,expires_at) VALUES(?,?,?,?,?)').bind(tid,slug,await sha256(password),starts,expires).run();
-      try{await tenantLog(e,tid,'master','create',`days=${days}`)}catch{}
-      const row=await e.DB.prepare('SELECT * FROM tenant_accounts WHERE id=?').bind(tid).first();
+      let row;
+      // Prefer the current id schema. If an older D1 still exposes tenant_id,
+      // fall back to that key without touching or rebuilding the existing table.
+      if(key==='id'){
+        await e.DB.prepare('INSERT INTO tenant_accounts(id,slug,password_hash,starts_at,expires_at) VALUES(?,?,?,?,?)').bind(tid,slug,await sha256(password),starts,expires).run();
+      }else{
+        await e.DB.prepare('INSERT INTO tenant_accounts(tenant_id,slug,password_hash,starts_at,expires_at) VALUES(?,?,?,?,?)').bind(tid,slug,await sha256(password),starts,expires).run();
+      }
+      row=await e.DB.prepare(`SELECT * FROM tenant_accounts WHERE ${key}=?`).bind(tid).first();
+      row=await normalizeTenantRow(e,row);
       if(!row)return J({ok:false,error:'TENANT_CREATE_FAILED'},500);
+      try{await tenantLog(e,row.id,'master','create',`days=${days}`)}catch{}
       return J({ok:true,tenant:tenantInfo(row),adminUrl:`/tenant-admin.html?tenant=${encodeURIComponent(slug)}`,shareUrl:`/share.html?tenant=${encodeURIComponent(slug)}`},201);
     }catch(x){return J({ok:false,error:'TENANT_CREATE_DB_ERROR',detail:String(x?.message||x)},500)}
   }
-  let m=p.match(/^\/api\/admin\/tenants\/([^/]+)$/);if(m){const tid=m[1],t=await e.DB.prepare('SELECT * FROM tenant_accounts WHERE id=?').bind(tid).first();if(!t)return J({ok:false,error:'TENANT_NOT_FOUND'},404);if(r.method==='DELETE'){await e.DB.prepare('UPDATE tenant_accounts SET deleted_at=datetime(\'now\') WHERE id=?').bind(tid).run();await e.DB.prepare('DELETE FROM tenant_sessions WHERE tenant_id=?').bind(tid).run();await tenantLog(e,tid,'master','delete');return J({ok:true})}if(r.method==='PUT'){const b=await r.json();if(b.days!==undefined){const d=Math.max(1,Math.min(3650,Number(b.days)||1));const base=Math.max(Date.now(),Date.parse(String(t.expires_at).replace(' ','T')+'Z'));const ex=new Date(base+d*86400000);await e.DB.prepare('UPDATE tenant_accounts SET expires_at=?,locked=0 WHERE id=?').bind(ex.toISOString().slice(0,19).replace('T',' '),tid).run();await tenantLog(e,tid,'master','renew',`days=${d}`)}if(b.password){if(String(b.password).length<6)return J({ok:false,error:'PASSWORD_TOO_SHORT'},400);await e.DB.prepare('UPDATE tenant_accounts SET password_hash=? WHERE id=?').bind(await sha256(String(b.password)),tid).run();await tenantLog(e,tid,'master','password_change')}if(typeof b.locked==='boolean'){await e.DB.prepare('UPDATE tenant_accounts SET locked=? WHERE id=?').bind(b.locked?1:0,tid).run();await e.DB.prepare('DELETE FROM tenant_sessions WHERE tenant_id=?').bind(tid).run();await tenantLog(e,tid,'master',b.locked?'lock':'unlock')}return J({ok:true,tenant:tenantInfo(await e.DB.prepare('SELECT * FROM tenant_accounts WHERE id=?').bind(tid).first())})}}return J({ok:false,error:'NOT_FOUND'},404)}
+  let m=p.match(/^\/api\/admin\/tenants\/([^/]+)$/);
+  if(m){
+    const tid=clean(decodeURIComponent(m[1]),100),t0=await e.DB.prepare(`SELECT * FROM tenant_accounts WHERE ${key}=?`).bind(tid).first(),t=await normalizeTenantRow(e,t0);
+    if(!t)return J({ok:false,error:'TENANT_NOT_FOUND'},404);
+    if(r.method==='DELETE'){
+      try{await tenantLog(e,tid,'master','delete','Xóa thủ công toàn bộ tenant')}catch{}
+      for(const table of ['tenant_sessions','tenant_products','tenant_tags','tenant_comments','tenant_settings','tenant_views','tenant_audit_log']){try{await e.DB.prepare(`DELETE FROM ${table} WHERE tenant_id=?`).bind(tid).run()}catch{}}
+      await e.DB.prepare(`DELETE FROM tenant_accounts WHERE ${key}=?`).bind(tid).run();
+      return J({ok:true})
+    }
+    if(r.method==='PUT'){
+      const b=await r.json().catch(()=>({}));
+      if(b.days!==undefined){const d=Math.max(1,Math.min(3650,Number(b.days)||1));const base=Math.max(Date.now(),Date.parse(String(t.expires_at||'').replace(' ','T')+'Z')||Date.now());const ex=new Date(base+d*86400000);await e.DB.prepare(`UPDATE tenant_accounts SET expires_at=?,locked=0 WHERE ${key}=?`).bind(ex.toISOString().slice(0,19).replace('T',' '),tid).run();await tenantLog(e,tid,'master','renew',`days=${d}`)}
+      if(b.password){if(String(b.password).length<6)return J({ok:false,error:'PASSWORD_TOO_SHORT'},400);await e.DB.prepare(`UPDATE tenant_accounts SET password_hash=? WHERE ${key}=?`).bind(await sha256(String(b.password)),tid).run();await tenantLog(e,tid,'master','password_change')}
+      if(typeof b.locked==='boolean'){await e.DB.prepare(`UPDATE tenant_accounts SET locked=? WHERE ${key}=?`).bind(b.locked?1:0,tid).run();await e.DB.prepare('DELETE FROM tenant_sessions WHERE tenant_id=?').bind(tid).run();await tenantLog(e,tid,'master',b.locked?'lock':'unlock')}
+      const fresh=await e.DB.prepare(`SELECT * FROM tenant_accounts WHERE ${key}=?`).bind(tid).first();
+      return J({ok:true,tenant:tenantInfo(await normalizeTenantRow(e,fresh))})
+    }
+  }
+  return J({ok:false,error:'NOT_FOUND'},404)
+}
+
 function dayVN(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
 async function bumpView(e,kind,productId=''){
   const day=dayVN();
@@ -249,7 +370,7 @@ async function bumpView(e,kind,productId=''){
 async function comments(e){return (await e.DB.prepare('SELECT id,name,text,image,created_at FROM comments WHERE visible=1 ORDER BY created_at DESC LIMIT 50').all()).results||[]}
 async function stats(e,days=30){const n=Math.max(7,Math.min(Number(days)||30,365));const rows=(await e.DB.prepare(`SELECT day,kind,product_id,views FROM view_daily WHERE day>=date(?, '-'||?||' days') ORDER BY day ASC`).bind(dayVN(),n-1).all()).results||[];const prods=await e.DB.prepare('SELECT id,title,views FROM products ORDER BY views DESC,updated_at DESC').all();return {days:n,rows,products:prods.results||[],today:rows.filter(x=>x.day===dayVN()).reduce((a,x)=>a+Number(x.views||0),0)} }
 export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}},async fetch(r,e){if(r.method==='OPTIONS')return new Response(null,{headers:C});const u=new URL(r.url),p=u.pathname.replace(/\/$/,'');try{
-  if(p==='/api/health')return J({ok:true,service:'teo-studio-api-mini',version:'rental-1-safe-v16',auth:'admin-key-session'});
+  if(p==='/api/health')return J({ok:true,service:'teo-studio-api-mini',version:'rental-v18-safe',auth:'admin-key-session'});
   if(p==='/api/admin/login'&&r.method==='POST'){await ensureAdminSessionSchema(e);const b=await r.json().catch(()=>({}));const supplied=clean(b.adminKey??b.password??'',500);const expected=clean(e.ADMIN_KEY??'',500);if(!expected)return J({ok:false,error:'ADMIN_KEY_MISSING'},500);if(!supplied||supplied!==expected)return J({ok:false,error:'INVALID_ADMIN_KEY'},401);const token=crypto.randomUUID()+crypto.randomUUID();await e.DB.prepare('INSERT INTO admin_sessions(token,expires_at) VALUES(?,?)').bind(token,Date.now()+7*24*60*60*1000).run();return J({ok:true,token,expiresIn:7*24*60*60*1000})}
   await ensureSchema(e);
   if(p==='/api/products'&&r.method==='GET')return J({ok:true,products:await products(e)});
