@@ -78,9 +78,13 @@ async function tenantAddColumn(e,table,column,type){
 }
 
 async function tenantAccountKeyColumn(e){
-  if(await tenantHasColumn(e,'tenant_accounts','id'))return 'id';
+  // Prefer the key that actually exists in the live D1. Never assume `id`
+  // because older rental databases used `tenant_id`.
   if(await tenantHasColumn(e,'tenant_accounts','tenant_id'))return 'tenant_id';
-  return 'id';
+  if(await tenantHasColumn(e,'tenant_accounts','id'))return 'id';
+  // If the table is somehow incomplete, let the caller return a clear DB error
+  // instead of generating an INSERT against a non-existent column.
+  return null;
 }
 async function normalizeTenantRow(e,x){
   if(!x)return null;
@@ -193,16 +197,25 @@ async function ensureTenantSchema(e){
   return tenantSchemaReady;
 }
 function tenantSlug(v){return clean(v,80).toLowerCase().replace(/[^a-z0-9_-]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,60)}
+function tenantDateMs(v){
+  if(v===null||v===undefined||v==='')return NaN;
+  if(typeof v==='number' || /^\d{10,14}$/.test(String(v).trim())){
+    const n=Number(v);
+    if(Number.isFinite(n))return n<100000000000?n*1000:n;
+  }
+  const t=Date.parse(String(v).replace(' ','T')+'Z');
+  return Number.isFinite(t)?t:NaN;
+}
 function tenantStatus(x){
   if(!x)return 'not_found';
   if(Number(x.locked))return 'locked';
   if(x.deleted_at)return 'deleted';
-  const now=Date.now(), ex=Date.parse(String(x.expires_at).replace(' ','T')+'Z');
+  const now=Date.now(), ex=tenantDateMs(x.expires_at);
   if(Number.isFinite(ex) && ex<now){const grace=ex+6*24*60*60*1000;return now<=grace?'expired_grace':'expired'}
   return 'active';
 }
 function tenantDaysLeft(x){
-  const ex=Date.parse(String(x?.expires_at||'').replace(' ','T')+'Z');
+  const ex=tenantDateMs(x?.expires_at);
   return Number.isFinite(ex)?Math.max(0,Math.ceil((ex-Date.now())/86400000)):0;
 }
 function tenantInfo(x){return {id:x?.id??x?.tenant_id,slug:x?.slug??x?.tenant_id??x?.id,startsAt:x?.starts_at,expiresAt:x?.expires_at,daysLeft:tenantDaysLeft(x),status:tenantStatus(x),locked:!!x?.locked,createdAt:x?.created_at}}
@@ -212,8 +225,32 @@ async function tenantSettings(e,tid){const rows=(await e.DB.prepare('SELECT key,
 async function tenantProducts(e,tid,admin=false){return (await e.DB.prepare(`SELECT * FROM tenant_products WHERE tenant_id=? ${admin?'':'AND visible=1'} ORDER BY updated_at DESC`).bind(tid).all()).results||[]}
 async function tenantTags(e,tid){return (await e.DB.prepare('SELECT id,name,parent_id,created_at FROM tenant_tags WHERE tenant_id=? ORDER BY name COLLATE NOCASE').bind(tid).all()).results||[]}
 async function tenantComments(e,tid,admin=false){return (await e.DB.prepare(`SELECT id,name,text,image,created_at,visible FROM tenant_comments WHERE tenant_id=? ${admin?'':'AND visible=1'} ORDER BY created_at DESC`).bind(tid).all()).results||[]}
-async function tenantAudit(e,tid){return (await e.DB.prepare('SELECT actor,action,detail,created_at FROM tenant_audit_log WHERE tenant_id=? ORDER BY created_at DESC LIMIT 100').bind(tid).all()).results||[]}
-async function tenantLog(e,tid,actor,action,detail=''){await e.DB.prepare('INSERT INTO tenant_audit_log(id,tenant_id,actor,action,detail) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),tid,actor,action,clean(detail,1000)).run()}
+async function tenantAuditColumns(e){
+  try{return ((await e.DB.prepare('PRAGMA table_info(tenant_audit_log)').all()).results||[]).map(x=>x.name)}catch{return []}
+}
+async function tenantAudit(e,tid){
+  const cols=await tenantAuditColumns(e);
+  if(!cols.includes('tenant_id'))return [];
+  const select=[];
+  if(cols.includes('actor'))select.push('actor'); else if(cols.includes('user'))select.push('user AS actor'); else select.push("'system' AS actor");
+  if(cols.includes('action'))select.push('action'); else select.push("'activity' AS action");
+  if(cols.includes('detail'))select.push('detail'); else select.push("'' AS detail");
+  if(cols.includes('created_at'))select.push('created_at'); else select.push("'' AS created_at");
+  try{return (await e.DB.prepare(`SELECT ${select.join(',')} FROM tenant_audit_log WHERE tenant_id=? ORDER BY ${cols.includes('created_at')?'created_at':'rowid'} DESC LIMIT 100`).bind(tid).all()).results||[]}catch{return []}
+}
+async function tenantLog(e,tid,actor,action,detail=''){
+  try{
+    const cols=await tenantAuditColumns(e);
+    const names=['id']; const vals=[crypto.randomUUID()]; const qs=['?'];
+    if(cols.includes('tenant_id')){names.push('tenant_id');vals.push(tid);qs.push('?')}
+    if(cols.includes('actor')){names.push('actor');vals.push(actor);qs.push('?')}
+    else if(cols.includes('user')){names.push('user');vals.push(actor);qs.push('?')}
+    if(cols.includes('action')){names.push('action');vals.push(action);qs.push('?')}
+    if(cols.includes('detail')){names.push('detail');vals.push(clean(detail,1000));qs.push('?')}
+    if(cols.includes('created_at')){names.push('created_at');vals.push(new Date().toISOString().slice(0,19).replace('T',' '));qs.push('?')}
+    await e.DB.prepare(`INSERT INTO tenant_audit_log(${names.join(',')}) VALUES(${qs.join(',')})`).bind(...vals).run();
+  }catch{}
+}
 async function tenantBump(e,tid,kind,pid=''){const day=dayVN();await e.DB.prepare(`INSERT INTO tenant_views(tenant_id,day,kind,product_id,views) VALUES(?,?,?,?,1) ON CONFLICT(tenant_id,day,kind,product_id) DO UPDATE SET views=views+1`).bind(tid,day,kind,pid).run();if(kind==='product'&&pid)await e.DB.prepare('UPDATE tenant_products SET views=COALESCE(views,0)+1 WHERE tenant_id=? AND id=?').bind(tid,pid).run()}
 async function tenantStats(e,tid,days=30){const n=Math.max(7,Math.min(Number(days)||30,365));const rows=(await e.DB.prepare(`SELECT day,kind,product_id,views FROM tenant_views WHERE tenant_id=? AND day>=date(?, '-'||?||' days') ORDER BY day ASC`).bind(tid,dayVN(),n-1).all()).results||[];return {days:n,rows,products:await tenantProducts(e,tid,true),today:rows.filter(x=>x.day===dayVN()).reduce((a,x)=>a+Number(x.views||0),0)}}
 async function purgeExpired(e){
@@ -306,6 +343,7 @@ async function handleMasterTenant(r,e){
   if(!(await isAdmin(r,e)))return J({ok:false,error:'ADMIN_REQUIRED'},401);
   await ensureTenantSchema(e);
   const u=new URL(r.url),p=u.pathname,key=await tenantAccountKeyColumn(e);
+  if(!key)return J({ok:false,error:'TENANT_SCHEMA_KEY_MISSING',detail:'tenant_accounts must contain id or tenant_id'},500);
   if(p==='/api/admin/tenants'&&r.method==='GET'){
     try{await purgeExpired(e)}catch{}
     const q=clean(u.searchParams.get('q')||'',80);
@@ -325,14 +363,27 @@ async function handleMasterTenant(r,e){
       const st=new Date(),ex=new Date(Date.now()+days*86400000);
       const starts=st.toISOString().slice(0,19).replace('T',' '),expires=ex.toISOString().slice(0,19).replace('T',' ');
       let row;
-      // Prefer the current id schema. If an older D1 still exposes tenant_id,
-      // fall back to that key without touching or rebuilding the existing table.
-      if(key==='id'){
-        await e.DB.prepare('INSERT INTO tenant_accounts(id,slug,password_hash,starts_at,expires_at) VALUES(?,?,?,?,?)').bind(tid,slug,await sha256(password),starts,expires).run();
-      }else{
-        await e.DB.prepare('INSERT INTO tenant_accounts(tenant_id,slug,password_hash,starts_at,expires_at) VALUES(?,?,?,?,?)').bind(tid,slug,await sha256(password),starts,expires).run();
+      const hash=await sha256(password);
+      // Write using the detected live key. If a deployed/legacy D1 still rejects
+      // the first shape, retry once against tenant_id; this makes the migration
+      // tolerant of old schemas without deleting or rebuilding tenant data.
+      try{
+        if(key==='id'){
+          await e.DB.prepare('INSERT INTO tenant_accounts(id,slug,password_hash,starts_at,expires_at) VALUES(?,?,?,?,?)').bind(tid,slug,hash,starts,expires).run();
+        }else{
+          await e.DB.prepare('INSERT INTO tenant_accounts(tenant_id,slug,password_hash,starts_at,expires_at) VALUES(?,?,?,?,?)').bind(tid,slug,hash,starts,expires).run();
+        }
+      }catch(firstErr){
+        if(key==='id' && await tenantHasColumn(e,'tenant_accounts','tenant_id')){
+          await e.DB.prepare('INSERT INTO tenant_accounts(tenant_id,slug,password_hash,starts_at,expires_at) VALUES(?,?,?,?,?)').bind(tid,slug,hash,starts,expires).run();
+        }else if(key==='tenant_id' && await tenantHasColumn(e,'tenant_accounts','id')){
+          await e.DB.prepare('INSERT INTO tenant_accounts(id,slug,password_hash,starts_at,expires_at) VALUES(?,?,?,?,?)').bind(tid,slug,hash,starts,expires).run();
+        }else{
+          throw firstErr;
+        }
       }
-      row=await e.DB.prepare(`SELECT * FROM tenant_accounts WHERE ${key}=?`).bind(tid).first();
+      const finalKey=await tenantAccountKeyColumn(e)||key;
+      row=await e.DB.prepare(`SELECT * FROM tenant_accounts WHERE ${finalKey}=?`).bind(tid).first();
       row=await normalizeTenantRow(e,row);
       if(!row)return J({ok:false,error:'TENANT_CREATE_FAILED'},500);
       try{await tenantLog(e,row.id,'master','create',`days=${days}`)}catch{}
@@ -351,7 +402,7 @@ async function handleMasterTenant(r,e){
     }
     if(r.method==='PUT'){
       const b=await r.json().catch(()=>({}));
-      if(b.days!==undefined){const d=Math.max(1,Math.min(3650,Number(b.days)||1));const base=Math.max(Date.now(),Date.parse(String(t.expires_at||'').replace(' ','T')+'Z')||Date.now());const ex=new Date(base+d*86400000);await e.DB.prepare(`UPDATE tenant_accounts SET expires_at=?,locked=0 WHERE ${key}=?`).bind(ex.toISOString().slice(0,19).replace('T',' '),tid).run();await tenantLog(e,tid,'master','renew',`days=${d}`)}
+      if(b.days!==undefined){const d=Math.max(1,Math.min(3650,Number(b.days)||1));const base=Math.max(Date.now(),tenantDateMs(t.expires_at)||Date.now());const ex=new Date(base+d*86400000);await e.DB.prepare(`UPDATE tenant_accounts SET expires_at=?,locked=0 WHERE ${key}=?`).bind(ex.toISOString().slice(0,19).replace('T',' '),tid).run();await tenantLog(e,tid,'master','renew',`days=${d}`)}
       if(b.password){if(String(b.password).length<6)return J({ok:false,error:'PASSWORD_TOO_SHORT'},400);await e.DB.prepare(`UPDATE tenant_accounts SET password_hash=? WHERE ${key}=?`).bind(await sha256(String(b.password)),tid).run();await tenantLog(e,tid,'master','password_change')}
       if(typeof b.locked==='boolean'){await e.DB.prepare(`UPDATE tenant_accounts SET locked=? WHERE ${key}=?`).bind(b.locked?1:0,tid).run();await e.DB.prepare('DELETE FROM tenant_sessions WHERE tenant_id=?').bind(tid).run();await tenantLog(e,tid,'master',b.locked?'lock':'unlock')}
       const fresh=await e.DB.prepare(`SELECT * FROM tenant_accounts WHERE ${key}=?`).bind(tid).first();
