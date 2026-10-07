@@ -242,6 +242,23 @@ async function tenantBySlug(e,slug){
   const deleted=names.has('deleted_at')?" AND (deleted_at IS NULL OR deleted_at='')":"";
   return e.DB.prepare(`SELECT * FROM tenant_accounts WHERE (${where.join(' OR ')})${deleted} LIMIT 1`).bind(...binds).first();
 }
+async function tenantByIdentifier(e,value){
+  const raw=clean(value,100);
+  if(!raw)return null;
+  await ensureTenantSchema(e);
+  const normalized=tenantSlug(raw);
+  const cols=(await e.DB.prepare('PRAGMA table_info(tenant_accounts)').all()).results||[];
+  const names=new Set(cols.map(x=>x.name));
+  const where=[],binds=[];
+  for(const col of ['id','tenant_id','slug']){
+    if(!names.has(col))continue;
+    where.push(`(${col}=? OR lower(${col})=lower(?))`);
+    binds.push(raw,normalized);
+  }
+  if(!where.length)return null;
+  const deleted=names.has('deleted_at')?" AND (deleted_at IS NULL OR deleted_at='')":'';
+  return e.DB.prepare(`SELECT * FROM tenant_accounts WHERE (${where.join(' OR ')})${deleted} LIMIT 1`).bind(...binds).first();
+}
 async function tenantFromSession(r,e){const t=tokenFrom(r);if(!t)return null;await ensureTenantSchema(e);const key=await tenantAccountKeyColumn(e);const row=await e.DB.prepare(`SELECT a.* FROM tenant_sessions s JOIN tenant_accounts a ON a.${key}=s.tenant_id WHERE s.token=? AND s.expires_at>? AND (a.deleted_at IS NULL OR a.deleted_at='')`).bind(t,Date.now()).first();return normalizeTenantRow(e,row)}
 async function tenantSettings(e,tid){const rows=(await e.DB.prepare('SELECT key,value FROM tenant_settings WHERE tenant_id=?').bind(tid).all()).results||[];const out={siteName:'Lại Húp File',studio:'Téo Studio',heroTitle:'Kho Share File riêng',heroText:'Kho file riêng của bạn.',avatar:'assets/img/default-avatar.svg',avatarVideoUrl:'',groupLink:'#',adminContact:'#',announcementEnabled:true,announcementTitle:'Thông báo từ Téo Studio',announcementText:'Hãy đọc kỹ thông báo trước khi vào web.',donateTitle:'Ủng hộ Téo',donateText:'Nếu thấy web hữu ích, bạn có thể donate để Téo có thêm động lực duy trì và nâng cấp web.',donateQr:'',ownerName:'Téo Studio',ownerText:'Kho Share File được vận hành bởi Téo Studio.',adText:'',adLink:'#',heroBackground:''};for(const x of rows){try{out[x.key]=JSON.parse(x.value)}catch{out[x.key]=x.value}}return out}
 async function tenantProducts(e,tid,admin=false){return (await e.DB.prepare(`SELECT * FROM tenant_products WHERE tenant_id=? ${admin?'':'AND visible=1'} ORDER BY updated_at DESC`).bind(tid).all()).results||[]}
@@ -297,7 +314,7 @@ async function purgeExpired(e){
 async function handleTenantPublic(r,e){
   await ensureTenantSchema(e);
   const u=new URL(r.url),parts=u.pathname.split('/').filter(Boolean);
-  const slug=clean(parts[2]||'',80),t=await tenantBySlug(e,slug);
+  const slug=clean(parts[2]||'',80),rawTenant=await tenantBySlug(e,slug),t=await normalizeTenantRow(e,rawTenant);
   if(!t||tenantStatus(t)==='deleted'||tenantStatus(t)==='expired')return J({ok:false,error:'TENANT_NOT_FOUND'},404);
   if(tenantStatus(t)==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);
   if(r.method==='GET'&&parts.length===3)return J({ok:true,tenant:tenantInfo(t),settings:await tenantSettings(e,t.id),tags:await tenantTags(e,t.id),products:await tenantProducts(e,t.id)});
@@ -413,20 +430,21 @@ async function handleMasterTenant(r,e){
   }
   let m=p.match(/^\/api\/admin\/tenants\/([^/]+)$/);
   if(m){
-    const tid=clean(decodeURIComponent(m[1]),100),t0=await e.DB.prepare(`SELECT * FROM tenant_accounts WHERE ${key}=?`).bind(tid).first(),t=await normalizeTenantRow(e,t0);
+    const tid=clean(decodeURIComponent(m[1]),100),t=await normalizeTenantRow(e,await tenantByIdentifier(e,tid));
     if(!t)return J({ok:false,error:'TENANT_NOT_FOUND'},404);
+    const canonicalId=t.id;
     if(r.method==='DELETE'){
-      try{await tenantLog(e,tid,'master','delete','Xóa thủ công toàn bộ tenant')}catch{}
-      for(const table of ['tenant_sessions','tenant_products','tenant_tags','tenant_comments','tenant_settings','tenant_views','tenant_audit_log']){try{await e.DB.prepare(`DELETE FROM ${table} WHERE tenant_id=?`).bind(tid).run()}catch{}}
-      await e.DB.prepare(`DELETE FROM tenant_accounts WHERE ${key}=?`).bind(tid).run();
+      try{await tenantLog(e,canonicalId,'master','delete','Xóa thủ công toàn bộ tenant')}catch{}
+      for(const table of ['tenant_sessions','tenant_products','tenant_tags','tenant_comments','tenant_settings','tenant_views','tenant_audit_log']){try{await e.DB.prepare(`DELETE FROM ${table} WHERE tenant_id=?`).bind(canonicalId).run()}catch{}}
+      await e.DB.prepare(`DELETE FROM tenant_accounts WHERE ${key}=?`).bind(canonicalId).run();
       return J({ok:true})
     }
     if(r.method==='PUT'){
       const b=await r.json().catch(()=>({}));
-      if(b.days!==undefined){const d=Math.max(1,Math.min(3650,Number(b.days)||1));const base=Math.max(Date.now(),tenantDateMs(t.expires_at)||Date.now());const ex=new Date(base+d*86400000);await e.DB.prepare(`UPDATE tenant_accounts SET expires_at=?,locked=0 WHERE ${key}=?`).bind(ex.toISOString().slice(0,19).replace('T',' '),tid).run();await tenantLog(e,tid,'master','renew',`days=${d}`)}
-      if(b.password){if(String(b.password).length<6)return J({ok:false,error:'PASSWORD_TOO_SHORT'},400);await e.DB.prepare(`UPDATE tenant_accounts SET password_hash=? WHERE ${key}=?`).bind(await sha256(String(b.password)),tid).run();await tenantLog(e,tid,'master','password_change')}
-      if(typeof b.locked==='boolean'){await e.DB.prepare(`UPDATE tenant_accounts SET locked=? WHERE ${key}=?`).bind(b.locked?1:0,tid).run();await e.DB.prepare('DELETE FROM tenant_sessions WHERE tenant_id=?').bind(tid).run();await tenantLog(e,tid,'master',b.locked?'lock':'unlock')}
-      const fresh=await e.DB.prepare(`SELECT * FROM tenant_accounts WHERE ${key}=?`).bind(tid).first();
+      if(b.days!==undefined){const d=Math.max(1,Math.min(3650,Number(b.days)||1));const base=Math.max(Date.now(),tenantDateMs(t.expires_at)||Date.now());const ex=new Date(base+d*86400000);await e.DB.prepare(`UPDATE tenant_accounts SET expires_at=?,locked=0 WHERE ${key}=?`).bind(ex.toISOString().slice(0,19).replace('T',' '),canonicalId).run();await tenantLog(e,canonicalId,'master','renew',`days=${d}`)}
+      if(b.password){if(String(b.password).length<6)return J({ok:false,error:'PASSWORD_TOO_SHORT'},400);await e.DB.prepare(`UPDATE tenant_accounts SET password_hash=? WHERE ${key}=?`).bind(await sha256(String(b.password)),canonicalId).run();await tenantLog(e,canonicalId,'master','password_change')}
+      if(typeof b.locked==='boolean'){await e.DB.prepare(`UPDATE tenant_accounts SET locked=? WHERE ${key}=?`).bind(b.locked?1:0,canonicalId).run();await e.DB.prepare('DELETE FROM tenant_sessions WHERE tenant_id=?').bind(canonicalId).run();await tenantLog(e,canonicalId,'master',b.locked?'lock':'unlock')}
+      const fresh=await e.DB.prepare(`SELECT * FROM tenant_accounts WHERE ${key}=?`).bind(canonicalId).first();
       return J({ok:true,tenant:tenantInfo(await normalizeTenantRow(e,fresh))})
     }
   }
@@ -442,7 +460,7 @@ async function bumpView(e,kind,productId=''){
 async function comments(e){return (await e.DB.prepare('SELECT id,name,text,image,created_at FROM comments WHERE visible=1 ORDER BY created_at DESC LIMIT 50').all()).results||[]}
 async function stats(e,days=30){const n=Math.max(7,Math.min(Number(days)||30,365));const rows=(await e.DB.prepare(`SELECT day,kind,product_id,views FROM view_daily WHERE day>=date(?, '-'||?||' days') ORDER BY day ASC`).bind(dayVN(),n-1).all()).results||[];const prods=await e.DB.prepare('SELECT id,title,views FROM products ORDER BY views DESC,updated_at DESC').all();return {days:n,rows,products:prods.results||[],today:rows.filter(x=>x.day===dayVN()).reduce((a,x)=>a+Number(x.views||0),0)} }
 export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}},async fetch(r,e){if(r.method==='OPTIONS')return new Response(null,{headers:C});const u=new URL(r.url),p=u.pathname.replace(/\/$/,'');try{
-  if(p==='/api/health')return J({ok:true,service:'teo-studio-api-mini',version:'rental-v24-safe',auth:'admin-key-session'});
+  if(p==='/api/health')return J({ok:true,service:'teo-studio-api-mini',version:'rental-v27-safe',auth:'admin-key-session'});
   if(p==='/api/admin/login'&&r.method==='POST'){await ensureAdminSessionSchema(e);const b=await r.json().catch(()=>({}));const supplied=clean(b.adminKey??b.password??'',500);const expected=clean(e.ADMIN_KEY??'',500);if(!expected)return J({ok:false,error:'ADMIN_KEY_MISSING'},500);if(!supplied||supplied!==expected)return J({ok:false,error:'INVALID_ADMIN_KEY'},401);const token=crypto.randomUUID()+crypto.randomUUID();await e.DB.prepare('INSERT INTO admin_sessions(token,expires_at) VALUES(?,?)').bind(token,Date.now()+7*24*60*60*1000).run();return J({ok:true,token,expiresIn:7*24*60*60*1000})}
   await ensureSchema(e);
   if(p==='/api/products'&&r.method==='GET')return J({ok:true,products:await products(e)});
