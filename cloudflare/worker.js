@@ -80,8 +80,8 @@ async function tenantAddColumn(e,table,column,type){
 async function tenantAccountKeyColumn(e){
   // Prefer the key that actually exists in the live D1. Never assume `id`
   // because older rental databases used `tenant_id`.
-  if(await tenantHasColumn(e,'tenant_accounts','tenant_id'))return 'tenant_id';
   if(await tenantHasColumn(e,'tenant_accounts','id'))return 'id';
+  if(await tenantHasColumn(e,'tenant_accounts','tenant_id'))return 'tenant_id';
   // If the table is somehow incomplete, let the caller return a clear DB error
   // instead of generating an INSERT against a non-existent column.
   return null;
@@ -236,7 +236,7 @@ async function tenantBySlug(e,slug){
   ).bind(normalized,raw).first();
 }
 async function tenantFromSession(r,e){const t=tokenFrom(r);if(!t)return null;await ensureTenantSchema(e);const key=await tenantAccountKeyColumn(e);const row=await e.DB.prepare(`SELECT a.* FROM tenant_sessions s JOIN tenant_accounts a ON a.${key}=s.tenant_id WHERE s.token=? AND s.expires_at>? AND (a.deleted_at IS NULL OR a.deleted_at='')`).bind(t,Date.now()).first();return normalizeTenantRow(e,row)}
-async function tenantSettings(e,tid){const rows=(await e.DB.prepare('SELECT key,value FROM tenant_settings WHERE tenant_id=?').bind(tid).all()).results||[];const out={siteName:'Lại Húp File',studio:'Téo Studio',heroTitle:'Kho Share File riêng',heroText:'Kho file riêng của bạn.',avatar:'assets/img/default-avatar.svg',groupLink:'#',adminContact:'#',announcementEnabled:false,announcementTitle:'Thông báo',announcementText:''};for(const x of rows){try{out[x.key]=JSON.parse(x.value)}catch{out[x.key]=x.value}}return out}
+async function tenantSettings(e,tid){const rows=(await e.DB.prepare('SELECT key,value FROM tenant_settings WHERE tenant_id=?').bind(tid).all()).results||[];const out={siteName:'Lại Húp File',studio:'Téo Studio',heroTitle:'Kho Share File riêng',heroText:'Kho file riêng của bạn.',avatar:'assets/img/default-avatar.svg',avatarVideoUrl:'',groupLink:'#',adminContact:'#',announcementEnabled:true,announcementTitle:'Thông báo từ Téo Studio',announcementText:'Hãy đọc kỹ thông báo trước khi vào web.',donateTitle:'Ủng hộ Téo',donateText:'Nếu thấy web hữu ích, bạn có thể donate để Téo có thêm động lực duy trì và nâng cấp web.',donateQr:'',ownerName:'Téo Studio',ownerText:'Kho Share File được vận hành bởi Téo Studio.',adText:'',adLink:'#'};for(const x of rows){try{out[x.key]=JSON.parse(x.value)}catch{out[x.key]=x.value}}return out}
 async function tenantProducts(e,tid,admin=false){return (await e.DB.prepare(`SELECT * FROM tenant_products WHERE tenant_id=? ${admin?'':'AND visible=1'} ORDER BY updated_at DESC`).bind(tid).all()).results||[]}
 async function tenantTags(e,tid){return (await e.DB.prepare('SELECT id,name,parent_id,created_at FROM tenant_tags WHERE tenant_id=? ORDER BY name COLLATE NOCASE').bind(tid).all()).results||[]}
 async function tenantComments(e,tid,admin=false){return (await e.DB.prepare(`SELECT id,name,text,image,created_at,visible FROM tenant_comments WHERE tenant_id=? ${admin?'':'AND visible=1'} ORDER BY created_at DESC`).bind(tid).all()).results||[]}
@@ -267,7 +267,7 @@ async function tenantLog(e,tid,actor,action,detail=''){
   }catch{}
 }
 async function tenantBump(e,tid,kind,pid=''){const day=dayVN();await e.DB.prepare(`INSERT INTO tenant_views(tenant_id,day,kind,product_id,views) VALUES(?,?,?,?,1) ON CONFLICT(tenant_id,day,kind,product_id) DO UPDATE SET views=views+1`).bind(tid,day,kind,pid).run();if(kind==='product'&&pid)await e.DB.prepare('UPDATE tenant_products SET views=COALESCE(views,0)+1 WHERE tenant_id=? AND id=?').bind(tid,pid).run()}
-async function tenantStats(e,tid,days=30){const n=Math.max(7,Math.min(Number(days)||30,365));const rows=(await e.DB.prepare(`SELECT day,kind,product_id,views FROM tenant_views WHERE tenant_id=? AND day>=date(?, '-'||?||' days') ORDER BY day ASC`).bind(tid,dayVN(),n-1).all()).results||[];return {days:n,rows,products:await tenantProducts(e,tid,true),today:rows.filter(x=>x.day===dayVN()).reduce((a,x)=>a+Number(x.views||0),0)}}
+async function tenantStats(e,tid,days=30,month=''){let rows=[];if(/^\d{4}-\d{2}$/.test(String(month||''))){const start=String(month)+'-01';rows=(await e.DB.prepare(`SELECT day,kind,product_id,views FROM tenant_views WHERE tenant_id=? AND day>=? AND day<date(?, '+1 month') ORDER BY day ASC`).bind(tid,start,start).all()).results||[];return {days:rows.length,month,start,rows,products:await tenantProducts(e,tid,true),today:rows.filter(x=>x.day===dayVN()).reduce((a,x)=>a+Number(x.views||0),0)}}const n=Math.max(1,Math.min(Number(days)||30,3650));rows=(await e.DB.prepare(`SELECT day,kind,product_id,views FROM tenant_views WHERE tenant_id=? AND day>=date(?, '-'||?||' days') ORDER BY day ASC`).bind(tid,dayVN(),n-1).all()).results||[];return {days:n,rows,products:await tenantProducts(e,tid,true),today:rows.filter(x=>x.day===dayVN()).reduce((a,x)=>a+Number(x.views||0),0)}}
 async function purgeExpired(e){
   await ensureTenantSchema(e);
   const rows=(await e.DB.prepare('SELECT * FROM tenant_accounts').all()).results||[];
@@ -303,9 +303,7 @@ async function handleTenantPublic(r,e){
   }
   if(parts[3]==='comments'&&r.method==='GET')return J({ok:true,comments:(await e.DB.prepare('SELECT id,name,text,image,created_at FROM tenant_comments WHERE tenant_id=? AND visible=1 ORDER BY created_at DESC LIMIT 5').bind(t.id).all()).results||[]});
   if(parts[3]==='comments'&&r.method==='POST'){
-    const b=await r.json().catch(()=>({})),text=clean(b.text,700),name=clean(b.name,40)||'Ẩn danh',image=clean(b.image,1000000);
-    if(!text&&!image)return J({ok:false,error:'COMMENT_EMPTY'},400);
-    const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO tenant_comments(id,tenant_id,name,text,image) VALUES(?,?,?,?,?)').bind(id,t.id,name,text,image).run();return J({ok:true,id},201)
+    try{const b=await r.json().catch(()=>({})),text=clean(b.text,700),name=clean(b.name,40)||'Ẩn danh',image=clean(b.image,600000);if(!text&&!image)return J({ok:false,error:'COMMENT_EMPTY'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO tenant_comments(id,tenant_id,name,text,image) VALUES(?,?,?,?,?)').bind(id,t.id,name,text,image).run();return J({ok:true,id},201)}catch(x){return J({ok:false,error:'TENANT_COMMENT_DB_ERROR',detail:String(x?.message||x)},500)}
   }
   return J({ok:false,error:'NOT_FOUND'},404)
 }
@@ -346,9 +344,10 @@ async function handleTenantAdmin(r,e){
   let tc=p.match(/^\/api\/tenant\/comments\/([^/]+)$/);
   if(tc){const id=decodeURIComponent(tc[1]);if(r.method==='DELETE'){await e.DB.prepare('DELETE FROM tenant_comments WHERE tenant_id=? AND id=?').bind(t.id,id).run();return J({ok:true})}if(r.method==='PUT'){const b=await r.json().catch(()=>({}));if(typeof b.visible!=='boolean')return J({ok:false,error:'VISIBLE_REQUIRED'},400);await e.DB.prepare('UPDATE tenant_comments SET visible=? WHERE tenant_id=? AND id=?').bind(b.visible?1:0,t.id,id).run();await tenantLog(e,t.id,t.id,b.visible?'comment_show':'comment_hide',id);return J({ok:true,visible:b.visible})}}
   if(p==='/api/tenant/settings'&&r.method==='GET')return J({ok:true,settings:await tenantSettings(e,t.id)});
-  if(p==='/api/tenant/settings'&&r.method==='PUT'){const b=await r.json().catch(()=>({}));for(const [k,v] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','groupLink','adminContact','announcementEnabled','announcementTitle','announcementText'].includes(k))continue;await e.DB.prepare('INSERT INTO tenant_settings(tenant_id,key,value) VALUES(?,?,?) ON CONFLICT(tenant_id,key) DO UPDATE SET value=excluded.value').bind(t.id,k,JSON.stringify(v)).run()}return J({ok:true})}
+  if(p==='/api/tenant/settings'&&r.method==='PUT'){const b=await r.json().catch(()=>({}));for(const [k,v] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','avatarVideoUrl','groupLink','adminContact','announcementEnabled','announcementTitle','announcementText','donateTitle','donateText','donateQr','ownerName','ownerText','adText','adLink'].includes(k))continue;await e.DB.prepare('INSERT INTO tenant_settings(tenant_id,key,value) VALUES(?,?,?) ON CONFLICT(tenant_id,key) DO UPDATE SET value=excluded.value').bind(t.id,k,JSON.stringify(v)).run()}return J({ok:true})}
+  if(p==='/api/tenant/verify-password'&&r.method==='POST'){const b=await r.json().catch(()=>({}));const pass=String(b.password||'');if(pass.length<1)return J({ok:false,error:'PASSWORD_REQUIRED'},400);if((await sha256(pass))!==t.password_hash)return J({ok:false,error:'INVALID_ADMIN_PASSWORD'},401);return J({ok:true,verified:true})}
   if(p==='/api/tenant/password'&&r.method==='PUT'){const b=await r.json().catch(()=>({}));if(String(b.newPassword||'').length<6)return J({ok:false,error:'PASSWORD_TOO_SHORT'},400);const key=await tenantAccountKeyColumn(e);await e.DB.prepare(`UPDATE tenant_accounts SET password_hash=? WHERE ${key}=?`).bind(await sha256(String(b.newPassword)),t.id).run();await tenantLog(e,t.id,t.id,'password_change');return J({ok:true})}
-  if(p==='/api/tenant/stats'&&r.method==='GET')return J({ok:true,...await tenantStats(e,t.id,u.searchParams.get('days')||30)});
+  if(p==='/api/tenant/stats'&&r.method==='GET')return J({ok:true,...await tenantStats(e,t.id,u.searchParams.get('days')||30,u.searchParams.get('month')||'')});
   if(p==='/api/tenant/audit'&&r.method==='GET')return J({ok:true,logs:await tenantAudit(e,t.id)});
   if(p==='/api/tenant/logout'&&r.method==='POST'){const tok=tokenFrom(r);await e.DB.prepare('DELETE FROM tenant_sessions WHERE token=?').bind(tok).run();return J({ok:true})}
   return J({ok:false,error:'NOT_FOUND'},404)
