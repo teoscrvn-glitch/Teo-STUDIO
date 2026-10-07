@@ -225,6 +225,25 @@ function tenantDaysLeft(x){
   return Number.isFinite(ex)?Math.max(0,Math.ceil((ex-Date.now())/86400000)):0;
 }
 function tenantInfo(x){return {id:x?.id??x?.tenant_id,slug:x?.slug??x?.tenant_id??x?.id,startsAt:x?.starts_at,expiresAt:x?.expires_at,daysLeft:tenantDaysLeft(x),status:tenantStatus(x),locked:!!x?.locked,createdAt:x?.created_at}}
+async function tenantPasswordMatches(e,t,password){
+  const raw=String(password??'');
+  const hash=await sha256(raw);
+  if(String(t?.password_hash||'')===hash)return true;
+  // Compatibility with very old rental schemas that kept a legacy plaintext/password column.
+  // If found, accept it once and immediately migrate it to SHA-256.
+  try{
+    const cols=(await e.DB.prepare('PRAGMA table_info(tenant_accounts)').all()).results||[];
+    const names=new Set(cols.map(x=>x.name));
+    for(const col of ['password','pass']){
+      if(names.has(col)&&String(t?.[col]??'')===raw){
+        const key=await tenantAccountKeyColumn(e);
+        if(key)await e.DB.prepare(`UPDATE tenant_accounts SET password_hash=? WHERE ${key}=?`).bind(hash,t.id).run();
+        return true;
+      }
+    }
+  }catch{}
+  return false;
+}
 async function tenantBySlug(e,slug){
   await ensureTenantSchema(e);
   const raw=clean(slug,80);
@@ -370,7 +389,21 @@ async function handleTenantAdmin(r,e){
   if(p==='/api/tenant/settings'&&r.method==='GET')return J({ok:true,settings:await tenantSettings(e,t.id)});
   if(p==='/api/tenant/settings'&&r.method==='PUT'){const b=await r.json().catch(()=>({}));for(const [k,v] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','heroBackground','avatarVideoUrl','groupLink','adminContact','announcementEnabled','announcementTitle','announcementText','donateTitle','donateText','donateQr','ownerName','ownerText','adText','adLink'].includes(k))continue;await e.DB.prepare('INSERT INTO tenant_settings(tenant_id,key,value) VALUES(?,?,?) ON CONFLICT(tenant_id,key) DO UPDATE SET value=excluded.value').bind(t.id,k,JSON.stringify(v)).run()}return J({ok:true})}
   if(p==='/api/tenant/verify-password'&&r.method==='POST'){const b=await r.json().catch(()=>({}));const pass=String(b.password||'');if(pass.length<1)return J({ok:false,error:'PASSWORD_REQUIRED'},400);if((await sha256(pass))!==t.password_hash)return J({ok:false,error:'INVALID_ADMIN_PASSWORD'},401);return J({ok:true,verified:true})}
-  if(p==='/api/tenant/password'&&r.method==='PUT'){const b=await r.json().catch(()=>({}));if(String(b.newPassword||'').length<6)return J({ok:false,error:'PASSWORD_TOO_SHORT'},400);const key=await tenantAccountKeyColumn(e);await e.DB.prepare(`UPDATE tenant_accounts SET password_hash=? WHERE ${key}=?`).bind(await sha256(String(b.newPassword)),t.id).run();await tenantLog(e,t.id,t.id,'password_change');return J({ok:true})}
+  if(p==='/api/tenant/password'&&r.method==='PUT'){
+    const b=await r.json().catch(()=>({})),np=String(b.newPassword||'');
+    if(np.length<6)return J({ok:false,error:'PASSWORD_TOO_SHORT'},400);
+    const hash=await sha256(np),key=await tenantAccountKeyColumn(e);
+    if(!key)return J({ok:false,error:'TENANT_SCHEMA_KEY_MISSING'},500);
+    await e.DB.prepare(`UPDATE tenant_accounts SET password_hash=? WHERE ${key}=?`).bind(hash,t.id).run();
+    // Legacy schemas can contain both id and tenant_id. Keep both keys synchronized
+    // so login remains valid after a password change regardless of which key an old
+    // session/schema path uses.
+    try{if(key==='id'&&await tenantHasColumn(e,'tenant_accounts','tenant_id'))await e.DB.prepare('UPDATE tenant_accounts SET password_hash=? WHERE tenant_id=?').bind(hash,t.tenant_id??t.id).run()}catch{}
+    try{if(key==='tenant_id'&&await tenantHasColumn(e,'tenant_accounts','id'))await e.DB.prepare('UPDATE tenant_accounts SET password_hash=? WHERE id=?').bind(hash,t.id).run()}catch{}
+    const fresh=await e.DB.prepare(`SELECT password_hash FROM tenant_accounts WHERE ${key}=?`).bind(t.id).first();
+    if(String(fresh?.password_hash||'')!==hash)return J({ok:false,error:'PASSWORD_UPDATE_FAILED'},500);
+    await tenantLog(e,t.id,t.id,'password_change');return J({ok:true})
+  }
   if(p==='/api/tenant/stats'&&r.method==='GET')return J({ok:true,...await tenantStats(e,t.id,u.searchParams.get('days')||30,u.searchParams.get('month')||'')});
   if(p==='/api/tenant/audit'&&r.method==='GET')return J({ok:true,logs:await tenantAudit(e,t.id)});
   if(p==='/api/tenant/logout'&&r.method==='POST'){const tok=tokenFrom(r);await e.DB.prepare('DELETE FROM tenant_sessions WHERE token=?').bind(tok).run();return J({ok:true})}
@@ -482,7 +515,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
       const st=tenantStatus(t);
       if(st==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);
       if(st==='expired')return J({ok:false,error:'TENANT_EXPIRED'},403);
-      if((await sha256(String(b.password||'')))!==t.password_hash)return J({ok:false,error:'INVALID_LOGIN'},401);
+      if(!(await tenantPasswordMatches(e,t,b.password)))return J({ok:false,error:'INVALID_LOGIN'},401);
       const token=crypto.randomUUID()+crypto.randomUUID();
       const accountKey=await tenantAccountKeyColumn(e);
       const sessionTenantId=t?.[accountKey]??t.id??t.tenant_id;
@@ -505,6 +538,6 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   if(p==='/api/admin/tags'&&r.method==='POST'){const b=await r.json(),name=clean(b.name,100),parentId=clean(b.parent_id,100);if(!name)return J({ok:false,error:'name_required'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO tags(id,name,parent_id) VALUES(?,?,?)').bind(id,name,parentId||null).run();return J({ok:true,id},201)}
   let t=p.match(/^\/api\/admin\/tags\/([^/]+)$/);if(t){const id=t[1];if(r.method==='DELETE'){await e.DB.prepare('DELETE FROM tags WHERE id=? OR parent_id=?').bind(id,id).run();return J({ok:true})}if(r.method==='PUT'){const b=await r.json();await e.DB.prepare('UPDATE tags SET name=?,parent_id=? WHERE id=?').bind(clean(b.name,100),clean(b.parent_id,100)||null,id).run();return J({ok:true})}}
   if(p==='/api/admin/settings'&&r.method==='GET')return J({ok:true,settings:await settings(e)});
-  if(p==='/api/admin/settings'&&r.method==='PUT'){const b=await r.json();for(const [k,v] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','announcementTitle','announcementText','announcementEnabled','groupLink','adminContact','rentZalo','donateTitle','donateText','donateQr'].includes(k))continue;await e.DB.prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind(k,JSON.stringify(v)).run()}return J({ok:true})}
+  if(p==='/api/admin/settings'&&r.method==='PUT'){const b=await r.json();for(const [k,v] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','heroBackground','announcementTitle','announcementText','announcementEnabled','groupLink','adminContact','rentZalo','donateTitle','donateText','donateQr'].includes(k))continue;await e.DB.prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind(k,JSON.stringify(v)).run()}return J({ok:true})}
   if(e.ASSETS)return e.ASSETS.fetch(r);return J({ok:false,error:'NOT_FOUND'},404)
 }catch(x){return J({ok:false,error:'SERVER_ERROR',detail:String(x.message||x)},500)}}};

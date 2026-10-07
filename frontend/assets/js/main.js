@@ -10,7 +10,7 @@ function formatVN(v){if(!v)return '';const d=new Date(String(v).replace(' ','T')
 function parentTags(){return tags.filter(x=>!x.parent_id)}
 function childTags(parentId){return tags.filter(x=>x.parent_id===parentId)}
 function selectedTagFilter(tag){if(tag==='Tất cả')return null;const p=tags.find(x=>x.name===tag);if(!p)return tag;return p.parent_id?{child:p.name}:{parent:p.id}}
-async function load(){try{const [a,b,c]=await Promise.all([apiJson('/api/products'),apiJson('/api/tags'),apiJson('/api/settings')]);products=(a.products||[]).map(normalize);tags=b.tags||[];site={...DEFAULT_SETTINGS,...(c.settings||{})};return true}catch(e){console.warn(e);products=[];tags=[];site={...DEFAULT_SETTINGS};return false}}
+async function load(){try{const [a,b,c]=await Promise.all([apiJson('/api/products'),apiJson('/api/tags'),apiJson('/api/settings')]);products=(a.products||[]).map(normalize);tags=b.tags||[];site={...DEFAULT_SETTINGS,...(c.settings||{})};document.body?.style.setProperty('--custom-bg-image',site.heroBackground?'url('+JSON.stringify(String(site.heroBackground))+')':'none');return true}catch(e){console.warn(e);products=[];tags=[];site={...DEFAULT_SETTINGS};return false}}
 function trackOnce(key,path){try{if(sessionStorage.getItem(key))return;sessionStorage.setItem(key,'1');fetch(apiUrl(path),{method:'POST',headers:{'content-type':'application/json'},keepalive:true}).catch(()=>{})}catch{}}
 function trackSite(){trackOnce('lhf_site_view','/api/track/site')}
 function trackProduct(id){trackOnce('lhf_product_view_'+id,'/api/track/product/'+encodeURIComponent(id))}
