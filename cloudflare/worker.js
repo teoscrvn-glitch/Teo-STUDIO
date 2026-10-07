@@ -154,6 +154,7 @@ async function ensureTenantSchema(e){
     // some newer account fields. Add only nullable columns; never rebuild/drop the table.
     await tenantAddColumn(e,'tenant_accounts','slug','TEXT');
     await tenantAddColumn(e,'tenant_accounts','password_hash','TEXT');
+    await tenantAddColumn(e,'tenant_accounts','admin_confirm_password_hash','TEXT');
     await tenantAddColumn(e,'tenant_accounts','starts_at','TEXT');
     await tenantAddColumn(e,'tenant_accounts','expires_at','TEXT');
     if(!tenantAccountHasId){
@@ -408,7 +409,31 @@ async function handleTenantAdmin(r,e){
   if(tc){const id=decodeURIComponent(tc[1]);if(r.method==='DELETE'){{const k=tenantInSql(t);await e.DB.prepare(`DELETE FROM tenant_comments WHERE ${k.clause} AND id=?`).bind(...k.vals,id).run()};return J({ok:true})}if(r.method==='PUT'){const b=await r.json().catch(()=>({}));if(typeof b.visible!=='boolean')return J({ok:false,error:'VISIBLE_REQUIRED'},400);{const k=tenantInSql(t);await e.DB.prepare(`UPDATE tenant_comments SET visible=? WHERE ${k.clause} AND id=?`).bind(b.visible?1:0,...k.vals,id).run()};await tenantLog(e,t.id,t.id,b.visible?'comment_show':'comment_hide',id);return J({ok:true,visible:b.visible})}}
   if(p==='/api/tenant/settings'&&r.method==='GET')return J({ok:true,settings:await tenantSettings(e,t)});
   if(p==='/api/tenant/settings'&&r.method==='PUT'){const b=await r.json().catch(()=>({}));const keys=tenantKeyValues(t);for(const [k,v] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','heroBackground','avatarVideoUrl','groupLink','adminContact','announcementEnabled','announcementTitle','announcementText','donateTitle','donateText','donateQr','ownerName','ownerText','adText','adLink'].includes(k))continue;for(const tid of keys){await e.DB.prepare('INSERT INTO tenant_settings(tenant_id,key,value) VALUES(?,?,?) ON CONFLICT(tenant_id,key) DO UPDATE SET value=excluded.value').bind(tid,k,JSON.stringify(v)).run()}}return J({ok:true})}
-  if(p==='/api/tenant/verify-password'&&r.method==='POST'){const b=await r.json().catch(()=>({}));const pass=String(b.password||'');if(pass.length<1)return J({ok:false,error:'PASSWORD_REQUIRED'},400);if(!(await tenantPasswordMatches(e,t,pass)))return J({ok:false,error:'INVALID_ADMIN_PASSWORD'},401);return J({ok:true,verified:true})}
+  if(p==='/api/tenant/confirm-status'&&r.method==='GET')return J({ok:true,configured:!!t.admin_confirm_password_hash});
+  if(p==='/api/tenant/confirm-setup'&&r.method==='POST'){
+    const b=await r.json().catch(()=>({})),loginPass=String(b.loginPassword||''),confirmPass=String(b.confirmPassword||'');
+    if(confirmPass.length<6)return J({ok:false,error:'CONFIRM_PASSWORD_TOO_SHORT'},400);
+    if(!(await tenantPasswordMatches(e,t,loginPass)))return J({ok:false,error:'INVALID_LOGIN_PASSWORD'},401);
+    const key=await tenantAccountKeyColumn(e);if(!key)return J({ok:false,error:'TENANT_SCHEMA_KEY_MISSING'},500);
+    const hash=await sha256(confirmPass);await e.DB.prepare(`UPDATE tenant_accounts SET admin_confirm_password_hash=? WHERE ${key}=?`).bind(hash,t.id).run();
+    return J({ok:true,configured:true});
+  }
+  if(p==='/api/tenant/verify-confirm-password'&&r.method==='POST'){
+    const b=await r.json().catch(()=>({})),pass=String(b.password||'');
+    if(!pass)return J({ok:false,error:'PASSWORD_REQUIRED'},400);
+    if(!t.admin_confirm_password_hash)return J({ok:false,error:'CONFIRM_PASSWORD_NOT_SET'},409);
+    if(String(await sha256(pass))!==String(t.admin_confirm_password_hash))return J({ok:false,error:'INVALID_CONFIRM_PASSWORD'},401);
+    return J({ok:true,verified:true});
+  }
+  if(p==='/api/tenant/change-confirm-password'&&r.method==='PUT'){
+    const b=await r.json().catch(()=>({})),oldPass=String(b.oldPassword||''),newPass=String(b.newPassword||'');
+    if(newPass.length<6)return J({ok:false,error:'CONFIRM_PASSWORD_TOO_SHORT'},400);
+    if(!t.admin_confirm_password_hash)return J({ok:false,error:'CONFIRM_PASSWORD_NOT_SET'},409);
+    if(String(await sha256(oldPass))!==String(t.admin_confirm_password_hash))return J({ok:false,error:'INVALID_CONFIRM_PASSWORD'},401);
+    const key=await tenantAccountKeyColumn(e);if(!key)return J({ok:false,error:'TENANT_SCHEMA_KEY_MISSING'},500);
+    await e.DB.prepare(`UPDATE tenant_accounts SET admin_confirm_password_hash=? WHERE ${key}=?`).bind(await sha256(newPass),t.id).run();
+    return J({ok:true,configured:true});
+  }
   if(p==='/api/tenant/password'&&r.method==='PUT'){
     const b=await r.json().catch(()=>({})),np=String(b.newPassword||'');
     if(np.length<6)return J({ok:false,error:'PASSWORD_TOO_SHORT'},400);
@@ -544,7 +569,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
       const sessionTenantId=t?.[accountKey]??t.id??t.tenant_id;
       if(!sessionTenantId)return J({ok:false,error:'TENANT_KEY_MISSING'},500);
       await e.DB.prepare('INSERT INTO tenant_sessions(token,tenant_id,expires_at) VALUES(?,?,?)').bind(token,sessionTenantId,Date.now()+7*86400000).run();
-      return J({ok:true,token,tenant:tenantInfo(t),adminUrl:`/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`/share.html?tenant=${encodeURIComponent(t.slug)}`});
+      return J({ok:true,token,confirmConfigured:!!t.admin_confirm_password_hash,tenant:tenantInfo(t),adminUrl:`/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`/share.html?tenant=${encodeURIComponent(t.slug)}`});
     }catch(x){return J({ok:false,error:'TENANT_LOGIN_DB_ERROR',detail:String(x?.message||x)},500)}
   }
   if(p.startsWith('/api/public-tenant/'))return await handleTenantPublic(r,e);
