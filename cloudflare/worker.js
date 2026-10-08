@@ -297,7 +297,8 @@ async function tenantByIdentifier(e,value){
   }
   if(!where.length)return null;
   const deleted=names.has('deleted_at')?" AND (deleted_at IS NULL OR deleted_at='')":'';
-  return e.DB.prepare(`SELECT * FROM tenant_accounts WHERE (${where.join(' OR ')})${deleted} LIMIT 1`).bind(...binds).first();
+  const rows=(await e.DB.prepare(`SELECT * FROM tenant_accounts WHERE (${where.join(' OR ')})${deleted} ORDER BY rowid DESC`).bind(...binds).all()).results||[];
+  return rows.find(x=>String(x.admin_confirm_password_hash||''))||rows.find(x=>String(x.password_hash||''))||rows[0]||null;
 }
 async function tenantFromSession(r,e){
   const tok=tokenFrom(r);if(!tok)return null;await ensureTenantSchema(e);
@@ -311,7 +312,10 @@ async function tenantFromSession(r,e){
     where.push(`(${col}=? OR lower(${col})=lower(?))`);vals.push(sid,sid);
   }
   if(!where.length)return null;
-  const a=await e.DB.prepare(`SELECT * FROM tenant_accounts WHERE (${where.join(' OR ')}) AND (deleted_at IS NULL OR deleted_at='') ORDER BY rowid DESC LIMIT 1`).bind(...vals).first();
+  const rows=(await e.DB.prepare(`SELECT * FROM tenant_accounts WHERE (${where.join(' OR ')}) AND (deleted_at IS NULL OR deleted_at='') ORDER BY rowid DESC`).bind(...vals).all()).results||[];
+  // If legacy migrations left duplicate rows, prefer the row carrying the security
+  // password instead of an older shadow row that makes Settings show "not set".
+  const a=rows.find(x=>String(x.admin_confirm_password_hash||''))||rows.find(x=>String(x.password_hash||''))||rows[0]||null;
   return normalizeTenantRow(e,a);
 }
 
@@ -423,16 +427,21 @@ async function handleTenantAdmin(r,e){
   let tc=p.match(/^\/api\/tenant\/comments\/([^/]+)$/);
   if(tc){const id=decodeURIComponent(tc[1]);if(r.method==='DELETE'){{const k=tenantInSql(t);await e.DB.prepare(`DELETE FROM tenant_comments WHERE ${k.clause} AND id=?`).bind(...k.vals,id).run()};return J({ok:true})}if(r.method==='PUT'){const b=await r.json().catch(()=>({}));if(typeof b.visible!=='boolean')return J({ok:false,error:'VISIBLE_REQUIRED'},400);{const k=tenantInSql(t);await e.DB.prepare(`UPDATE tenant_comments SET visible=? WHERE ${k.clause} AND id=?`).bind(b.visible?1:0,...k.vals,id).run()};await tenantLog(e,t.id,t.id,b.visible?'comment_show':'comment_hide',id);return J({ok:true,visible:b.visible})}}
   if(p==='/api/tenant/settings'&&r.method==='GET')return J({ok:true,settings:await tenantSettings(e,t)});
-  if(p==='/api/tenant/settings'&&r.method==='PUT'){const b=await r.json().catch(()=>({}));const keys=tenantKeyValues(t);for(const [k,v] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','heroBackground','avatarVideoUrl','groupLink','adminContact','announcementEnabled','announcementTitle','announcementText','donateTitle','donateText','donateQr','adText','adLink'].includes(k))continue;for(const tid of keys){await e.DB.prepare('INSERT INTO tenant_settings(tenant_id,key,value) VALUES(?,?,?) ON CONFLICT(tenant_id,key) DO UPDATE SET value=excluded.value').bind(tid,k,JSON.stringify(v)).run()}}return J({ok:true})}
+  if(p==='/api/tenant/settings'&&r.method==='PUT'){const b=await r.json().catch(()=>({}));const keys=tenantKeyValues(t);for(const [k,v] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','heroBackground','avatarVideoUrl','groupLink','adminContact','announcementEnabled','announcementTitle','announcementText','donateTitle','donateText','donateQr','adText','adLink','socialTikTokUrl','socialYoutubeUrl','socialTikTokMeta','socialYoutubeMeta'].includes(k))continue;for(const tid of keys){await e.DB.prepare('INSERT INTO tenant_settings(tenant_id,key,value) VALUES(?,?,?) ON CONFLICT(tenant_id,key) DO UPDATE SET value=excluded.value').bind(tid,k,JSON.stringify(v)).run()}}return J({ok:true})}
   if(p==='/api/tenant/confirm-status'&&r.method==='GET'){
-    return J({ok:true,configured:!!String(t.admin_confirm_password_hash||'')});
+    const cols=(await e.DB.prepare('PRAGMA table_info(tenant_accounts)').all()).results||[];const names=new Set(cols.map(x=>x.name));
+    const where=[],vals=[];for(const col of ['id','tenant_id','slug']){if(!names.has(col))continue;where.push(`${col} IN (${tenantKeyValues(t).map(()=>'?').join(',')})`);vals.push(...tenantKeyValues(t))}
+    const rows=where.length?((await e.DB.prepare(`SELECT admin_confirm_password_hash FROM tenant_accounts WHERE ${where.join(' OR ')} ORDER BY rowid DESC`).bind(...vals).all()).results||[]):[];
+    return J({ok:true,configured:rows.some(x=>String(x.admin_confirm_password_hash||''))});
   }
   if(p==='/api/tenant/confirm-password'&&r.method==='POST'){
     const b=await r.json().catch(()=>({}));const np=String(b.newPassword||'');
     if(np.length<6)return J({ok:false,error:'CONFIRM_PASSWORD_TOO_SHORT'},400);
-    if(String(t.admin_confirm_password_hash||''))return J({ok:false,error:'CONFIRM_PASSWORD_ALREADY_SET'},409);
-    const key=await tenantAccountKeyColumn(e);if(!key)return J({ok:false,error:'TENANT_SCHEMA_KEY_MISSING'},500);
-    const hash=await sha256(np);await e.DB.prepare(`UPDATE tenant_accounts SET admin_confirm_password_hash=? WHERE ${key}=?`).bind(hash,t.id).run();
+    const keys=tenantKeyValues(t);const cols=(await e.DB.prepare('PRAGMA table_info(tenant_accounts)').all()).results||[];const names=new Set(cols.map(x=>x.name));
+    const where=[],vals=[];for(const col of ['id','tenant_id','slug']){if(!names.has(col))continue;where.push(`${col} IN (${keys.map(()=>'?').join(',')})`);vals.push(...keys)}
+    const existing=where.length?((await e.DB.prepare(`SELECT admin_confirm_password_hash FROM tenant_accounts WHERE ${where.join(' OR ')}`).bind(...vals).all()).results||[]):[];
+    if(existing.some(x=>String(x.admin_confirm_password_hash||'')))return J({ok:false,error:'CONFIRM_PASSWORD_ALREADY_SET'},409);
+    const hash=await sha256(np);if(where.length)await e.DB.prepare(`UPDATE tenant_accounts SET admin_confirm_password_hash=? WHERE ${where.join(' OR ')}`).bind(hash,...vals).run();
     return J({ok:true,configured:true});
   }
   if(p==='/api/tenant/verify-confirm-password'&&r.method==='POST'){
@@ -446,10 +455,13 @@ async function handleTenantAdmin(r,e){
   if(p==='/api/tenant/confirm-password'&&r.method==='PUT'){
     const b=await r.json().catch(()=>({}));const old=String(b.oldPassword||''),np=String(b.newPassword||'');
     if(np.length<6)return J({ok:false,error:'CONFIRM_PASSWORD_TOO_SHORT'},400);
-    if(!String(t.admin_confirm_password_hash||''))return J({ok:false,error:'CONFIRM_PASSWORD_NOT_SET'},409);
-    if(String(t.admin_confirm_password_hash)!==await sha256(old))return J({ok:false,error:'INVALID_CONFIRM_PASSWORD'},401);
-    const key=await tenantAccountKeyColumn(e);if(!key)return J({ok:false,error:'TENANT_SCHEMA_KEY_MISSING'},500);
-    await e.DB.prepare(`UPDATE tenant_accounts SET admin_confirm_password_hash=? WHERE ${key}=?`).bind(await sha256(np),t.id).run();
+    const keys=tenantKeyValues(t);const cols=(await e.DB.prepare('PRAGMA table_info(tenant_accounts)').all()).results||[];const names=new Set(cols.map(x=>x.name));
+    const where=[],vals=[];for(const col of ['id','tenant_id','slug']){if(!names.has(col))continue;where.push(`${col} IN (${keys.map(()=>'?').join(',')})`);vals.push(...keys)}
+    const rows=where.length?((await e.DB.prepare(`SELECT admin_confirm_password_hash FROM tenant_accounts WHERE ${where.join(' OR ')}`).bind(...vals).all()).results||[]):[];
+    const stored=rows.find(x=>String(x.admin_confirm_password_hash||''))?.admin_confirm_password_hash||'';
+    if(!stored)return J({ok:false,error:'CONFIRM_PASSWORD_NOT_SET'},409);
+    if(String(stored)!==await sha256(old))return J({ok:false,error:'INVALID_CONFIRM_PASSWORD'},401);
+    if(where.length)await e.DB.prepare(`UPDATE tenant_accounts SET admin_confirm_password_hash=? WHERE ${where.join(' OR ')}`).bind(await sha256(np),...vals).run();
     return J({ok:true,configured:true});
   }
   if(p==='/api/tenant/password'&&r.method==='PUT'){
@@ -565,6 +577,22 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   if(p.match(/^\/api\/products\/[^/]+$/)&&r.method==='GET'){const id=decodeURIComponent(p.split('/').pop());const product=await productById(e,id);return product?J({ok:true,product}):J({ok:false,error:'NOT_FOUND'},404)}
   if(p==='/api/tags'&&r.method==='GET')return J({ok:true,tags:await tags(e)});
   if(p==='/api/settings'&&r.method==='GET')return J({ok:true,settings:await settings(e)});
+  if(p==='/api/channel/preview'&&r.method==='GET'){
+    const raw=new URL(r.url).searchParams.get('url')||'';
+    let u;try{u=new URL(raw)}catch{return J({ok:false,error:'INVALID_CHANNEL_URL'},400)}
+    const host=u.hostname.toLowerCase().replace(/^www\./,'');
+    if(!['tiktok.com','youtube.com','m.youtube.com','youtu.be'].includes(host))return J({ok:false,error:'CHANNEL_HOST_NOT_ALLOWED'},400);
+    try{
+      const rr=await fetch(u.toString(),{headers:{'user-agent':'Mozilla/5.0 (compatible; TeoStudioBot/1.0)','accept':'text/html'},redirect:'follow'});
+      const html=await rr.text();
+      const pick=(re)=>{const m=html.match(re);return m?m[1].replace(/&quot;/g,'\"').replace(/&amp;/g,'&').replace(/&#39;/g,"'").trim():''};
+      const title=pick(/<meta[^>]+property=[\"']og:title[\"'][^>]+content=[\"']([^\"']*)/i)||pick(/<title[^>]*>([^<]+)<\/title>/i);
+      const image=pick(/<meta[^>]+property=[\"']og:image[\"'][^>]+content=[\"']([^\"']*)/i);
+      const desc=pick(/<meta[^>]+name=[\"']description[\"'][^>]+content=[\"']([^\"']*)/i);
+      const followers=(html.match(/(?:followers|followerCount|subscriberCount|subscribers)[^0-9]{0,80}([0-9][0-9.,KMB]*)/i)||[])[1]||'';
+      return J({ok:true,platform:host.includes('tiktok')?'tiktok':'youtube',url:u.toString(),title,image,description:desc,followers});
+    }catch(x){return J({ok:false,error:'CHANNEL_LOOKUP_FAILED',detail:String(x?.message||x)},502)}
+  }
   if(p==='/api/comments'&&r.method==='GET')return J({ok:true,comments:await comments(e)});
   if(p==='/api/comments'&&r.method==='POST'){const b=await r.json().catch(()=>({}));const name=clean(b.name,40)||'Ẩn danh';const text=clean(b.text,700);const image=clean(b.image,1000000);if(!text&&!image)return J({ok:false,error:'COMMENT_EMPTY'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO comments(id,name,text,image) VALUES(?,?,?,?)').bind(id,name,text,image).run();return J({ok:true,id},201)}
   if(p==='/api/track/site'&&r.method==='POST'){await bumpView(e,'site');return J({ok:true})}
@@ -609,6 +637,22 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
       return J({ok:true,token,tenant:tenantInfo(t),adminUrl:`/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`/share.html?tenant=${encodeURIComponent(t.slug)}`});
     }catch(x){return J({ok:false,error:'TENANT_LOGIN_DB_ERROR',detail:String(x?.message||x)},500)}
   }
+  if(p.match(/^\/api\/og\/tenant\/[^/]+$/)&&r.method==='GET'){
+    try{
+      await ensureTenantSchema(e);const slug=clean(p.split('/').pop(),80),raw=await tenantBySlug(e,slug),t=await normalizeTenantRow(e,raw);
+      if(!t)return new Response('Not found',{status:404});
+      const s=await tenantSettings(e,t);const src=String(s.heroBackground||s.avatar||'');
+      if(/^https?:\/\//i.test(src))return Response.redirect(src,302);
+      const m=src.match(/^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i);
+      if(m){const bin=atob(m[2]);if(bin.length>4000000)return new Response('Image too large',{status:413});const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new Response(bytes,{headers:{'content-type':m[1],'cache-control':'public, max-age=300'}})}
+      const svg=`<svg xmlns=\"http://www.w3.org/2000/svg\" width=1200 height=630 viewBox=\"0 0 1200 630\"><rect width=\"1200\" height=\"630\" fill=\"#0b0b12\"/><text x=\"70\" y=\"270\" fill=\"#fff\" font-size=\"72\" font-family=\"Arial,sans-serif\" font-weight=\"700\">${String(t.slug).replace(/[&<>]/g,'')}</text><text x=\"70\" y=\"345\" fill=\"#a78bfa\" font-size=\"34\" font-family=\"Arial,sans-serif\">Téo Studio · Share File</text></svg>`;
+      return new Response(svg,{headers:{'content-type':'image/svg+xml;charset=utf-8','cache-control':'public, max-age=300'}});
+    }catch{return new Response('Not found',{status:404})}
+  }
+  if(p==='/share.html'&&r.method==='GET'){
+    const ua=r.headers.get('user-agent')||'';const crawler=/facebookexternalhit|Twitterbot|TelegramBot|WhatsApp|Discordbot|Slackbot|Googlebot/i.test(ua);
+    if(crawler && e.ASSETS){try{await ensureTenantSchema(e);const slug=clean(new URL(r.url).searchParams.get('tenant')||'',80);const raw=await tenantBySlug(e,slug),t=await normalizeTenantRow(e,raw);const s=t?await tenantSettings(e,t):{};const base=new URL(r.url).origin;const title=String(s.heroTitle||s.siteName||t?.slug||'Share File — Téo Studio').replace(/[<>]/g,'');const desc=String(s.heroText||'Kho file riêng của bạn.').replace(/[<>]/g,'');const img=base+'/api/og/tenant/'+encodeURIComponent(slug);let rr=await e.ASSETS.fetch(new Request(new URL('/share.html',r.url),r));let html=await rr.text();const meta=`<meta name=\"description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta property=\"og:type\" content=\"website\"><meta property=\"og:title\" content=\"${title.replace(/\"/g,'&quot;')}\"><meta property=\"og:description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta property=\"og:image\" content=\"${img}\"><meta property=\"og:url\" content=\"${r.url}\"><meta name=\"twitter:card\" content=\"summary_large_image\"><meta name=\"twitter:title\" content=\"${title.replace(/\"/g,'&quot;')}\"><meta name=\"twitter:description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta name=\"twitter:image\" content=\"${img}\">`;html=html.replace('</head>',meta+'</head>');return new Response(html,{status:rr.status,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'public, max-age=60'}})}catch{}}
+  }
   if(p.startsWith('/api/public-tenant/'))return await handleTenantPublic(r,e);
   if(p.startsWith('/api/tenant/')&&p!=='/api/tenant/login')return await handleTenantAdmin(r,e);
   if(p.startsWith('/api/admin/tenants'))return await handleMasterTenant(r,e);
@@ -623,6 +667,6 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   if(p==='/api/admin/tags'&&r.method==='POST'){const b=await r.json(),name=clean(b.name,100),parentId=clean(b.parent_id,100);if(!name)return J({ok:false,error:'name_required'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO tags(id,name,parent_id) VALUES(?,?,?)').bind(id,name,parentId||null).run();return J({ok:true,id},201)}
   let t=p.match(/^\/api\/admin\/tags\/([^/]+)$/);if(t){const id=t[1];if(r.method==='DELETE'){await e.DB.prepare('DELETE FROM tags WHERE id=? OR parent_id=?').bind(id,id).run();return J({ok:true})}if(r.method==='PUT'){const b=await r.json();await e.DB.prepare('UPDATE tags SET name=?,parent_id=? WHERE id=?').bind(clean(b.name,100),clean(b.parent_id,100)||null,id).run();return J({ok:true})}}
   if(p==='/api/admin/settings'&&r.method==='GET')return J({ok:true,settings:await settings(e)});
-  if(p==='/api/admin/settings'&&r.method==='PUT'){const b=await r.json();for(const [k,v] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','heroBackground','announcementTitle','announcementText','announcementEnabled','groupLink','adminContact','rentZalo','donateTitle','donateText','donateQr'].includes(k))continue;await e.DB.prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind(k,JSON.stringify(v)).run()}return J({ok:true})}
+  if(p==='/api/admin/settings'&&r.method==='PUT'){const b=await r.json();for(const [k,v] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','heroBackground','announcementTitle','announcementText','announcementEnabled','groupLink','adminContact','rentZalo','donateTitle','donateText','donateQr','socialTikTokUrl','socialYoutubeUrl','socialTikTokMeta','socialYoutubeMeta'].includes(k))continue;await e.DB.prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind(k,JSON.stringify(v)).run()}return J({ok:true})}
   if(e.ASSETS)return e.ASSETS.fetch(r);return J({ok:false,error:'NOT_FOUND'},404)
 }catch(x){return J({ok:false,error:'SERVER_ERROR',detail:String(x.message||x)},500)}}};

@@ -112,3 +112,18 @@ body::after{content:"";position:fixed;width:42vw;height:42vw;min-width:280px;min
 .social-follow{margin-left:auto;flex:0 0 auto;padding:8px 11px;border-radius:999px;background:var(--text);color:var(--bg);font-size:10px;font-weight:800;text-decoration:none}
 .social-extra{margin-top:10px;text-align:center}.social-extra a{color:var(--muted);font-size:11px}
 @media(max-width:600px){.hero-media-large{height:190px}.hero-media-large::after{height:44%}.avatar-stage{height:94px;margin-top:-38px}.avatar-stage .studio-avatar{top:0;width:78px;height:78px}.social-channel-grid{grid-template-columns:1fr}.social-card{padding:12px}}
+
+/* V36: centered tenant avatar + product detail + social metadata */
+.avatar-stage{width:100vw;margin-left:calc(50% - 50vw);height:100px;margin-top:-44px;position:relative;z-index:5}
+.avatar-stage .studio-avatar{position:absolute!important;left:50%!important;top:4px!important;transform:translateX(-50%)!important;margin:0!important;width:84px;height:84px}
+.social-avatar-img{width:48px;height:48px;flex:0 0 48px;border-radius:50%;object-fit:cover;border:1px solid rgba(255,255,255,.12)}
+.product-open{cursor:pointer}
+.product-open:active{transform:scale(.99)}
+.product-detail-modal{max-width:760px;width:min(94vw,760px)}
+.tenant-detail-grid{display:grid;grid-template-columns:minmax(180px,.9fr) 1.1fr;gap:20px;align-items:start}
+.tenant-detail-thumb{border-radius:18px;overflow:hidden;border:1px solid var(--border);background:#090a10;aspect-ratio:1/1}
+.tenant-detail-thumb img{width:100%;height:100%;display:block;object-fit:cover}
+.tenant-detail-content h2{margin:8px 0 10px;font-size:26px}.tenant-detail-content h3{margin:18px 0 7px;font-size:13px}.tenant-detail-content p{white-space:pre-wrap;line-height:1.65;color:var(--muted)}
+.social-settings-box{grid-column:1/-1;padding:16px;border:1px solid var(--border);border-radius:16px;background:rgba(255,255,255,.02)}
+.social-settings-box h3{margin:0 0 5px}.social-settings-box>small{display:block;color:var(--muted);margin-bottom:10px}.social-preview{display:grid;gap:6px;margin-top:8px;color:var(--muted);font-size:11px}
+@media(max-width:600px){.avatar-stage{height:94px;margin-top:-38px}.avatar-stage .studio-avatar{top:2px!important;width:78px;height:78px}.tenant-detail-grid{grid-template-columns:1fr}.tenant-detail-thumb{max-width:320px;margin:auto}.product-detail-modal{padding:18px}}
