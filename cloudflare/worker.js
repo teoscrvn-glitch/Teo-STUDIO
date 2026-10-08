@@ -586,7 +586,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
     const len=Number(r.headers.get('content-length')||0);if(len>2_000_000)return J({ok:false,error:'REQUEST_TOO_LARGE'},413,hardHeaders);
   }
   const ua=r.headers.get('user-agent')||'';
-  const crawler=/facebookexternalhit|Facebot|Twitterbot|TelegramBot|WhatsApp|Discordbot|Slackbot|Googlebot|Zalo(?:Bot)?|LinkedInBot|Pinterestbot|Viber/i.test(ua);
+  const crawler=/facebookexternalhit|Facebot|Twitterbot|TelegramBot|WhatsApp|Discordbot|Slackbot|Googlebot|Zalo(?:Bot)?|ZaloPC|LinkedInBot|Pinterestbot|Viber|Line\//i.test(ua);
   if(crawler && (p==='/'||p==='/index.html') && e.ASSETS){try{
     const base=u.origin;
     const title='Lại Húp File — Téo Studio', desc='Kho file, code, script và tài nguyên của Téo Studio.';
@@ -610,28 +610,32 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
     let u;try{u=new URL(raw)}catch{return J({ok:false,error:'INVALID_CHANNEL_URL'},400)}
     const host=u.hostname.toLowerCase().replace(/^www\./,'');
     if(!['tiktok.com','youtube.com','m.youtube.com','youtu.be'].includes(host))return J({ok:false,error:'CHANNEL_HOST_NOT_ALLOWED'},400);
-    const decode=s=>String(s||'').replace(/\u002F/g,'/').replace(/\u0026/g,'&').replace(/\\//g,'/').replace(/&quot;/g,'"').replace(/&amp;/g,'&').replace(/&#39;/g,"'").trim();
-    const pick=(html,re)=>{const m=html.match(re);return m?decode(m[1]):''};
-    const cleanCount=v=>String(v||'').replace(/\s+/g,' ').trim();
+    const decode=s=>String(s||'').replace(/\\u002F/g,'/').replace(/\\u0026/g,'&').replace(/\\\//g,'/').replace(/&quot;/g,'"').replace(/&amp;/g,'&').replace(/&#39;/g,"'").trim();
+    const pick=(html,re)=>{const m=String(html||'').match(re);return m?decode(m[1]):''};
+    const cleanCount=v=>String(v||'').replace(/\\s+/g,' ').trim();
     try{
       const rr=await fetch(u.toString(),{headers:{'user-agent':'Mozilla/5.0 (compatible; TeoStudioBot/1.0)','accept':'text/html,application/xhtml+xml'},redirect:'follow'});
       const html=await rr.text();
       let title='',image='',followers='',handle='';
       if(host==='tiktok.com'){
+        const profileHandle=decode((u.pathname.match(/@[^/]+/)||[])[0]||'').replace(/^@/,'');
         try{const oe=await fetch('https://www.tiktok.com/oembed?url='+encodeURIComponent(u.toString()),{headers:{'user-agent':'Mozilla/5.0','accept':'application/json'},redirect:'follow'});if(oe.ok){const j=await oe.json();title=j.author_name||'';image=j.thumbnail_url||'';handle=j.author_url?((String(j.author_url).match(/@[^/?#]+/)||[])[0]||''):'';}}catch{}
+        if(profileHandle){try{const apiUrls=['https://www.tiktok.com/node/share/user/@'+encodeURIComponent(profileHandle),'https://www.tiktok.com/api/user/detail/?unique_id='+encodeURIComponent(profileHandle)];for(const endpoint of apiUrls){if(title&&image&&followers)break;try{const ar=await fetch(endpoint,{headers:{'user-agent':'Mozilla/5.0 (compatible; TeoStudioBot/1.0)','accept':'application/json,text/plain,*/*'},redirect:'follow'});if(!ar.ok)continue;const aj=await ar.text();title=title||pick(aj,/["']nickname["']\s*[:=]\s*["']([^"']+)/i);handle=handle||pick(aj,/["']unique[_-]?id["']\s*[:=]\s*["']([^"']+)/i);followers=followers||pick(aj,/["']follower[_-]?count["']\s*[:=]\s*([0-9]+)/i);image=image||pick(aj,/["']avatar(?:Larger|Medium|Thumb)?["']\s*[:=]\s*["']([^"']+)/i);}catch{}}}catch{}
         title=title||pick(html,/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']*)/i)||pick(html,/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:title["']/i)||pick(html,/<title[^>]*>([^<]+)<\/title>/i);
         image=image||pick(html,/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']*)/i)||pick(html,/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:image["']/i);
-        handle=handle||pick(html,/["']uniqueId["']\s*[:=]\s*["']([^"']+)["']/i)||pick(html,/["']unique_id["']\s*[:=]\s*["']([^"']+)["']/i);
-        const nick=pick(html,/["']nickname["']\s*[:=]\s*["']([^"']+)["']/i);title=(nick||title||'').replace(/\s*\|\s*TikTok.*$/i,'').trim();
-        followers=cleanCount(pick(html,/["']followerCount["']\s*[:=]\s*([0-9]+)/i)||pick(html,/["']follower_count["']\s*[:=]\s*([0-9]+)/i)||pick(html,/(?:followers|followerCount|follower_count)[^0-9]{0,160}([0-9][0-9.,KMB]*)/i));
+        title=title||pick(html,/["']nickname["']\s*[:=]\s*["']([^"']+)/i);
+        handle=handle||pick(html,/["']unique[_-]?id["']\s*[:=]\s*["']([^"']+)/i);
+        image=image||pick(html,/["']avatar(?:Larger|Medium|Thumb)?["']\s*[:=]\s*["'](https?:\\/\\/[^"']+)/i);
+        followers=cleanCount(followers||pick(html,/["']follower[_-]?count["']\s*[:=]\s*([0-9]+)/i)||pick(html,/(?:followers|followerCount|follower_count)[^0-9]{0,160}([0-9][0-9.,KMB]*)/i));
         if(handle&&!/^@/.test(handle))handle='@'+handle;
+        title=String(title||profileHandle||'TikTok').replace(/\s*\|\s*TikTok.*$/i,'').trim();
         return J({ok:true,platform:'tiktok',url:u.toString(),title,image,description:'',followers,handle});
       }
       title=pick(html,/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']*)/i)||pick(html,/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:title["']/i)||pick(html,/<title[^>]*>([^<]+)<\/title>/i);
       image=pick(html,/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']*)/i)||pick(html,/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:image["']/i);
-      const channelName=pick(html,/["']channelName["']\s*[:=]\s*["']([^"']+)["']/i)||pick(html,/["']title["']\s*:\s*\{\s*["']runs["']\s*:\s*\[\s*\{\s*["']text["']\s*:\s*["']([^"']+)/i);
+      const channelName=pick(html,/["']channelName["']\s*[:=]\s*["']([^"']+)\s*["']/i)||pick(html,/["']title["']\s*:\s*\{\s*["']runs["']\s*:\s*\[\s*\{\s*["']text["']\s*:\s*["']([^"']+)/i);
       title=channelName||title;
-      followers=cleanCount(pick(html,/["']subscriberCountText["'][^{}]{0,120}["']simpleText["']\s*:\s*["']([^"']+)["']/i)||pick(html,/["']subscriberCountText["'][^{}]{0,120}["']text["']\s*:\s*["']([^"']+)["']/i)||pick(html,/(?:subscribers|subscriberCount)[^0-9]{0,160}([0-9][0-9.,KMB]*\s*(?:subscribers|người đăng ký)?)/i));
+      followers=cleanCount(pick(html,/["']subscriberCountText["'][^{}]{0,160}["']simpleText["']\s*:\s*["']([^"']+)["']/i)||pick(html,/["']subscriberCountText["'][^{}]{0,160}["']text["']\s*:\s*["']([^"']+)["']/i)||pick(html,/(?:subscribers|subscriberCount)[^0-9]{0,160}([0-9][0-9.,KMB]*\s*(?:subscribers|người đăng ký)?)/i));
       handle=decode((u.pathname.match(/@[^/]+/)||[])[0]||'');
       return J({ok:true,platform:'youtube',url:u.toString(),title,image,description:pick(html,/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)/i),followers,handle});
     }catch(x){return J({ok:false,error:'CHANNEL_LOOKUP_FAILED',detail:String(x?.message||x)},502)}
@@ -684,16 +688,17 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
     try{
       await ensureTenantSchema(e);const slug=clean(p.split('/').pop(),80),raw=await tenantBySlug(e,slug),t=await normalizeTenantRow(e,raw);
       if(!t)return new Response('Not found',{status:404});
-      const s=await tenantSettings(e,t);const src=String(s.heroBackground||s.avatar||'');
+      const s=await tenantSettings(e,t);const src=String(s.avatar||s.heroBackground||'');
       if(/^https?:\/\//i.test(src))return Response.redirect(src,302);
       const m=src.match(/^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i);
       if(m){const bin=atob(m[2]);if(bin.length>4000000)return new Response('Image too large',{status:413});const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new Response(bytes,{headers:{'content-type':m[1],'cache-control':'public, max-age=300'}})}
+      if(e.ASSETS&&src&&!/^https?:/i.test(src)){try{const ar=await e.ASSETS.fetch(new Request(new URL(src.replace(/^\//,''),r.url)));if(ar.ok&&String(ar.headers.get('content-type')||'').startsWith('image/'))return new Response(ar.body,{status:200,headers:{'content-type':ar.headers.get('content-type')||'image/png','cache-control':'public, max-age=300'}})}catch{}}
       const svg=`<svg xmlns=\"http://www.w3.org/2000/svg\" width=1200 height=630 viewBox=\"0 0 1200 630\"><rect width=\"1200\" height=\"630\" fill=\"#0b0b12\"/><text x=\"70\" y=\"270\" fill=\"#fff\" font-size=\"72\" font-family=\"Arial,sans-serif\" font-weight=\"700\">${String(t.slug).replace(/[&<>]/g,'')}</text><text x=\"70\" y=\"345\" fill=\"#a78bfa\" font-size=\"34\" font-family=\"Arial,sans-serif\">Téo Studio · Share File</text></svg>`;
       return new Response(svg,{headers:{'content-type':'image/svg+xml;charset=utf-8','cache-control':'public, max-age=300'}});
     }catch{return new Response('Not found',{status:404})}
   }
   if(p==='/share.html'&&r.method==='GET'){
-    const crawler=/facebookexternalhit|Facebot|Twitterbot|TelegramBot|WhatsApp|Discordbot|Slackbot|Googlebot|Zalo(?:Bot)?|LinkedInBot|Pinterestbot|Viber/i.test(ua);
+    const crawler=/facebookexternalhit|Facebot|Twitterbot|TelegramBot|WhatsApp|Discordbot|Slackbot|Googlebot|Zalo(?:Bot)?|ZaloPC|LinkedInBot|Pinterestbot|Viber|Line\//i.test(ua);
     if(crawler && e.ASSETS){try{await ensureTenantSchema(e);const slug=clean(new URL(r.url).searchParams.get('tenant')||'',80);const raw=await tenantBySlug(e,slug),t=await normalizeTenantRow(e,raw);const s=t?await tenantSettings(e,t):{};const base=PUBLIC_ORIGIN;const title=String(s.heroTitle||s.siteName||t?.slug||'Share File — Téo Studio').replace(/[<>]/g,'');const desc=String(s.heroText||'Kho file riêng của bạn.').replace(/[<>]/g,'');const img=base+'/api/og/tenant/'+encodeURIComponent(slug);let rr=await e.ASSETS.fetch(new Request(new URL('/share.html',r.url),r));let html=await rr.text();const meta=`<meta name=\"description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta property=\"og:type\" content=\"website\"><meta property=\"og:title\" content=\"${title.replace(/\"/g,'&quot;')}\"><meta property=\"og:description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta property=\"og:image\" content=\"${img}\"><meta property=\"og:url\" content=\"${r.url}\"><meta name=\"twitter:card\" content=\"summary_large_image\"><meta name=\"twitter:title\" content=\"${title.replace(/\"/g,'&quot;')}\"><meta name=\"twitter:description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta name=\"twitter:image\" content=\"${img}\">`;html=html.replace('</head>',meta+'</head>');return new Response(html,{status:rr.status,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'public, max-age=60'}})}catch{}}
   }
   if(p.startsWith('/api/public-tenant/'))return await handleTenantPublic(r,e);
