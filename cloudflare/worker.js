@@ -570,6 +570,18 @@ async function bumpView(e,kind,productId=''){
 async function comments(e){return (await e.DB.prepare('SELECT id,name,text,image,created_at FROM comments WHERE visible=1 ORDER BY created_at DESC LIMIT 50').all()).results||[]}
 async function stats(e,days=30){const n=Math.max(7,Math.min(Number(days)||30,365));const rows=(await e.DB.prepare(`SELECT day,kind,product_id,views FROM view_daily WHERE day>=date(?, '-'||?||' days') ORDER BY day ASC`).bind(dayVN(),n-1).all()).results||[];const prods=await e.DB.prepare('SELECT id,title,views FROM products ORDER BY views DESC,updated_at DESC').all();return {days:n,rows,products:prods.results||[],today:rows.filter(x=>x.day===dayVN()).reduce((a,x)=>a+Number(x.views||0),0)} }
 export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}},async fetch(r,e){if(r.method==='OPTIONS')return new Response(null,{headers:C});const u=new URL(r.url),p=u.pathname.replace(/\/$/,'');try{
+  const ua=r.headers.get('user-agent')||'';
+  const crawler=/facebookexternalhit|Facebot|Twitterbot|TelegramBot|WhatsApp|Discordbot|Slackbot|Googlebot|Zalo(?:Bot)?|LinkedInBot|Pinterestbot|Viber/i.test(ua);
+  if(crawler && (p==='/'||p==='/index.html') && e.ASSETS){try{
+    const base=u.origin;
+    const title='Lại Húp File — Téo Studio', desc='Kho file, code, script và tài nguyên của Téo Studio.';
+    const img=base+'/assets/img/og-preview.png';
+    const rr=await e.ASSETS.fetch(new Request(new URL('/index.html',r.url),r));
+    let html=await rr.text();
+    const meta=`<meta name="description" content="${desc}"><meta property="og:type" content="website"><meta property="og:title" content="${title}"><meta property="og:description" content="${desc}"><meta property="og:image" content="${img}"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:url" content="${base}/"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${img}">`;
+    html=html.replace(/<meta property="og:image"[^>]*>/i,'').replace('</head>',meta+'</head>');
+    return new Response(html,{status:rr.status,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'public, max-age=60'}});
+  }catch{}}
   if(p==='/api/health')return J({ok:true,service:'teo-studio-api-mini',version:'rental-v29-safe',auth:'admin-key-session'});
   if(p==='/api/admin/login'&&r.method==='POST'){await ensureAdminSessionSchema(e);const b=await r.json().catch(()=>({}));const supplied=clean(b.adminKey??b.password??'',500);const expected=clean(e.ADMIN_KEY??'',500);if(!expected)return J({ok:false,error:'ADMIN_KEY_MISSING'},500);if(!supplied||supplied!==expected)return J({ok:false,error:'INVALID_ADMIN_KEY'},401);const token=crypto.randomUUID()+crypto.randomUUID();await e.DB.prepare('INSERT INTO admin_sessions(token,expires_at) VALUES(?,?)').bind(token,Date.now()+7*24*60*60*1000).run();return J({ok:true,token,expiresIn:7*24*60*60*1000})}
   await ensureSchema(e);
@@ -578,7 +590,8 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   if(p==='/api/tags'&&r.method==='GET')return J({ok:true,tags:await tags(e)});
   if(p==='/api/settings'&&r.method==='GET')return J({ok:true,settings:await settings(e)});
   if(p==='/api/channel/preview'&&r.method==='GET'){
-    const raw=new URL(r.url).searchParams.get('url')||'';
+    const raw0=new URL(r.url).searchParams.get('url')||'';
+    const raw=/^https?:\/\//i.test(raw0.trim())?raw0.trim():'https://'+raw0.trim();
     let u;try{u=new URL(raw)}catch{return J({ok:false,error:'INVALID_CHANNEL_URL'},400)}
     const host=u.hostname.toLowerCase().replace(/^www\./,'');
     if(!['tiktok.com','youtube.com','m.youtube.com','youtu.be'].includes(host))return J({ok:false,error:'CHANNEL_HOST_NOT_ALLOWED'},400);
@@ -650,7 +663,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
     }catch{return new Response('Not found',{status:404})}
   }
   if(p==='/share.html'&&r.method==='GET'){
-    const ua=r.headers.get('user-agent')||'';const crawler=/facebookexternalhit|Twitterbot|TelegramBot|WhatsApp|Discordbot|Slackbot|Googlebot/i.test(ua);
+    const crawler=/facebookexternalhit|Facebot|Twitterbot|TelegramBot|WhatsApp|Discordbot|Slackbot|Googlebot|Zalo(?:Bot)?|LinkedInBot|Pinterestbot|Viber/i.test(ua);
     if(crawler && e.ASSETS){try{await ensureTenantSchema(e);const slug=clean(new URL(r.url).searchParams.get('tenant')||'',80);const raw=await tenantBySlug(e,slug),t=await normalizeTenantRow(e,raw);const s=t?await tenantSettings(e,t):{};const base=new URL(r.url).origin;const title=String(s.heroTitle||s.siteName||t?.slug||'Share File — Téo Studio').replace(/[<>]/g,'');const desc=String(s.heroText||'Kho file riêng của bạn.').replace(/[<>]/g,'');const img=base+'/api/og/tenant/'+encodeURIComponent(slug);let rr=await e.ASSETS.fetch(new Request(new URL('/share.html',r.url),r));let html=await rr.text();const meta=`<meta name=\"description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta property=\"og:type\" content=\"website\"><meta property=\"og:title\" content=\"${title.replace(/\"/g,'&quot;')}\"><meta property=\"og:description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta property=\"og:image\" content=\"${img}\"><meta property=\"og:url\" content=\"${r.url}\"><meta name=\"twitter:card\" content=\"summary_large_image\"><meta name=\"twitter:title\" content=\"${title.replace(/\"/g,'&quot;')}\"><meta name=\"twitter:description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta name=\"twitter:image\" content=\"${img}\">`;html=html.replace('</head>',meta+'</head>');return new Response(html,{status:rr.status,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'public, max-age=60'}})}catch{}}
   }
   if(p.startsWith('/api/public-tenant/'))return await handleTenantPublic(r,e);
