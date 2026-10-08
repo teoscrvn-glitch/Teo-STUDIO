@@ -1,3 +1,4 @@
+const PUBLIC_ORIGIN='https://teostudio.top';
 const C={"content-type":"application/json;charset=utf-8","access-control-allow-origin":"*","access-control-allow-methods":"GET,POST,PUT,DELETE,OPTIONS","access-control-allow-headers":"Content-Type,Authorization","cache-control":"no-store"};
 const J=(x,s=200)=>new Response(JSON.stringify(x),{status:s,headers:C});
 const clean=(x,n=5000)=>String(x??'').trim().slice(0,n);
@@ -533,7 +534,7 @@ async function handleMasterTenant(r,e){
       row=await normalizeTenantRow(e,row);
       if(!row)return J({ok:false,error:'TENANT_CREATE_FAILED'},500);
       try{await tenantLog(e,row.id,'master','create',`days=${days}`)}catch{}
-      return J({ok:true,tenant:tenantInfo(row),adminUrl:`/tenant-admin.html?tenant=${encodeURIComponent(slug)}`,shareUrl:`/share.html?tenant=${encodeURIComponent(slug)}`},201);
+      return J({ok:true,tenant:tenantInfo(row),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(slug)}`},201);
     }catch(x){return J({ok:false,error:'TENANT_CREATE_DB_ERROR',detail:String(x?.message||x)},500)}
   }
   let m=p.match(/^\/api\/admin\/tenants\/([^/]+)$/);
@@ -575,7 +576,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   if(crawler && (p==='/'||p==='/index.html') && e.ASSETS){try{
     const base=u.origin;
     const title='Lại Húp File — Téo Studio', desc='Kho file, code, script và tài nguyên của Téo Studio.';
-    const img=base+'/assets/img/og-preview.png';
+    const img=PUBLIC_ORIGIN+'/assets/img/og-preview.png';
     const rr=await e.ASSETS.fetch(new Request(new URL('/index.html',r.url),r));
     let html=await rr.text();
     const meta=`<meta name="description" content="${desc}"><meta property="og:type" content="website"><meta property="og:title" content="${title}"><meta property="og:description" content="${desc}"><meta property="og:image" content="${img}"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:url" content="${base}/"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${img}">`;
@@ -595,15 +596,31 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
     let u;try{u=new URL(raw)}catch{return J({ok:false,error:'INVALID_CHANNEL_URL'},400)}
     const host=u.hostname.toLowerCase().replace(/^www\./,'');
     if(!['tiktok.com','youtube.com','m.youtube.com','youtu.be'].includes(host))return J({ok:false,error:'CHANNEL_HOST_NOT_ALLOWED'},400);
+    const decode=s=>String(s||'').replace(/\\u002F/g,'/').replace(/\\u0026/g,'&').replace(/\\\//g,'/').replace(/&quot;/g,'"').replace(/&amp;/g,'&').replace(/&#39;/g,"'").trim();
+    const pick=(html,re)=>{const m=html.match(re);return m?decode(m[1]):''};
     try{
+      if(host==='tiktok.com'){
+        let title='',image='',followers='';
+        try{
+          const oe=await fetch('https://www.tiktok.com/oembed?url='+encodeURIComponent(u.toString()),{headers:{'user-agent':'Mozilla/5.0','accept':'application/json'},redirect:'follow'});
+          if(oe.ok){const j=await oe.json();title=j.author_name||'';image=j.thumbnail_url||'';}
+        }catch{}
+        try{
+          const rr=await fetch(u.toString(),{headers:{'user-agent':'Mozilla/5.0 (compatible; TeoStudioBot/1.0)','accept':'text/html'},redirect:'follow'});
+          const html=await rr.text();
+          title=title||pick(html,/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']*)/i)||pick(html,/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:title["']/i)||pick(html,/<title[^>]*>([^<]+)<\/title>/i);
+          image=image||pick(html,/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']*)/i)||pick(html,/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:image["']/i);
+          followers=(html.match(/(?:followerCount|followers|follower_count)[^0-9]{0,160}([0-9][0-9.,KMB]*)/i)||[])[1]||'';
+        }catch{}
+        return J({ok:true,platform:'tiktok',url:u.toString(),title,image,description:'',followers});
+      }
       const rr=await fetch(u.toString(),{headers:{'user-agent':'Mozilla/5.0 (compatible; TeoStudioBot/1.0)','accept':'text/html'},redirect:'follow'});
       const html=await rr.text();
-      const pick=(re)=>{const m=html.match(re);return m?m[1].replace(/&quot;/g,'\"').replace(/&amp;/g,'&').replace(/&#39;/g,"'").trim():''};
-      const title=pick(/<meta[^>]+property=[\"']og:title[\"'][^>]+content=[\"']([^\"']*)/i)||pick(/<title[^>]*>([^<]+)<\/title>/i);
-      const image=pick(/<meta[^>]+property=[\"']og:image[\"'][^>]+content=[\"']([^\"']*)/i);
-      const desc=pick(/<meta[^>]+name=[\"']description[\"'][^>]+content=[\"']([^\"']*)/i);
-      const followers=(html.match(/(?:followers|followerCount|subscriberCount|subscribers)[^0-9]{0,80}([0-9][0-9.,KMB]*)/i)||[])[1]||'';
-      return J({ok:true,platform:host.includes('tiktok')?'tiktok':'youtube',url:u.toString(),title,image,description:desc,followers});
+      const title=pick(html,/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']*)/i)||pick(html,/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:title["']/i)||pick(html,/<title[^>]*>([^<]+)<\/title>/i);
+      const image=pick(html,/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']*)/i)||pick(html,/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:image["']/i);
+      const desc=pick(html,/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)/i);
+      const followers=(html.match(/(?:followers|followerCount|subscriberCount|subscribers)[^0-9]{0,160}([0-9][0-9.,KMB]*)/i)||[])[1]||'';
+      return J({ok:true,platform:'youtube',url:u.toString(),title,image,description:desc,followers});
     }catch(x){return J({ok:false,error:'CHANNEL_LOOKUP_FAILED',detail:String(x?.message||x)},502)}
   }
   if(p==='/api/comments'&&r.method==='GET')return J({ok:true,comments:await comments(e)});
@@ -628,7 +645,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
       const sessionTenantId=clean(t?.id??t?.tenant_id??t?.slug,100);
       if(!sessionTenantId)return J({ok:false,error:'TENANT_KEY_MISSING'},500);
       await e.DB.prepare('INSERT INTO tenant_sessions(token,tenant_id,expires_at) VALUES(?,?,?)').bind(token,sessionTenantId,Date.now()+7*86400000).run();
-      return J({ok:true,token,tenant:tenantInfo(t),adminUrl:`/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`/share.html?tenant=${encodeURIComponent(t.slug)}`});
+      return J({ok:true,token,tenant:tenantInfo(t),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(t.slug)}`});
     }catch(x){return J({ok:false,error:'TENANT_SECURITY_LOGIN_DB_ERROR',detail:String(x?.message||x)},500)}
   }
   if(p==='/api/tenant/login'&&r.method==='POST'){
@@ -647,7 +664,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
       const sessionTenantId=clean(t?.id??t?.tenant_id??t?.slug,100);
       if(!sessionTenantId)return J({ok:false,error:'TENANT_KEY_MISSING'},500);
       await e.DB.prepare('INSERT INTO tenant_sessions(token,tenant_id,expires_at) VALUES(?,?,?)').bind(token,sessionTenantId,Date.now()+7*86400000).run();
-      return J({ok:true,token,tenant:tenantInfo(t),adminUrl:`/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`/share.html?tenant=${encodeURIComponent(t.slug)}`});
+      return J({ok:true,token,tenant:tenantInfo(t),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(t.slug)}`});
     }catch(x){return J({ok:false,error:'TENANT_LOGIN_DB_ERROR',detail:String(x?.message||x)},500)}
   }
   if(p.match(/^\/api\/og\/tenant\/[^/]+$/)&&r.method==='GET'){
@@ -664,7 +681,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   }
   if(p==='/share.html'&&r.method==='GET'){
     const crawler=/facebookexternalhit|Facebot|Twitterbot|TelegramBot|WhatsApp|Discordbot|Slackbot|Googlebot|Zalo(?:Bot)?|LinkedInBot|Pinterestbot|Viber/i.test(ua);
-    if(crawler && e.ASSETS){try{await ensureTenantSchema(e);const slug=clean(new URL(r.url).searchParams.get('tenant')||'',80);const raw=await tenantBySlug(e,slug),t=await normalizeTenantRow(e,raw);const s=t?await tenantSettings(e,t):{};const base=new URL(r.url).origin;const title=String(s.heroTitle||s.siteName||t?.slug||'Share File — Téo Studio').replace(/[<>]/g,'');const desc=String(s.heroText||'Kho file riêng của bạn.').replace(/[<>]/g,'');const img=base+'/api/og/tenant/'+encodeURIComponent(slug);let rr=await e.ASSETS.fetch(new Request(new URL('/share.html',r.url),r));let html=await rr.text();const meta=`<meta name=\"description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta property=\"og:type\" content=\"website\"><meta property=\"og:title\" content=\"${title.replace(/\"/g,'&quot;')}\"><meta property=\"og:description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta property=\"og:image\" content=\"${img}\"><meta property=\"og:url\" content=\"${r.url}\"><meta name=\"twitter:card\" content=\"summary_large_image\"><meta name=\"twitter:title\" content=\"${title.replace(/\"/g,'&quot;')}\"><meta name=\"twitter:description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta name=\"twitter:image\" content=\"${img}\">`;html=html.replace('</head>',meta+'</head>');return new Response(html,{status:rr.status,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'public, max-age=60'}})}catch{}}
+    if(crawler && e.ASSETS){try{await ensureTenantSchema(e);const slug=clean(new URL(r.url).searchParams.get('tenant')||'',80);const raw=await tenantBySlug(e,slug),t=await normalizeTenantRow(e,raw);const s=t?await tenantSettings(e,t):{};const base=PUBLIC_ORIGIN;const title=String(s.heroTitle||s.siteName||t?.slug||'Share File — Téo Studio').replace(/[<>]/g,'');const desc=String(s.heroText||'Kho file riêng của bạn.').replace(/[<>]/g,'');const img=base+'/api/og/tenant/'+encodeURIComponent(slug);let rr=await e.ASSETS.fetch(new Request(new URL('/share.html',r.url),r));let html=await rr.text();const meta=`<meta name=\"description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta property=\"og:type\" content=\"website\"><meta property=\"og:title\" content=\"${title.replace(/\"/g,'&quot;')}\"><meta property=\"og:description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta property=\"og:image\" content=\"${img}\"><meta property=\"og:url\" content=\"${r.url}\"><meta name=\"twitter:card\" content=\"summary_large_image\"><meta name=\"twitter:title\" content=\"${title.replace(/\"/g,'&quot;')}\"><meta name=\"twitter:description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta name=\"twitter:image\" content=\"${img}\">`;html=html.replace('</head>',meta+'</head>');return new Response(html,{status:rr.status,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'public, max-age=60'}})}catch{}}
   }
   if(p.startsWith('/api/public-tenant/'))return await handleTenantPublic(r,e);
   if(p.startsWith('/api/tenant/')&&p!=='/api/tenant/login')return await handleTenantAdmin(r,e);
