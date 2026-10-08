@@ -95,3 +95,20 @@ body::after{content:"";position:fixed;width:42vw;height:42vw;min-width:280px;min
 .avatar-stage .studio-avatar{top:42px}
 .fixed-owner-note{padding:13px 14px;border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.025);display:flex;flex-direction:column;gap:4px;margin:4px 0 10px}.fixed-owner-note p,.fixed-owner-note small{margin:0;color:var(--muted);font-size:11px}
 @media(max-width:600px){.hero-media-large{height:190px;border-radius:20px}.avatar-stage{height:94px;margin-top:-38px}.avatar-stage .studio-avatar{top:38px}}
+
+/* V35: tenant hero avatar precisely half-overlap */
+.hero-media-large{position:relative;overflow:hidden;box-shadow:0 18px 45px rgba(0,0,0,.28)}
+.hero-media-large::after{content:"";position:absolute;left:0;right:0;bottom:0;height:38%;pointer-events:none;background:linear-gradient(to bottom,rgba(8,9,14,0),rgba(8,9,14,.86) 92%,rgba(8,9,14,1));z-index:2}
+.avatar-stage{height:96px;margin-top:-42px;position:relative;z-index:5}
+.avatar-stage .studio-avatar{top:0;left:50%;transform:translateX(-50%);margin:0;width:84px;height:84px;box-shadow:0 8px 28px rgba(0,0,0,.45)}
+.social-channel-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
+.social-card{display:flex;align-items:center;gap:11px;padding:14px;border:1px solid var(--border);border-radius:18px;background:rgba(17,17,24,.9);min-width:0}
+.social-avatar{width:48px;height:48px;flex:0 0 48px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:20px;background:linear-gradient(135deg,#111,#252532);border:1px solid rgba(255,255,255,.12)}
+.tiktok-card .social-avatar{background:#111}
+.youtube-card .social-avatar{background:#241015}
+.social-main{min-width:0;display:flex;flex-direction:column;gap:2px}
+.social-platform{font-size:9px;letter-spacing:.14em;color:var(--accent);font-weight:800}
+.social-main b{font-size:14px}.social-main small,.social-followers{color:var(--muted);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.social-follow{margin-left:auto;flex:0 0 auto;padding:8px 11px;border-radius:999px;background:var(--text);color:var(--bg);font-size:10px;font-weight:800;text-decoration:none}
+.social-extra{margin-top:10px;text-align:center}.social-extra a{color:var(--muted);font-size:11px}
+@media(max-width:600px){.hero-media-large{height:190px}.hero-media-large::after{height:44%}.avatar-stage{height:94px;margin-top:-38px}.avatar-stage .studio-avatar{top:0;width:78px;height:78px}.social-channel-grid{grid-template-columns:1fr}.social-card{padding:12px}}
