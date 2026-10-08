@@ -570,6 +570,26 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   if(p==='/api/track/site'&&r.method==='POST'){await bumpView(e,'site');return J({ok:true})}
   let tv=p.match(/^\/api\/track\/product\/([^/]+)$/);if(tv&&r.method==='POST'){const id=decodeURIComponent(tv[1]);const product=await productById(e,id);if(!product)return J({ok:false,error:'NOT_FOUND'},404);await bumpView(e,'product',id);return J({ok:true,views:Number(product.views||0)+1})}
   let to=p.match(/^\/api\/track\/outbound\/([^/]+)$/);if(to&&r.method==='POST'){const id=decodeURIComponent(to[1]);const product=await productById(e,id);if(!product)return J({ok:false,error:'NOT_FOUND'},404);await bumpView(e,'outbound',id);return J({ok:true})}
+  if(p==='/api/tenant/security-login'&&r.method==='POST'){
+    try{
+      await ensureTenantSchema(e);
+      const b=await r.json().catch(()=>({}));
+      const identifier=clean(b.tenant||b.id||b.slug||'',100), pass=String(b.password||'');
+      if(!identifier||!pass)return J({ok:false,error:'SECURITY_PASSWORD_REQUIRED'},400);
+      const raw=await tenantByIdentifier(e,identifier);
+      if(!raw)return J({ok:false,error:'INVALID_SECURITY_LOGIN'},401);
+      const t=await normalizeTenantRow(e,raw), st=tenantStatus(t);
+      if(st==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);
+      if(st==='expired')return J({ok:false,error:'TENANT_EXPIRED'},403);
+      if(!String(t.admin_confirm_password_hash||''))return J({ok:false,error:'SECURITY_PASSWORD_NOT_SET'},409);
+      if(String(t.admin_confirm_password_hash)!==await sha256(pass))return J({ok:false,error:'INVALID_SECURITY_PASSWORD'},401);
+      const token=crypto.randomUUID()+crypto.randomUUID();
+      const sessionTenantId=clean(t?.id??t?.tenant_id??t?.slug,100);
+      if(!sessionTenantId)return J({ok:false,error:'TENANT_KEY_MISSING'},500);
+      await e.DB.prepare('INSERT INTO tenant_sessions(token,tenant_id,expires_at) VALUES(?,?,?)').bind(token,sessionTenantId,Date.now()+7*86400000).run();
+      return J({ok:true,token,tenant:tenantInfo(t),adminUrl:`/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`/share.html?tenant=${encodeURIComponent(t.slug)}`});
+    }catch(x){return J({ok:false,error:'TENANT_SECURITY_LOGIN_DB_ERROR',detail:String(x?.message||x)},500)}
+  }
   if(p==='/api/tenant/login'&&r.method==='POST'){
     try{
       await ensureTenantSchema(e);
