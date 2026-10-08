@@ -1,8 +1,12 @@
 const PUBLIC_ORIGIN='https://teostudio.top';
 const C={"content-type":"application/json;charset=utf-8","access-control-allow-origin":"*","access-control-allow-methods":"GET,POST,PUT,DELETE,OPTIONS","access-control-allow-headers":"Content-Type,Authorization","cache-control":"no-store"};
-const J=(x,s=200)=>new Response(JSON.stringify(x),{status:s,headers:C});
+const J=(x,s=200,extra={})=>new Response(JSON.stringify(x),{status:s,headers:{...C,...extra}});
 const clean=(x,n=5000)=>String(x??'').trim().slice(0,n);
 const tokenFrom=r=>(r.headers.get('authorization')||'').replace(/^Bearer\s+/i,'').trim();
+const RL=new Map();
+function clientIp(r){return clean(r.headers.get('CF-Connecting-IP')||r.headers.get('x-forwarded-for')||'unknown',80)}
+function rateLimit(r,key,limit=20,windowMs=60000){const now=Date.now(),ip=clientIp(r),k=key+':'+ip;const a=RL.get(k)||[];const fresh=a.filter(t=>now-t<windowMs);if(fresh.length>=limit){RL.set(k,fresh);return Math.ceil((windowMs-(now-fresh[0]))/1000)}fresh.push(now);if(fresh.length>limit*2)fresh.splice(0,fresh.length-limit*2);RL.set(k,fresh);if(RL.size>2000){for(const [kk,v] of RL){if(!v.length||now-v[v.length-1]>windowMs)RL.delete(kk);}}return 0}
+function limited(r,key,limit,windowMs){const retry=rateLimit(r,key,limit,windowMs);return retry?new Response(JSON.stringify({ok:false,error:'RATE_LIMITED',retryAfter:retry}),{status:429,headers:{...C,'retry-after':String(retry)}}):null}
 let schemaReady=null;
 let adminSessionSchemaReady=null;
 async function ensureAdminSessionSchema(e){
@@ -386,7 +390,7 @@ async function handleTenantPublic(r,e){
     return J({ok:true,product:p,tenant:tenantInfo(t)});
   }
   if(parts[3]==='comments'&&r.method==='GET'){const ck=tenantInSql(t);return J({ok:true,comments:(await e.DB.prepare(`SELECT id,name,text,image,created_at FROM tenant_comments WHERE ${ck.clause} AND visible=1 ORDER BY created_at DESC LIMIT 5`).bind(...ck.vals).all()).results||[]});}
-  if(parts[3]==='comments'&&r.method==='POST'){
+  if(parts[3]==='comments'&&r.method==='POST'){const rl=limited(r,'tenant-comment',8,300000);if(rl)return rl;
     try{const b=await r.json().catch(()=>({})),text=clean(b.text,700),name=clean(b.name,40)||'Ẩn danh',image=clean(b.image,600000);if(!text&&!image)return J({ok:false,error:'COMMENT_EMPTY'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO tenant_comments(id,tenant_id,name,text,image) VALUES(?,?,?,?,?)').bind(id,t.id,name,text,image).run();return J({ok:true,id},201)}catch(x){return J({ok:false,error:'TENANT_COMMENT_DB_ERROR',detail:String(x?.message||x)},500)}
   }
   return J({ok:false,error:'NOT_FOUND'},404)
@@ -571,6 +575,16 @@ async function bumpView(e,kind,productId=''){
 async function comments(e){return (await e.DB.prepare('SELECT id,name,text,image,created_at FROM comments WHERE visible=1 ORDER BY created_at DESC LIMIT 50').all()).results||[]}
 async function stats(e,days=30){const n=Math.max(7,Math.min(Number(days)||30,365));const rows=(await e.DB.prepare(`SELECT day,kind,product_id,views FROM view_daily WHERE day>=date(?, '-'||?||' days') ORDER BY day ASC`).bind(dayVN(),n-1).all()).results||[];const prods=await e.DB.prepare('SELECT id,title,views FROM products ORDER BY views DESC,updated_at DESC').all();return {days:n,rows,products:prods.results||[],today:rows.filter(x=>x.day===dayVN()).reduce((a,x)=>a+Number(x.views||0),0)} }
 export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}},async fetch(r,e){if(r.method==='OPTIONS')return new Response(null,{headers:C});const u=new URL(r.url),p=u.pathname.replace(/\/$/,'');try{
+  // Canonical host: stop direct page access through the public workers.dev URL.
+  // APIs are intentionally handled below so existing same-origin deployments can migrate cleanly.
+  if((u.hostname.endsWith('.workers.dev')||u.hostname==='www.teostudio.top') && !p.startsWith('/api/')){
+    const target=PUBLIC_ORIGIN+(p||'/')+u.search;
+    return Response.redirect(target,301);
+  }
+  const hardHeaders={'x-content-type-options':'nosniff','x-frame-options':'SAMEORIGIN','referrer-policy':'strict-origin-when-cross-origin','permissions-policy':'camera=(),microphone=(),geolocation=()'};
+  if(p.startsWith('/api/') && r.method!=='GET' && r.method!=='HEAD'){
+    const len=Number(r.headers.get('content-length')||0);if(len>2_000_000)return J({ok:false,error:'REQUEST_TOO_LARGE'},413,hardHeaders);
+  }
   const ua=r.headers.get('user-agent')||'';
   const crawler=/facebookexternalhit|Facebot|Twitterbot|TelegramBot|WhatsApp|Discordbot|Slackbot|Googlebot|Zalo(?:Bot)?|LinkedInBot|Pinterestbot|Viber/i.test(ua);
   if(crawler && (p==='/'||p==='/index.html') && e.ASSETS){try{
@@ -583,8 +597,8 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
     html=html.replace(/<meta property="og:image"[^>]*>/i,'').replace('</head>',meta+'</head>');
     return new Response(html,{status:rr.status,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'public, max-age=60'}});
   }catch{}}
-  if(p==='/api/health')return J({ok:true,service:'teo-studio-api-mini',version:'rental-v29-safe',auth:'admin-key-session'});
-  if(p==='/api/admin/login'&&r.method==='POST'){await ensureAdminSessionSchema(e);const b=await r.json().catch(()=>({}));const supplied=clean(b.adminKey??b.password??'',500);const expected=clean(e.ADMIN_KEY??'',500);if(!expected)return J({ok:false,error:'ADMIN_KEY_MISSING'},500);if(!supplied||supplied!==expected)return J({ok:false,error:'INVALID_ADMIN_KEY'},401);const token=crypto.randomUUID()+crypto.randomUUID();await e.DB.prepare('INSERT INTO admin_sessions(token,expires_at) VALUES(?,?)').bind(token,Date.now()+7*24*60*60*1000).run();return J({ok:true,token,expiresIn:7*24*60*60*1000})}
+  if(p==='/api/health')return J({ok:true,service:'teo-studio-api-mini',version:'rental-v41-safe',auth:'admin-key-session'});
+  if(p==='/api/admin/login'&&r.method==='POST'){const rl=limited(r,'admin-login',8,60000);if(rl)return rl;await ensureAdminSessionSchema(e);const b=await r.json().catch(()=>({}));const supplied=clean(b.adminKey??b.password??'',500);const expected=clean(e.ADMIN_KEY??'',500);if(!expected)return J({ok:false,error:'ADMIN_KEY_MISSING'},500);if(!supplied||supplied!==expected)return J({ok:false,error:'INVALID_ADMIN_KEY'},401);const token=crypto.randomUUID()+crypto.randomUUID();await e.DB.prepare('INSERT INTO admin_sessions(token,expires_at) VALUES(?,?)').bind(token,Date.now()+7*24*60*60*1000).run();return J({ok:true,token,expiresIn:7*24*60*60*1000})}
   await ensureSchema(e);
   if(p==='/api/products'&&r.method==='GET')return J({ok:true,products:await products(e)});
   if(p.match(/^\/api\/products\/[^/]+$/)&&r.method==='GET'){const id=decodeURIComponent(p.split('/').pop());const product=await productById(e,id);return product?J({ok:true,product}):J({ok:false,error:'NOT_FOUND'},404)}
@@ -596,39 +610,38 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
     let u;try{u=new URL(raw)}catch{return J({ok:false,error:'INVALID_CHANNEL_URL'},400)}
     const host=u.hostname.toLowerCase().replace(/^www\./,'');
     if(!['tiktok.com','youtube.com','m.youtube.com','youtu.be'].includes(host))return J({ok:false,error:'CHANNEL_HOST_NOT_ALLOWED'},400);
-    const decode=s=>String(s||'').replace(/\\u002F/g,'/').replace(/\\u0026/g,'&').replace(/\\\//g,'/').replace(/&quot;/g,'"').replace(/&amp;/g,'&').replace(/&#39;/g,"'").trim();
+    const decode=s=>String(s||'').replace(/\u002F/g,'/').replace(/\u0026/g,'&').replace(/\\//g,'/').replace(/&quot;/g,'"').replace(/&amp;/g,'&').replace(/&#39;/g,"'").trim();
     const pick=(html,re)=>{const m=html.match(re);return m?decode(m[1]):''};
+    const cleanCount=v=>String(v||'').replace(/\s+/g,' ').trim();
     try{
-      if(host==='tiktok.com'){
-        let title='',image='',followers='';
-        try{
-          const oe=await fetch('https://www.tiktok.com/oembed?url='+encodeURIComponent(u.toString()),{headers:{'user-agent':'Mozilla/5.0','accept':'application/json'},redirect:'follow'});
-          if(oe.ok){const j=await oe.json();title=j.author_name||'';image=j.thumbnail_url||'';}
-        }catch{}
-        try{
-          const rr=await fetch(u.toString(),{headers:{'user-agent':'Mozilla/5.0 (compatible; TeoStudioBot/1.0)','accept':'text/html'},redirect:'follow'});
-          const html=await rr.text();
-          title=title||pick(html,/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']*)/i)||pick(html,/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:title["']/i)||pick(html,/<title[^>]*>([^<]+)<\/title>/i);
-          image=image||pick(html,/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']*)/i)||pick(html,/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:image["']/i);
-          followers=(html.match(/(?:followerCount|followers|follower_count)[^0-9]{0,160}([0-9][0-9.,KMB]*)/i)||[])[1]||'';
-        }catch{}
-        return J({ok:true,platform:'tiktok',url:u.toString(),title,image,description:'',followers});
-      }
-      const rr=await fetch(u.toString(),{headers:{'user-agent':'Mozilla/5.0 (compatible; TeoStudioBot/1.0)','accept':'text/html'},redirect:'follow'});
+      const rr=await fetch(u.toString(),{headers:{'user-agent':'Mozilla/5.0 (compatible; TeoStudioBot/1.0)','accept':'text/html,application/xhtml+xml'},redirect:'follow'});
       const html=await rr.text();
-      const title=pick(html,/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']*)/i)||pick(html,/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:title["']/i)||pick(html,/<title[^>]*>([^<]+)<\/title>/i);
-      const image=pick(html,/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']*)/i)||pick(html,/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:image["']/i);
-      const desc=pick(html,/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)/i);
-      const followers=(html.match(/(?:followers|followerCount|subscriberCount|subscribers)[^0-9]{0,160}([0-9][0-9.,KMB]*)/i)||[])[1]||'';
-      return J({ok:true,platform:'youtube',url:u.toString(),title,image,description:desc,followers});
+      let title='',image='',followers='',handle='';
+      if(host==='tiktok.com'){
+        try{const oe=await fetch('https://www.tiktok.com/oembed?url='+encodeURIComponent(u.toString()),{headers:{'user-agent':'Mozilla/5.0','accept':'application/json'},redirect:'follow'});if(oe.ok){const j=await oe.json();title=j.author_name||'';image=j.thumbnail_url||'';handle=j.author_url?((String(j.author_url).match(/@[^/?#]+/)||[])[0]||''):'';}}catch{}
+        title=title||pick(html,/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']*)/i)||pick(html,/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:title["']/i)||pick(html,/<title[^>]*>([^<]+)<\/title>/i);
+        image=image||pick(html,/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']*)/i)||pick(html,/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:image["']/i);
+        handle=handle||pick(html,/["']uniqueId["']\s*[:=]\s*["']([^"']+)["']/i)||pick(html,/["']unique_id["']\s*[:=]\s*["']([^"']+)["']/i);
+        const nick=pick(html,/["']nickname["']\s*[:=]\s*["']([^"']+)["']/i);title=(nick||title||'').replace(/\s*\|\s*TikTok.*$/i,'').trim();
+        followers=cleanCount(pick(html,/["']followerCount["']\s*[:=]\s*([0-9]+)/i)||pick(html,/["']follower_count["']\s*[:=]\s*([0-9]+)/i)||pick(html,/(?:followers|followerCount|follower_count)[^0-9]{0,160}([0-9][0-9.,KMB]*)/i));
+        if(handle&&!/^@/.test(handle))handle='@'+handle;
+        return J({ok:true,platform:'tiktok',url:u.toString(),title,image,description:'',followers,handle});
+      }
+      title=pick(html,/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']*)/i)||pick(html,/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:title["']/i)||pick(html,/<title[^>]*>([^<]+)<\/title>/i);
+      image=pick(html,/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']*)/i)||pick(html,/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:image["']/i);
+      const channelName=pick(html,/["']channelName["']\s*[:=]\s*["']([^"']+)["']/i)||pick(html,/["']title["']\s*:\s*\{\s*["']runs["']\s*:\s*\[\s*\{\s*["']text["']\s*:\s*["']([^"']+)/i);
+      title=channelName||title;
+      followers=cleanCount(pick(html,/["']subscriberCountText["'][^{}]{0,120}["']simpleText["']\s*:\s*["']([^"']+)["']/i)||pick(html,/["']subscriberCountText["'][^{}]{0,120}["']text["']\s*:\s*["']([^"']+)["']/i)||pick(html,/(?:subscribers|subscriberCount)[^0-9]{0,160}([0-9][0-9.,KMB]*\s*(?:subscribers|người đăng ký)?)/i));
+      handle=decode((u.pathname.match(/@[^/]+/)||[])[0]||'');
+      return J({ok:true,platform:'youtube',url:u.toString(),title,image,description:pick(html,/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)/i),followers,handle});
     }catch(x){return J({ok:false,error:'CHANNEL_LOOKUP_FAILED',detail:String(x?.message||x)},502)}
   }
   if(p==='/api/comments'&&r.method==='GET')return J({ok:true,comments:await comments(e)});
-  if(p==='/api/comments'&&r.method==='POST'){const b=await r.json().catch(()=>({}));const name=clean(b.name,40)||'Ẩn danh';const text=clean(b.text,700);const image=clean(b.image,1000000);if(!text&&!image)return J({ok:false,error:'COMMENT_EMPTY'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO comments(id,name,text,image) VALUES(?,?,?,?)').bind(id,name,text,image).run();return J({ok:true,id},201)}
+  if(p==='/api/comments'&&r.method==='POST'){const rl=limited(r,'public-comment',8,300000);if(rl)return rl;const b=await r.json().catch(()=>({}));const name=clean(b.name,40)||'Ẩn danh';const text=clean(b.text,700);const image=clean(b.image,1000000);if(!text&&!image)return J({ok:false,error:'COMMENT_EMPTY'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO comments(id,name,text,image) VALUES(?,?,?,?)').bind(id,name,text,image).run();return J({ok:true,id},201)}
   if(p==='/api/track/site'&&r.method==='POST'){await bumpView(e,'site');return J({ok:true})}
   let tv=p.match(/^\/api\/track\/product\/([^/]+)$/);if(tv&&r.method==='POST'){const id=decodeURIComponent(tv[1]);const product=await productById(e,id);if(!product)return J({ok:false,error:'NOT_FOUND'},404);await bumpView(e,'product',id);return J({ok:true,views:Number(product.views||0)+1})}
   let to=p.match(/^\/api\/track\/outbound\/([^/]+)$/);if(to&&r.method==='POST'){const id=decodeURIComponent(to[1]);const product=await productById(e,id);if(!product)return J({ok:false,error:'NOT_FOUND'},404);await bumpView(e,'outbound',id);return J({ok:true})}
-  if(p==='/api/tenant/security-login'&&r.method==='POST'){
+  if(p==='/api/tenant/security-login'&&r.method==='POST'){const rl=limited(r,'tenant-security-login',8,60000);if(rl)return rl;
     try{
       await ensureTenantSchema(e);
       const b=await r.json().catch(()=>({}));
@@ -648,7 +661,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
       return J({ok:true,token,tenant:tenantInfo(t),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(t.slug)}`});
     }catch(x){return J({ok:false,error:'TENANT_SECURITY_LOGIN_DB_ERROR',detail:String(x?.message||x)},500)}
   }
-  if(p==='/api/tenant/login'&&r.method==='POST'){
+  if(p==='/api/tenant/login'&&r.method==='POST'){const rl=limited(r,'tenant-login',8,60000);if(rl)return rl;
     try{
       await ensureTenantSchema(e);
       const b=await r.json().catch(()=>({}));
