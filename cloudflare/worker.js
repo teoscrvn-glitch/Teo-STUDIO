@@ -4,9 +4,22 @@ const J=(x,s=200,extra={})=>new Response(JSON.stringify(x),{status:s,headers:{..
 const clean=(x,n=5000)=>String(x??'').trim().slice(0,n);
 const tokenFrom=r=>(r.headers.get('authorization')||'').replace(/^Bearer\s+/i,'').trim();
 const RL=new Map();
-function clientIp(r){return clean(r.headers.get('CF-Connecting-IP')||r.headers.get('x-forwarded-for')||'unknown',80)}
-function rateLimit(r,key,limit=20,windowMs=60000){const now=Date.now(),ip=clientIp(r),k=key+':'+ip;const a=RL.get(k)||[];const fresh=a.filter(t=>now-t<windowMs);if(fresh.length>=limit){RL.set(k,fresh);return Math.ceil((windowMs-(now-fresh[0]))/1000)}fresh.push(now);if(fresh.length>limit*2)fresh.splice(0,fresh.length-limit*2);RL.set(k,fresh);if(RL.size>2000){for(const [kk,v] of RL){if(!v.length||now-v[v.length-1]>windowMs)RL.delete(kk);}}return 0}
-function limited(r,key,limit,windowMs){const retry=rateLimit(r,key,limit,windowMs);return retry?new Response(JSON.stringify({ok:false,error:'RATE_LIMITED',retryAfter:retry}),{status:429,headers:{...C,'retry-after':String(retry)}}):null}
+// Best-effort per-isolate protection. Configure Cloudflare WAF/Rate Limiting for edge-wide DDoS protection.
+const IP_BANS=new Map();
+const DOC_STRIKES=new Map();
+const API_STRIKES=new Map();
+const BAN_MS=15*60*1000;
+function clientIp(r){return clean(r.headers.get('CF-Connecting-IP')||'',80)}
+function pruneMaps(now=Date.now()){if(RL.size>4000){for(const [kk,v] of RL){if(!v.length||now-v[v.length-1]>300000)RL.delete(kk)}}if(IP_BANS.size>4000){for(const [ip,until] of IP_BANS)if(until<=now)IP_BANS.delete(ip)}if(DOC_STRIKES.size>4000){for(const [ip,v] of DOC_STRIKES)if(!v.length||now-v[v.length-1]>60000)DOC_STRIKES.delete(ip)}if(API_STRIKES.size>4000){for(const [ip,v] of API_STRIKES)if(!v.length||now-v[v.length-1]>60000)API_STRIKES.delete(ip)}}
+function banIp(ip,ms=BAN_MS){if(ip&&ip!=='unknown')IP_BANS.set(ip,Date.now()+ms)}
+function bannedResponse(until){const retry=Math.max(1,Math.ceil((until-Date.now())/1000));return new Response(JSON.stringify({ok:false,error:'IP_TEMPORARILY_BLOCKED',message:'IP tạm thời bị hạn chế do có quá nhiều request hoặc spam bình luận.',retryAfter:retry}),{status:403,headers:{...C,'retry-after':String(retry),'cache-control':'no-store'}})}
+function activeBan(r){const ip=clientIp(r);if(!ip)return null;const until=IP_BANS.get(ip)||0;if(until>Date.now())return bannedResponse(until);if(until)IP_BANS.delete(ip);return null}
+function rateLimit(r,key,limit=20,windowMs=60000){const now=Date.now(),ip=clientIp(r);if(!ip)return 0;const k=key+':'+ip;const a=RL.get(k)||[];const fresh=a.filter(t=>now-t<windowMs);if(fresh.length>=limit){RL.set(k,fresh);pruneMaps(now);return Math.max(1,Math.ceil((windowMs-(now-fresh[0]))/1000))}fresh.push(now);RL.set(k,fresh);pruneMaps(now);return 0}
+function limited(r,key,limit,windowMs){const retry=rateLimit(r,key,limit,windowMs);return retry?new Response(JSON.stringify({ok:false,error:'RATE_LIMITED',retryAfter:retry}),{status:429,headers:{...C,'retry-after':String(retry),'cache-control':'no-store'}}):null}
+function documentNavigation(r){return (r.method==='GET'||r.method==='HEAD')&&String(r.headers.get('accept')||'').toLowerCase().includes('text/html')&&!new URL(r.url).pathname.startsWith('/api/')}
+function documentRateResponse(r){const ip=clientIp(r);if(!ip)return null;const retry=rateLimit(r,'document-nav',5,10000);if(!retry)return null;const now=Date.now(),strikes=(DOC_STRIKES.get(ip)||[]).filter(t=>now-t<60000);if(!strikes.length||now-strikes[strikes.length-1]>=10000)strikes.push(now);DOC_STRIKES.set(ip,strikes);if(strikes.length>=2){banIp(ip);return bannedResponse(Date.now()+BAN_MS)}return new Response(JSON.stringify({ok:false,error:'NAVIGATION_RATE_LIMITED',message:'Bạn mở/chuyển trang quá nhanh. Vui lòng chờ một chút rồi thử lại.',retryAfter:retry}),{status:429,headers:{...C,'retry-after':String(retry),'cache-control':'no-store'}})}
+function apiRateResponse(r){const retry=rateLimit(r,'api-burst',30,10000);if(!retry)return null;const ip=clientIp(r),now=Date.now(),strikes=(API_STRIKES.get(ip)||[]).filter(t=>now-t<60000);if(!strikes.length||now-strikes[strikes.length-1]>=10000)strikes.push(now);API_STRIKES.set(ip,strikes);if(strikes.length>=2){banIp(ip);return bannedResponse(Date.now()+BAN_MS)}return new Response(JSON.stringify({ok:false,error:'API_RATE_LIMITED',message:'Quá nhiều yêu cầu trong thời gian ngắn. Hãy chờ rồi thử lại.',retryAfter:retry}),{status:429,headers:{...C,'retry-after':String(retry),'cache-control':'no-store'}})}
+function commentRateResponse(r){const retry=rateLimit(r,'comment-post',3,60000);if(!retry)return null;const ip=clientIp(r);banIp(ip);return bannedResponse(Date.now()+BAN_MS)}
 let schemaReady=null;
 let adminSessionSchemaReady=null;
 async function ensureAdminSessionSchema(e){
@@ -390,7 +403,7 @@ async function handleTenantPublic(r,e){
     return J({ok:true,product:p,tenant:tenantInfo(t)});
   }
   if(parts[3]==='comments'&&r.method==='GET'){const ck=tenantInSql(t);return J({ok:true,comments:(await e.DB.prepare(`SELECT id,name,text,image,created_at FROM tenant_comments WHERE ${ck.clause} AND visible=1 ORDER BY created_at DESC LIMIT 5`).bind(...ck.vals).all()).results||[]});}
-  if(parts[3]==='comments'&&r.method==='POST'){const rl=limited(r,'tenant-comment',8,300000);if(rl)return rl;
+  if(parts[3]==='comments'&&r.method==='POST'){const rl=commentRateResponse(r);if(rl)return rl;
     try{const b=await r.json().catch(()=>({})),text=clean(b.text,700),name=clean(b.name,40)||'Ẩn danh',image=clean(b.image,600000);if(!text&&!image)return J({ok:false,error:'COMMENT_EMPTY'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO tenant_comments(id,tenant_id,name,text,image) VALUES(?,?,?,?,?)').bind(id,t.id,name,text,image).run();return J({ok:true,id},201)}catch(x){return J({ok:false,error:'TENANT_COMMENT_DB_ERROR',detail:String(x?.message||x)},500)}
   }
   return J({ok:false,error:'NOT_FOUND'},404)
@@ -432,7 +445,7 @@ async function handleTenantAdmin(r,e){
   let tc=p.match(/^\/api\/tenant\/comments\/([^/]+)$/);
   if(tc){const id=decodeURIComponent(tc[1]);if(r.method==='DELETE'){{const k=tenantInSql(t);await e.DB.prepare(`DELETE FROM tenant_comments WHERE ${k.clause} AND id=?`).bind(...k.vals,id).run()};return J({ok:true})}if(r.method==='PUT'){const b=await r.json().catch(()=>({}));if(typeof b.visible!=='boolean')return J({ok:false,error:'VISIBLE_REQUIRED'},400);{const k=tenantInSql(t);await e.DB.prepare(`UPDATE tenant_comments SET visible=? WHERE ${k.clause} AND id=?`).bind(b.visible?1:0,...k.vals,id).run()};await tenantLog(e,t.id,t.id,b.visible?'comment_show':'comment_hide',id);return J({ok:true,visible:b.visible})}}
   if(p==='/api/tenant/settings'&&r.method==='GET')return J({ok:true,settings:await tenantSettings(e,t)});
-  if(p==='/api/tenant/settings'&&r.method==='PUT'){const b=await r.json().catch(()=>({}));const keys=tenantKeyValues(t);for(const [k,v] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','heroBackground','avatarVideoUrl','groupLink','adminContact','announcementEnabled','announcementTitle','announcementText','donateTitle','donateText','donateQr','adText','adLink','socialTikTokUrl','socialYoutubeUrl','socialTikTokMeta','socialYoutubeMeta'].includes(k))continue;for(const tid of keys){await e.DB.prepare('INSERT INTO tenant_settings(tenant_id,key,value) VALUES(?,?,?) ON CONFLICT(tenant_id,key) DO UPDATE SET value=excluded.value').bind(tid,k,JSON.stringify(v)).run()}}return J({ok:true})}
+  if(p==='/api/tenant/settings'&&r.method==='PUT'){const b=await r.json().catch(()=>({}));const keys=tenantKeyValues(t);for(const [k,v] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','heroBackground','avatarVideoUrl','groupLink','adminContact','announcementEnabled','announcementTitle','announcementText','donateTitle','donateText','donateQr','adText','adLink','socialTikTokUrl','socialYoutubeUrl','socialTikTokMeta','socialYoutubeMeta','themeConfig'].includes(k))continue;for(const tid of keys){await e.DB.prepare('INSERT INTO tenant_settings(tenant_id,key,value) VALUES(?,?,?) ON CONFLICT(tenant_id,key) DO UPDATE SET value=excluded.value').bind(tid,k,JSON.stringify(v)).run()}}return J({ok:true})}
   if(p==='/api/tenant/confirm-status'&&r.method==='GET'){
     const cols=(await e.DB.prepare('PRAGMA table_info(tenant_accounts)').all()).results||[];const names=new Set(cols.map(x=>x.name));
     const where=[],vals=[];for(const col of ['id','tenant_id','slug']){if(!names.has(col))continue;where.push(`${col} IN (${tenantKeyValues(t).map(()=>'?').join(',')})`);vals.push(...tenantKeyValues(t))}
@@ -575,6 +588,12 @@ async function bumpView(e,kind,productId=''){
 async function comments(e){return (await e.DB.prepare('SELECT id,name,text,image,created_at FROM comments WHERE visible=1 ORDER BY created_at DESC LIMIT 50').all()).results||[]}
 async function stats(e,days=30){const n=Math.max(7,Math.min(Number(days)||30,365));const rows=(await e.DB.prepare(`SELECT day,kind,product_id,views FROM view_daily WHERE day>=date(?, '-'||?||' days') ORDER BY day ASC`).bind(dayVN(),n-1).all()).results||[];const prods=await e.DB.prepare('SELECT id,title,views FROM products ORDER BY views DESC,updated_at DESC').all();return {days:n,rows,products:prods.results||[],today:rows.filter(x=>x.day===dayVN()).reduce((a,x)=>a+Number(x.views||0),0)} }
 export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}},async fetch(r,e){if(r.method==='OPTIONS')return new Response(null,{headers:C});const u=new URL(r.url),p=u.pathname.replace(/\/$/,'');try{
+  // Check temporary IP bans before serving HTML, APIs, or assets.
+  const ban=activeBan(r);if(ban)return ban;
+  // Count only actual HTML navigations, not CSS/JS/images; this avoids blocking normal page loads.
+  if(documentNavigation(r)){const navLimited=documentRateResponse(r);if(navLimited)return navLimited;}
+  // Broad API burst guard is intentionally higher than the navigation threshold because one page load calls multiple APIs.
+  if(p.startsWith('/api/')&&r.method!=='OPTIONS'){const apiLimited=apiRateResponse(r);if(apiLimited)return apiLimited;}
   // Canonical host: stop direct page access through the public workers.dev URL.
   // APIs are intentionally handled below so existing same-origin deployments can migrate cleanly.
   if((u.hostname.endsWith('.workers.dev')||u.hostname==='www.teostudio.top') && !p.startsWith('/api/')){
@@ -641,7 +660,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
     }catch(x){return J({ok:false,error:'CHANNEL_LOOKUP_FAILED',detail:String(x?.message||x)},502)}
   }
   if(p==='/api/comments'&&r.method==='GET')return J({ok:true,comments:await comments(e)});
-  if(p==='/api/comments'&&r.method==='POST'){const rl=limited(r,'public-comment',8,300000);if(rl)return rl;const b=await r.json().catch(()=>({}));const name=clean(b.name,40)||'Ẩn danh';const text=clean(b.text,700);const image=clean(b.image,1000000);if(!text&&!image)return J({ok:false,error:'COMMENT_EMPTY'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO comments(id,name,text,image) VALUES(?,?,?,?)').bind(id,name,text,image).run();return J({ok:true,id},201)}
+  if(p==='/api/comments'&&r.method==='POST'){const rl=commentRateResponse(r);if(rl)return rl;const b=await r.json().catch(()=>({}));const name=clean(b.name,40)||'Ẩn danh';const text=clean(b.text,700);const image=clean(b.image,1000000);if(!text&&!image)return J({ok:false,error:'COMMENT_EMPTY'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO comments(id,name,text,image) VALUES(?,?,?,?)').bind(id,name,text,image).run();return J({ok:true,id},201)}
   if(p==='/api/track/site'&&r.method==='POST'){await bumpView(e,'site');return J({ok:true})}
   let tv=p.match(/^\/api\/track\/product\/([^/]+)$/);if(tv&&r.method==='POST'){const id=decodeURIComponent(tv[1]);const product=await productById(e,id);if(!product)return J({ok:false,error:'NOT_FOUND'},404);await bumpView(e,'product',id);return J({ok:true,views:Number(product.views||0)+1})}
   let to=p.match(/^\/api\/track\/outbound\/([^/]+)$/);if(to&&r.method==='POST'){const id=decodeURIComponent(to[1]);const product=await productById(e,id);if(!product)return J({ok:false,error:'NOT_FOUND'},404);await bumpView(e,'outbound',id);return J({ok:true})}
@@ -715,6 +734,6 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   if(p==='/api/admin/tags'&&r.method==='POST'){const b=await r.json(),name=clean(b.name,100),parentId=clean(b.parent_id,100);if(!name)return J({ok:false,error:'name_required'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO tags(id,name,parent_id) VALUES(?,?,?)').bind(id,name,parentId||null).run();return J({ok:true,id},201)}
   let t=p.match(/^\/api\/admin\/tags\/([^/]+)$/);if(t){const id=t[1];if(r.method==='DELETE'){await e.DB.prepare('DELETE FROM tags WHERE id=? OR parent_id=?').bind(id,id).run();return J({ok:true})}if(r.method==='PUT'){const b=await r.json();await e.DB.prepare('UPDATE tags SET name=?,parent_id=? WHERE id=?').bind(clean(b.name,100),clean(b.parent_id,100)||null,id).run();return J({ok:true})}}
   if(p==='/api/admin/settings'&&r.method==='GET')return J({ok:true,settings:await settings(e)});
-  if(p==='/api/admin/settings'&&r.method==='PUT'){const b=await r.json();for(const [k,v] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','heroBackground','announcementTitle','announcementText','announcementEnabled','groupLink','adminContact','rentZalo','donateTitle','donateText','donateQr','socialTikTokUrl','socialYoutubeUrl','socialTikTokMeta','socialYoutubeMeta'].includes(k))continue;await e.DB.prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind(k,JSON.stringify(v)).run()}return J({ok:true})}
+  if(p==='/api/admin/settings'&&r.method==='PUT'){const b=await r.json();for(const [k,v] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','heroBackground','announcementTitle','announcementText','announcementEnabled','groupLink','adminContact','rentZalo','donateTitle','donateText','donateQr','socialTikTokUrl','socialYoutubeUrl','socialTikTokMeta','socialYoutubeMeta','themeConfig'].includes(k))continue;await e.DB.prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind(k,JSON.stringify(v)).run()}return J({ok:true})}
   if(e.ASSETS)return e.ASSETS.fetch(r);return J({ok:false,error:'NOT_FOUND'},404)
 }catch(x){return J({ok:false,error:'SERVER_ERROR',detail:String(x.message||x)},500)}}};
