@@ -1,3 +1,52 @@
+import { connect } from 'cloudflare:sockets';
+
+// OxMail SMTP sender. Configure credentials only as Cloudflare Worker secrets.
+const EMAIL_RE=/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
+function b64utf8(value){const bytes=new TextEncoder().encode(String(value??''));let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));return btoa(binary)}
+function foldBase64(value,width=76){return String(value).match(new RegExp(`.{1,${width}}`,'g'))?.join('\r\n')||''}
+async function sendOxMail(e,{to,subject,text}){
+  const host=clean(e.OXMAIL_SMTP_HOST||'mail.teostudio.top',253),port=Number(e.OXMAIL_SMTP_PORT||465);
+  const user=clean(e.OXMAIL_SMTP_USER||'teostudio@teostudio.top',320),pass=String(e.OXMAIL_SMTP_PASS||'');
+  const from=clean(e.EMAIL_FROM||user,320);
+  if(!pass)throw new Error('OXMAIL_SMTP_PASS secret is not configured');
+  if(!EMAIL_RE.test(to)||!EMAIL_RE.test(from)||!EMAIL_RE.test(user))throw new Error('Invalid email address configuration');
+  if(![465].includes(port))throw new Error('This SMTP implementation requires implicit TLS on port 465');
+  const socket=connect({hostname:host,port},{secureTransport:'on'});
+  const reader=socket.readable.getReader(),writer=socket.writable.getWriter(),decoder=new TextDecoder();let buf='';
+  async function line(){while(true){const i=buf.indexOf('\r\n');if(i>=0){const out=buf.slice(0,i);buf=buf.slice(i+2);return out;}const {value,done}=await reader.read();if(done)throw new Error('SMTP connection closed unexpectedly');buf+=decoder.decode(value,{stream:true});if(buf.length>65536)throw new Error('SMTP response too large');}}
+  async function reply(){const lines=[];let last='';for(let n=0;n<30;n++){last=await line();lines.push(last);if(/^\d{3} /.test(last))break;}if(!/^\d{3} /.test(last))throw new Error('Invalid SMTP response');return {code:Number(last.slice(0,3)),text:lines.join('\n')};}
+  async function cmd(s,expected){await writer.write(new TextEncoder().encode(s+'\r\n'));const r=await reply();if(!expected.includes(r.code))throw new Error(`SMTP ${r.code}: ${r.text.slice(0,500)}`);return r;}
+  try{
+    let r=await reply();if(r.code!==220)throw new Error(`SMTP ${r.code}: ${r.text.slice(0,500)}`);
+    await cmd('EHLO teostudio.top',[250]);
+    await cmd('AUTH LOGIN',[334]);await cmd(btoa(user),[334]);await cmd(btoa(pass),[235]);
+    await cmd(`MAIL FROM:<${from}>`,[250]);await cmd(`RCPT TO:<${to}>`,[250,251]);await cmd('DATA',[354]);
+    const fromName='Téo Studio';const subj=`=?UTF-8?B?${b64utf8(subject)}?=`;
+    const body=foldBase64(b64utf8(String(text??'')));
+    const message=[`From: =?UTF-8?B?${b64utf8(fromName)}?= <${from}>`,`To: <${to}>`,`Subject: ${subj}`,'MIME-Version: 1.0','Content-Type: text/plain; charset=UTF-8','Content-Transfer-Encoding: base64','',body,''].join('\r\n').replace(/\r\n\./g,'\r\n..');
+    await writer.write(new TextEncoder().encode(message+'.\r\n'));r=await reply();if(r.code!==250)throw new Error(`SMTP ${r.code}: ${r.text.slice(0,500)}`);
+    try{await cmd('QUIT',[221])}catch{}return {ok:true,response:r.text};
+  }finally{try{reader.releaseLock()}catch{}try{writer.releaseLock()}catch{}try{await socket.close()}catch{}}
+}
+function notifyEmail(e,{to,subject,text}){return sendOxMail(e,{to,subject,text}).catch(err=>({ok:false,error:String(err?.message||err)}));}
+function validEmail(v){const x=clean(v,320);return EMAIL_RE.test(x)?x:'';}
+async function ensureNotificationsSchema(e){
+  await e.DB.prepare(`CREATE TABLE IF NOT EXISTS web_notifications (
+    id TEXT PRIMARY KEY, recipient_type TEXT NOT NULL, recipient_id TEXT NOT NULL,
+    title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '', kind TEXT NOT NULL DEFAULT 'info',
+    read_at TEXT DEFAULT NULL, created_at TEXT NOT NULL DEFAULT(datetime('now'))
+  )`).run();
+  await e.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_web_notifications_recipient ON web_notifications(recipient_type,recipient_id,created_at)`).run();
+}
+async function createNotification(e,{recipientType,recipientId,title,body='',kind='info'}){
+  try{await ensureNotificationsSchema(e);await e.DB.prepare(`INSERT INTO web_notifications(id,recipient_type,recipient_id,title,body,kind) VALUES(?,?,?,?,?,?)`).bind(crypto.randomUUID(),recipientType, String(recipientId),clean(title,180),clean(body,2000),clean(kind,40)).run();return true}catch(err){return false}
+}
+async function notificationList(e,recipientType,recipientId){
+  await ensureNotificationsSchema(e);
+  const rows=(await e.DB.prepare(`SELECT id,title,body,kind,read_at,created_at FROM web_notifications WHERE recipient_type=? AND recipient_id=? ORDER BY created_at DESC LIMIT 50`).bind(recipientType,String(recipientId)).all()).results||[];
+  return rows;
+}
+
 const PUBLIC_ORIGIN='https://teostudio.top';
 const C={"content-type":"application/json;charset=utf-8","access-control-allow-origin":"*","access-control-allow-methods":"GET,POST,PUT,DELETE,OPTIONS","access-control-allow-headers":"Content-Type,Authorization","cache-control":"no-store"};
 const J=(x,s=200,extra={})=>new Response(JSON.stringify(x),{status:s,headers:{...C,...extra}});
@@ -136,6 +185,44 @@ async function ensureTenantSchema(e){
       warning TEXT DEFAULT '', views INTEGER NOT NULL DEFAULT 0, visible INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL DEFAULT(datetime('now')), updated_at TEXT NOT NULL DEFAULT(datetime('now'))
     )`);
+    // Additive pricing migration and payment orders; never reset existing D1 data.
+    await tenantAddColumn(e,'tenant_products','price_vnd','INTEGER DEFAULT 0');
+    await tenantAddColumn(e,'tenant_products','sale_enabled','INTEGER DEFAULT 0');
+    await tenantAddColumn(e,'tenant_products','product_mode',"TEXT DEFAULT 'free'");
+    await tenantAddColumn(e,'tenant_products','original_link','TEXT DEFAULT ""');
+    await tenantAddColumn(e,'tenant_withdrawals','terms_accepted_at','TEXT DEFAULT NULL');
+    await tenantExec(e,`CREATE TABLE IF NOT EXISTS tenant_payment_orders (
+      id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, product_id TEXT NOT NULL,
+      payment_code TEXT NOT NULL UNIQUE, amount_vnd INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending', transaction_id TEXT UNIQUE,
+      buyer_ref TEXT DEFAULT '', created_at TEXT NOT NULL DEFAULT(datetime('now')),
+      expires_at INTEGER NOT NULL, paid_at TEXT DEFAULT NULL
+    )`);
+    await tenantExec(e,`CREATE INDEX IF NOT EXISTS idx_tenant_payment_orders_lookup ON tenant_payment_orders(tenant_id,product_id,status)`);
+    await tenantExec(e,`CREATE TABLE IF NOT EXISTS sepay_webhook_events (
+      transaction_id TEXT PRIMARY KEY, order_code TEXT NOT NULL, amount_vnd INTEGER NOT NULL,
+      received_at TEXT NOT NULL DEFAULT(datetime('now'))
+    )`);
+    // Tenant wallet is an additive ledger; never store a mutable balance as the source of truth.
+    await tenantExec(e,`CREATE TABLE IF NOT EXISTS tenant_wallet_ledger (
+      id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, amount_vnd INTEGER NOT NULL,
+      kind TEXT NOT NULL, ref_type TEXT NOT NULL, ref_id TEXT NOT NULL,
+      note TEXT DEFAULT '', created_at TEXT NOT NULL DEFAULT(datetime('now')),
+      UNIQUE(ref_type,ref_id,kind)
+    )`);
+    await tenantExec(e,`CREATE INDEX IF NOT EXISTS idx_wallet_ledger_tenant ON tenant_wallet_ledger(tenant_id,created_at)`);
+    await tenantExec(e,`CREATE TABLE IF NOT EXISTS tenant_payout_profiles (
+      tenant_id TEXT PRIMARY KEY, method TEXT NOT NULL, bank_name TEXT DEFAULT '', account_number TEXT NOT NULL,
+      account_holder TEXT NOT NULL, wallet_provider TEXT DEFAULT '', updated_at TEXT NOT NULL DEFAULT(datetime('now'))
+    )`);
+    await tenantExec(e,`CREATE TABLE IF NOT EXISTS tenant_withdrawals (
+      id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, gross_vnd INTEGER NOT NULL, fee_vnd INTEGER NOT NULL DEFAULT 0,
+      payout_vnd INTEGER NOT NULL, method TEXT NOT NULL, payout_snapshot TEXT NOT NULL,
+      speed TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', admin_note TEXT DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT(datetime('now')), reviewed_at TEXT DEFAULT NULL, paid_at TEXT DEFAULT NULL
+    )`);
+    await tenantExec(e,`CREATE INDEX IF NOT EXISTS idx_withdrawals_status ON tenant_withdrawals(status,created_at)`);
+
     await tenantExec(e,`CREATE TABLE IF NOT EXISTS tenant_tags (
       id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, parent_id TEXT DEFAULT NULL,
       created_at TEXT NOT NULL DEFAULT(datetime('now'))
@@ -175,6 +262,7 @@ async function ensureTenantSchema(e){
     await tenantAddColumn(e,'tenant_accounts','admin_confirm_password_hash','TEXT');
     await tenantAddColumn(e,'tenant_accounts','starts_at','TEXT');
     await tenantAddColumn(e,'tenant_accounts','expires_at','TEXT');
+    await tenantAddColumn(e,'tenant_accounts','email','TEXT DEFAULT NULL');
     if(!tenantAccountHasId){
       await tenantAddColumn(e,'tenant_accounts','id','TEXT');
       if(tenantAccountHasTenantId){
@@ -388,6 +476,63 @@ async function purgeExpired(e){
   }
 }
 
+async function walletBalance(e,tenantId){
+  const row=await e.DB.prepare('SELECT COALESCE(SUM(amount_vnd),0) AS balance FROM tenant_wallet_ledger WHERE tenant_id=?').bind(tenantId).first();
+  return Math.max(0,Number(row?.balance||0));
+}
+async function walletCreditSale(e,order,txId,amount){
+  // Idempotent credit: a paid order can only create one sale ledger row.
+  try{await e.DB.prepare("INSERT INTO tenant_wallet_ledger(id,tenant_id,amount_vnd,kind,ref_type,ref_id,note) VALUES(?,?,?,'sale','order',?,?)").bind(crypto.randomUUID(),order.tenant_id,Math.floor(amount),String(order.id),`SePay ${txId}`).run();return true}catch{return false}
+}
+function buildVietQr(e,amount,code){const bank=encodeURIComponent(clean(e.SEPAY_BANK_CODE,40)),account=encodeURIComponent(clean(e.SEPAY_ACCOUNT_NUMBER,40)),name=encodeURIComponent(clean(e.SEPAY_ACCOUNT_NAME||'',100));return `https://img.vietqr.io/image/${bank}-${account}-compact2.png?amount=${Math.floor(amount)}&addInfo=${encodeURIComponent(code)}${name?'&accountName='+name:''}`}
+async function handleSePayWebhook(r,e){
+  // SePay expects a 2xx response with {"success":true}; every ignored event is
+  // acknowledged too, while invalid authentication/payload returns a retryable error.
+  if(r.method!=='POST')return J({success:false,error:'METHOD_NOT_ALLOWED'},405);
+  const expected=String(e.SEPAY_API_KEY||'');
+  const auth=String(r.headers.get('authorization')||'');
+  const supplied=auth.startsWith('Apikey ')?auth.slice(7).trim():'';
+  if(!expected||!supplied||supplied.length!==expected.length||!crypto.subtle||supplied!==expected)
+    return J({success:false,error:'UNAUTHORIZED'},401);
+  let b;try{b=await r.json()}catch{return J({success:false,error:'INVALID_PAYLOAD'},400)}
+  if(!b||typeof b!=='object'||Array.isArray(b))return J({success:false,error:'INVALID_PAYLOAD'},400);
+  const txId=String(b.id??b.transaction_id??'').trim();
+  const amount=Math.floor(Number(b.transferAmount??b.transfer_amount??b.amount??0));
+  const direction=String(b.transferType??b.transfer_type??b.type??'').trim().toLowerCase();
+  const content=String(b.content??b.description??b.transferContent??b.transactionContent??b.transaction_content??'').toUpperCase();
+  if(!txId||!Number.isFinite(amount)||amount<=0)return J({success:false,error:'INVALID_TRANSACTION'},400);
+  if(direction&&!['in','income','credit','incoming','deposit'].includes(direction))return J({success:true,ignored:true,reason:'NOT_INCOMING'});
+  // Reject payloads explicitly addressed to a different receiving account.
+  const configuredAccount=String(e.SEPAY_ACCOUNT_NUMBER||'').replace(/\s+/g,'');
+  const payloadAccount=String(b.accountNumber??b.account_number??'').replace(/\s+/g,'');
+  if(configuredAccount&&payloadAccount&&configuredAccount!==payloadAccount)return J({success:true,ignored:true,reason:'WRONG_ACCOUNT'});
+  const match=content.match(/TEO[A-Z0-9]{10}/);
+  if(!match)return J({success:true,ignored:true,reason:'NO_ORDER_CODE'});
+  const code=match[0];
+  await ensureTenantSchema(e);
+  const order=await e.DB.prepare("SELECT * FROM tenant_payment_orders WHERE payment_code=? AND status='pending' AND expires_at>? LIMIT 1").bind(code,Date.now()).first();
+  if(!order)return J({success:true,ignored:true,reason:'ORDER_NOT_PENDING'});
+  if(amount<Number(order.amount_vnd))return J({success:false,error:'AMOUNT_TOO_LOW'},400);
+  // Reserve the bank transaction ID before applying any side effect.
+  try{await e.DB.prepare('INSERT INTO sepay_webhook_events(transaction_id,order_code,amount_vnd) VALUES(?,?,?)').bind(txId,code,amount).run()}
+  catch{return J({success:true,duplicate:true})}
+  const upd=await e.DB.prepare("UPDATE tenant_payment_orders SET status='paid',transaction_id=?,paid_at=datetime('now') WHERE id=? AND status='pending' AND amount_vnd<=?").bind(txId,order.id,amount).run();
+  if(!upd?.meta?.changes){try{await e.DB.prepare('DELETE FROM sepay_webhook_events WHERE transaction_id=?').bind(txId).run()}catch{};return J({success:true,ignored:true,reason:'ORDER_ALREADY_PROCESSED'})}
+  const creditOk=await walletCreditSale(e,order,txId,Math.min(amount,Number(order.amount_vnd)));
+  if(!creditOk){
+    // A previous ledger row means this order's credit already exists; otherwise
+    // revert the order reservation so SePay's retry can safely try again.
+    const existing=await e.DB.prepare("SELECT id FROM tenant_wallet_ledger WHERE ref_type='order' AND ref_id=? AND kind='sale' LIMIT 1").bind(String(order.id)).first().catch(()=>null);
+    if(!existing){
+      try{await e.DB.prepare("UPDATE tenant_payment_orders SET status='pending',transaction_id=NULL,paid_at=NULL WHERE id=? AND transaction_id=?").bind(order.id,txId).run()}catch{}
+      try{await e.DB.prepare('DELETE FROM sepay_webhook_events WHERE transaction_id=?').bind(txId).run()}catch{}
+      return J({success:false,error:'WALLET_CREDIT_FAILED'},500);
+    }
+  }
+  try{await tenantLog(e,order.tenant_id,'system','payment_paid',`${order.id}:${code}:${amount}`)}catch{}
+  return J({success:true,paid:true,order_id:order.id});
+}
+
 async function handleTenantPublic(r,e){
   await ensureTenantSchema(e);
   const u=new URL(r.url),parts=u.pathname.split('/').filter(Boolean);
@@ -400,7 +545,27 @@ async function handleTenantPublic(r,e){
     const pk=tenantInSql(t);const p=await e.DB.prepare(`SELECT * FROM tenant_products WHERE ${pk.clause} AND id=? AND visible=1 ORDER BY updated_at DESC LIMIT 1`).bind(...pk.vals,id).first();
     if(!p)return J({ok:false,error:'NOT_FOUND'},404);
     await tenantBump(e,t,'product',id);
-    return J({ok:true,product:p,tenant:tenantInfo(t)});
+    const paid=Number(p.sale_enabled)===1&&Number(p.price_vnd)>0;const pub={...p,price_vnd:Number(p.price_vnd)||0,sale_enabled:paid?1:0};if(paid)delete pub.download_link;
+    return J({ok:true,product:pub,tenant:tenantInfo(t)});
+  }
+  if(parts[3]==='orders'&&parts[4]==='create'&&r.method==='POST'){
+    const b=await r.json().catch(()=>({})),productId=clean(b.product_id,100);const k=tenantInSql(t);
+    const prod=await e.DB.prepare(`SELECT id,title,price_vnd,sale_enabled,visible FROM tenant_products WHERE ${k.clause} AND id=? AND visible=1 LIMIT 1`).bind(...k.vals,productId).first();
+    if(!prod)return J({ok:false,error:'PRODUCT_NOT_FOUND'},404);
+    const amount=Math.floor(Number(prod.price_vnd)||0);if(Number(prod.sale_enabled)!==1||amount<1000)return J({ok:false,error:'PRODUCT_NOT_FOR_SALE'},400);
+    if(!e.SEPAY_API_KEY||!e.SEPAY_BANK_CODE||!e.SEPAY_ACCOUNT_NUMBER)return J({ok:false,error:'PAYMENT_NOT_CONFIGURED',message:'Chủ web chưa cấu hình SePay/VietQR.'},503);
+    const now=Date.now();const prior=await e.DB.prepare("SELECT * FROM tenant_payment_orders WHERE tenant_id=? AND product_id=? AND status='pending' AND expires_at>? ORDER BY created_at DESC LIMIT 1").bind(t.id,productId,now).first();
+    if(prior){const qr=buildVietQr(e,prior.amount_vnd,prior.payment_code);return J({ok:true,order:{id:prior.id,code:prior.payment_code,amount:prior.amount_vnd,status:prior.status,expiresAt:prior.expires_at,qrUrl:qr}})}
+    const id=crypto.randomUUID(),code='TEO'+crypto.randomUUID().replace(/-/g,'').slice(0,10).toUpperCase(),expires=now+20*60*1000;
+    await e.DB.prepare("INSERT INTO tenant_payment_orders(id,tenant_id,product_id,payment_code,amount_vnd,status,expires_at) VALUES(?,?,?,?,?,'pending',?)").bind(id,t.id,productId,code,amount,expires).run();
+    return J({ok:true,order:{id,code,amount,status:'pending',expiresAt:expires,qrUrl:buildVietQr(e,amount,code)}},201)
+  }
+  if(parts[3]==='orders'&&parts[4]&&r.method==='GET'){
+    const order=await e.DB.prepare('SELECT id,tenant_id,product_id,payment_code,amount_vnd,status,expires_at,paid_at FROM tenant_payment_orders WHERE id=? AND tenant_id=?').bind(clean(parts[4],100),t.id).first();
+    if(!order)return J({ok:false,error:'ORDER_NOT_FOUND'},404);
+    if(order.status==='pending'&&Number(order.expires_at)<=Date.now()){await e.DB.prepare("UPDATE tenant_payment_orders SET status='expired' WHERE id=? AND status='pending'").bind(order.id).run();order.status='expired'}
+    let downloadUrl=null;if(order.status==='paid'){const pk=tenantInSql(t);const product=await e.DB.prepare(`SELECT download_link FROM tenant_products WHERE ${pk.clause} AND id=?`).bind(...pk.vals,order.product_id).first();downloadUrl=product?.download_link||null}
+    return J({ok:true,order:{id:order.id,code:order.payment_code,amount:order.amount_vnd,status:order.status,expiresAt:order.expires_at,paidAt:order.paid_at,downloadUrl}})
   }
   if(parts[3]==='comments'&&r.method==='GET'){const ck=tenantInSql(t);return J({ok:true,comments:(await e.DB.prepare(`SELECT id,name,text,image,created_at FROM tenant_comments WHERE ${ck.clause} AND visible=1 ORDER BY created_at DESC LIMIT 5`).bind(...ck.vals).all()).results||[]});}
   if(parts[3]==='comments'&&r.method==='POST'){const rl=commentRateResponse(r);if(rl)return rl;
@@ -416,13 +581,24 @@ async function handleTenantAdmin(r,e){
   if(status==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);
   if(status==='expired')return J({ok:false,error:'TENANT_EXPIRED'},403);
   const u=new URL(r.url),p=u.pathname;
+  if(p==='/api/tenant/notifications'&&r.method==='GET'){
+    const notifications=await notificationList(e,'tenant',t.id);
+    return J({ok:true,notifications,unread:notifications.filter(x=>!x.read_at).length});
+  }
+  if(p==='/api/tenant/notifications/read'&&r.method==='POST'){
+    const b=await r.json().catch(()=>({}));await ensureNotificationsSchema(e);
+    if(b.all===true)await e.DB.prepare("UPDATE web_notifications SET read_at=datetime('now') WHERE recipient_type='tenant' AND recipient_id=? AND read_at IS NULL").bind(String(t.id)).run();
+    else if(b.id)await e.DB.prepare("UPDATE web_notifications SET read_at=datetime('now') WHERE id=? AND recipient_type='tenant' AND recipient_id=? AND read_at IS NULL").bind(clean(b.id,100),String(t.id)).run();
+    return J({ok:true});
+  }
   if(p==='/api/tenant/me')return J({ok:true,tenant:tenantInfo(t),settings:await tenantSettings(e,t)});
   if(p==='/api/tenant/products'&&r.method==='GET')return J({ok:true,products:await tenantProducts(e,t,true)});
   if(p==='/api/tenant/products'&&r.method==='POST'){
     const b=await r.json().catch(()=>({}));
     if(!b.title||!b.download_link)return J({ok:false,error:'title_and_download_link_required'},400);
     const id=crypto.randomUUID();
-    await e.DB.prepare('INSERT INTO tenant_products(id,tenant_id,title,game,description,thumb,download_link,warning,visible) VALUES(?,?,?,?,?,?,?,?,1)').bind(id,t.id,clean(b.title,200),clean(b.game,100),clean(b.description),clean(b.thumb,1500000),clean(b.download_link,10000),clean(b.warning)).run();
+    const price=Math.max(0,Math.min(100000000,Math.floor(Number(b.price_vnd)||0))),mode=['free','unlock','paid','both'].includes(b.product_mode)?b.product_mode:'free',sale=(mode==='paid'||mode==='both')&&price>0?1:0;
+    await e.DB.prepare('INSERT INTO tenant_products(id,tenant_id,title,game,description,thumb,download_link,warning,visible,price_vnd,sale_enabled,product_mode,original_link) VALUES(?,?,?,?,?,?,?,?,1,?,?,?,?)').bind(id,t.id,clean(b.title,200),clean(b.game,100),clean(b.description),clean(b.thumb,1500000),clean(b.download_link,10000),clean(b.warning),price,sale,mode,clean(b.original_link,10000)).run();
     await tenantLog(e,t.id,t.id,'product_create',id);
     return J({ok:true,id},201)
   }
@@ -433,7 +609,8 @@ async function handleTenantAdmin(r,e){
     if(r.method==='PUT'){
       const b=await r.json().catch(()=>({}));
       if(Object.keys(b).length===1&&typeof b.visible==='boolean'){await e.DB.prepare('UPDATE tenant_products SET visible=?,updated_at=datetime(\'now\') WHERE tenant_id=? AND id=?').bind(b.visible?1:0,t.id,id).run();await tenantLog(e,t.id,t.id,b.visible?'product_show':'product_hide',id);return J({ok:true,visible:b.visible})}
-      await e.DB.prepare('UPDATE tenant_products SET title=?,game=?,description=?,thumb=?,download_link=?,warning=?,visible=?,updated_at=datetime(\'now\') WHERE tenant_id=? AND id=?').bind(clean(b.title,200),clean(b.game,100),clean(b.description),clean(b.thumb,1500000),clean(b.download_link,10000),clean(b.warning),b.visible===false?0:1,t.id,id).run();
+      const price=Math.max(0,Math.min(100000000,Math.floor(Number(b.price_vnd)||0))),mode=['free','unlock','paid','both'].includes(b.product_mode)?b.product_mode:'free',sale=(mode==='paid'||mode==='both')&&price>0?1:0;
+      await e.DB.prepare('UPDATE tenant_products SET title=?,game=?,description=?,thumb=?,download_link=?,warning=?,visible=?,price_vnd=?,sale_enabled=?,product_mode=?,original_link=?,updated_at=datetime(\'now\') WHERE tenant_id=? AND id=?').bind(clean(b.title,200),clean(b.game,100),clean(b.description),clean(b.thumb,1500000),clean(b.download_link,10000),clean(b.warning),b.visible===false?0:1,price,sale,mode,clean(b.original_link,10000),t.id,id).run();
       return J({ok:true})
     }
   }
@@ -497,6 +674,55 @@ async function handleTenantAdmin(r,e){
     if(String(fresh?.password_hash||'')!==hash)return J({ok:false,error:'PASSWORD_UPDATE_FAILED'},500);
     await tenantLog(e,t.id,t.id,'password_change');return J({ok:true})
   }
+  if(p==='/api/tenant/wallet'&&r.method==='GET'){
+    const balance=await walletBalance(e,t.id);
+    const profile=await e.DB.prepare('SELECT method,bank_name,account_number,account_holder,wallet_provider,updated_at FROM tenant_payout_profiles WHERE tenant_id=?').bind(t.id).first();
+    const ledger=(await e.DB.prepare('SELECT id,amount_vnd,kind,ref_type,ref_id,note,created_at FROM tenant_wallet_ledger WHERE tenant_id=? ORDER BY created_at DESC LIMIT 100').bind(t.id).all()).results||[];
+    const withdrawals=(await e.DB.prepare('SELECT id,gross_vnd,fee_vnd,payout_vnd,method,speed,status,admin_note,created_at,reviewed_at,paid_at FROM tenant_withdrawals WHERE tenant_id=? ORDER BY created_at DESC LIMIT 50').bind(t.id).all()).results||[];
+    const sales=(await e.DB.prepare("SELECT COALESCE(SUM(amount_vnd),0) AS total FROM tenant_wallet_ledger WHERE tenant_id=? AND kind='sale'").bind(t.id).first())?.total||0;
+    return J({ok:true,balanceVnd:balance,totalSalesVnd:Number(sales),profile,ledger,withdrawals,minimumWithdrawalVnd:100000});
+  }
+  if(p==='/api/tenant/payout-profile'&&r.method==='PUT'){
+    const b=await r.json().catch(()=>({})),method=clean(b.method,20),holder=clean(b.account_holder,120),account=clean(b.account_number,120),bank=clean(b.bank_name,120),wallet=clean(b.wallet_provider,80);
+    if(!['bank','wallet'].includes(method)||!holder||!account||(method==='bank'&&!bank)||(method==='wallet'&&!wallet))return J({ok:false,error:'PAYOUT_DETAILS_REQUIRED'},400);
+    if(account.length<4||holder.length<2)return J({ok:false,error:'PAYOUT_DETAILS_INVALID'},400);
+    await e.DB.prepare("INSERT INTO tenant_payout_profiles(tenant_id,method,bank_name,account_number,account_holder,wallet_provider,updated_at) VALUES(?,?,?,?,?,?,datetime('now')) ON CONFLICT(tenant_id) DO UPDATE SET method=excluded.method,bank_name=excluded.bank_name,account_number=excluded.account_number,account_holder=excluded.account_holder,wallet_provider=excluded.wallet_provider,updated_at=datetime('now')").bind(t.id,method,bank,account,holder,wallet).run();
+    await tenantLog(e,t.id,t.id,'payout_profile_updated',method);
+    return J({ok:true});
+  }
+  if(p==='/api/tenant/withdrawals'&&r.method==='POST'){
+    const rl=limited(r,'tenant-withdrawal',3,60000);if(rl)return rl;
+    const termsBody=await r.clone().json().catch(()=>({}));if(termsBody.termsAccepted!==true)return J({ok:false,error:'TERMS_ACCEPTANCE_REQUIRED',message:'Bạn cần đồng ý điều khoản rút tiền.'},400);
+    const b=await r.json().catch(()=>({})),gross=Math.floor(Number(b.amount_vnd)||0),speed=clean(b.speed,20);
+    if(gross<100000)return J({ok:false,error:'MINIMUM_WITHDRAWAL_100K'},400);
+    if(!['normal','priority'].includes(speed))return J({ok:false,error:'INVALID_WITHDRAWAL_SPEED'},400);
+    const profile=await e.DB.prepare('SELECT method,bank_name,account_number,account_holder,wallet_provider FROM tenant_payout_profiles WHERE tenant_id=?').bind(t.id).first();
+    if(!profile)return J({ok:false,error:'PAYOUT_PROFILE_REQUIRED'},400);
+    const balance=await walletBalance(e,t.id);if(gross>balance)return J({ok:false,error:'INSUFFICIENT_BALANCE',balanceVnd:balance},400);
+    const fee=speed==='priority'?Math.floor(gross*0.10):0,payout=gross-fee,id=crypto.randomUUID();
+    // Reserve funds immediately using a unique ledger reference; repeat submissions cannot spend the same balance.
+    const snapshot=JSON.stringify(profile);
+    try{
+      // D1 batch runs transactionally: the balance check, withdrawal row and reserve ledger entry
+      // commit together, preventing parallel requests from spending the same available balance.
+      await e.DB.batch([
+        e.DB.prepare("INSERT INTO tenant_withdrawals(id,tenant_id,gross_vnd,fee_vnd,payout_vnd,method,payout_snapshot,speed,status,terms_accepted_at) SELECT ?,?,?,?,?,?,?,?,'pending',datetime('now') WHERE (SELECT COALESCE(SUM(amount_vnd),0) FROM tenant_wallet_ledger WHERE tenant_id=?)>=?").bind(id,t.id,gross,fee,payout,profile.method,snapshot,speed,t.id,gross),
+        e.DB.prepare("INSERT INTO tenant_wallet_ledger(id,tenant_id,amount_vnd,kind,ref_type,ref_id,note) SELECT ?,?,?, 'withdrawal_reserve','withdrawal',?,? WHERE EXISTS(SELECT 1 FROM tenant_withdrawals WHERE id=? AND status='pending')").bind(crypto.randomUUID(),t.id,-gross,id,`Rút tiền ${speed}`,id)
+      ]);
+      const created=await e.DB.prepare('SELECT id FROM tenant_withdrawals WHERE id=?').bind(id).first();
+      if(!created)return J({ok:false,error:'INSUFFICIENT_BALANCE',balanceVnd:await walletBalance(e,t.id)},400);
+    }catch(x){return J({ok:false,error:'WITHDRAWAL_CREATE_FAILED',detail:String(x?.message||x)},500)}
+    await tenantLog(e,t.id,t.id,'withdrawal_requested',`${id}:${gross}:${speed}`);
+    const moneyForNotice=n=>Number(n||0).toLocaleString('vi-VN')+' ₫';
+    await createNotification(e,{recipientType:'admin',recipientId:'master',title:'Có yêu cầu rút tiền mới',body:`Tenant ${t.slug} gửi yêu cầu ${moneyForNotice(gross)}. Mã: ${id}. Trạng thái: Chờ duyệt.`,kind:'withdrawal'});
+    await createNotification(e,{recipientType:'tenant',recipientId:t.id,title:'Đã nhận yêu cầu rút tiền',body:`Yêu cầu ${moneyForNotice(gross)} đã được ghi nhận. Mã: ${id}. Trạng thái: Chờ duyệt.`,kind:'withdrawal'});
+    const tenantEmailRow=await e.DB.prepare('SELECT email FROM tenant_accounts WHERE id=? OR slug=? LIMIT 1').bind(t.id,t.slug).first().catch(()=>null);
+    const money=n=>Number(n||0).toLocaleString('vi-VN')+' ₫';
+    const notifyText=`Có yêu cầu rút tiền mới trên Téo Studio.\nTenant: ${t.slug} (${t.id})\nMã yêu cầu: ${id}\nSố tiền gốc: ${money(gross)}\nPhí: ${money(fee)}\nThực nhận: ${money(payout)}\nHình thức: ${speed==='priority'?'Ưu tiên (mục tiêu xử lý 24 giờ)':'Thông thường (mục tiêu xử lý 7–10 ngày)'}\nTrạng thái: Chờ duyệt.`;
+    if(validEmail(e.EMAIL_ADMIN_TO||'teostudio@teostudio.top'))await notifyEmail(e,{to:validEmail(e.EMAIL_ADMIN_TO||'teostudio@teostudio.top'),subject:'Téo Studio: Có yêu cầu rút tiền mới',text:notifyText});
+    if(validEmail(tenantEmailRow?.email))await notifyEmail(e,{to:tenantEmailRow.email,subject:'Téo Studio: Đã nhận yêu cầu rút tiền',text:`Téo Studio đã nhận yêu cầu rút tiền của bạn.\n\n${notifyText}\n\nThời gian xử lý là mục tiêu dự kiến, không phải cam kết thanh toán.`});
+    return J({ok:true,withdrawal:{id,grossVnd:gross,feeVnd:fee,payoutVnd:payout,speed,status:'pending'},message:'Đã gửi yêu cầu rút tiền để Admin duyệt.'},201);
+  }
   if(p==='/api/tenant/stats'&&r.method==='GET')return J({ok:true,...await tenantStats(e,t.id,u.searchParams.get('days')||30,u.searchParams.get('month')||'')});
   if(p==='/api/tenant/audit'&&r.method==='GET')return J({ok:true,logs:await tenantAudit(e,t.id)});
   if(p==='/api/tenant/logout'&&r.method==='POST'){const tok=tokenFrom(r);await e.DB.prepare('DELETE FROM tenant_sessions WHERE token=?').bind(tok).run();return J({ok:true})}
@@ -517,7 +743,8 @@ async function handleMasterTenant(r,e){
   }
   if(p==='/api/admin/tenants'&&r.method==='POST'){
     const b=await r.json().catch(()=>({}));
-    const id=clean(b.id??b.tenantId??b.username??b.slug,80),slug=tenantSlug(id),password=String(b.password??b.pass??''),days=Math.max(1,Math.min(3650,Number(b.days)||30));
+    const id=clean(b.id??b.tenantId??b.username??b.slug,80),slug=tenantSlug(id),password=String(b.password??b.pass??''),days=Math.max(1,Math.min(3650,Number(b.days)||30)),email=validEmail(b.email||'');
+    if(b.email && !email)return J({ok:false,error:'INVALID_EMAIL'},400);
     if(!slug)return J({ok:false,error:'ID_REQUIRED'},400);
     if(password.length<6)return J({ok:false,error:'PASSWORD_TOO_SHORT'},400);
     try{
@@ -550,8 +777,22 @@ async function handleMasterTenant(r,e){
       row=await e.DB.prepare(`SELECT * FROM tenant_accounts WHERE ${finalKey}=?`).bind(tid).first();
       row=await normalizeTenantRow(e,row);
       if(!row)return J({ok:false,error:'TENANT_CREATE_FAILED'},500);
+      if(email){await e.DB.prepare(`UPDATE tenant_accounts SET email=? WHERE ${finalKey}=?`).bind(email,tid).run();row.email=email;}
       try{await tenantLog(e,row.id,'master','create',`days=${days}`)}catch{}
-      return J({ok:true,tenant:tenantInfo(row),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(slug)}`},201);
+      await createNotification(e,{recipientType:'admin',recipientId:'master',title:'Đã tạo tenant mới',body:`Tài khoản ${slug} đã được tạo với thời hạn ${days} ngày.`,kind:'tenant'});
+      await createNotification(e,{recipientType:'tenant',recipientId:row.id,title:'Chào mừng đến với Téo Studio',body:`Tài khoản ${slug} đã được tạo. Hãy đăng nhập trang quản trị tenant để bắt đầu.`,kind:'welcome'});
+      let welcomeEmail=null;
+      if(email){welcomeEmail=await notifyEmail(e,{to:email,subject:'Chào mừng bạn đến với Téo Studio',text:`Xin chào ${slug}!
+
+Tài khoản Share File của bạn đã được tạo.
+ID: ${slug}
+Admin riêng: ${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(slug)}
+Trang Share: ${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(slug)}
+Thời hạn: ${days} ngày.
+
+Vì lý do bảo mật, mật khẩu ban đầu được gửi riêng bởi quản trị viên; email này không chứa mật khẩu.`});}
+      const adminUrl=`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(slug)}`,shareUrl=`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(slug)}`;
+      return J({ok:true,tenant:tenantInfo(row),adminUrl,shareUrl,emailSent:welcomeEmail?.ok===true,emailWarning:welcomeEmail&&!welcomeEmail.ok?'Không gửi được email chào mừng; kiểm tra cấu hình SMTP.':undefined},201);
     }catch(x){return J({ok:false,error:'TENANT_CREATE_DB_ERROR',detail:String(x?.message||x)},500)}
   }
   let m=p.match(/^\/api\/admin\/tenants\/([^/]+)$/);
@@ -616,6 +857,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
     html=html.replace(/<meta property="og:image"[^>]*>/i,'').replace('</head>',meta+'</head>');
     return new Response(html,{status:rr.status,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'public, max-age=60'}});
   }catch{}}
+  if(p==='/api/webhook/sepay')return await handleSePayWebhook(r,e);
   if(p==='/api/health')return J({ok:true,service:'teo-studio-api-mini',version:'rental-v41-safe',auth:'admin-key-session'});
   if(p==='/api/admin/login'&&r.method==='POST'){const rl=limited(r,'admin-login',8,60000);if(rl)return rl;await ensureAdminSessionSchema(e);const b=await r.json().catch(()=>({}));const supplied=clean(b.adminKey??b.password??'',500);const expected=clean(e.ADMIN_KEY??'',500);if(!expected)return J({ok:false,error:'ADMIN_KEY_MISSING'},500);if(!supplied||supplied!==expected)return J({ok:false,error:'INVALID_ADMIN_KEY'},401);const token=crypto.randomUUID()+crypto.randomUUID();await e.DB.prepare('INSERT INTO admin_sessions(token,expires_at) VALUES(?,?)').bind(token,Date.now()+7*24*60*60*1000).run();return J({ok:true,token,expiresIn:7*24*60*60*1000})}
   await ensureSchema(e);
@@ -721,10 +963,68 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
     if(crawler && e.ASSETS){try{await ensureTenantSchema(e);const slug=clean(new URL(r.url).searchParams.get('tenant')||'',80);const raw=await tenantBySlug(e,slug),t=await normalizeTenantRow(e,raw);const s=t?await tenantSettings(e,t):{};const base=PUBLIC_ORIGIN;const title=String(s.heroTitle||s.siteName||t?.slug||'Share File — Téo Studio').replace(/[<>]/g,'');const desc=String(s.heroText||'Kho file riêng của bạn.').replace(/[<>]/g,'');const img=base+'/api/og/tenant/'+encodeURIComponent(slug);let rr=await e.ASSETS.fetch(new Request(new URL('/share.html',r.url),r));let html=await rr.text();const meta=`<meta name=\"description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta property=\"og:type\" content=\"website\"><meta property=\"og:title\" content=\"${title.replace(/\"/g,'&quot;')}\"><meta property=\"og:description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta property=\"og:image\" content=\"${img}\"><meta property=\"og:url\" content=\"${r.url}\"><meta name=\"twitter:card\" content=\"summary_large_image\"><meta name=\"twitter:title\" content=\"${title.replace(/\"/g,'&quot;')}\"><meta name=\"twitter:description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta name=\"twitter:image\" content=\"${img}\">`;html=html.replace('</head>',meta+'</head>');return new Response(html,{status:rr.status,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'public, max-age=60'}})}catch{}}
   }
   if(p.startsWith('/api/public-tenant/'))return await handleTenantPublic(r,e);
+  if(p==='/api/admin/notifications'||p==='/api/admin/notifications/read'){
+    if(!(await isAdmin(r,e)))return J({ok:false,error:'ADMIN_REQUIRED'},401);
+    await ensureNotificationsSchema(e);
+    if(p==='/api/admin/notifications'&&r.method==='GET'){
+      const notifications=await notificationList(e,'admin','master');
+      return J({ok:true,notifications,unread:notifications.filter(x=>!x.read_at).length});
+    }
+    if(p==='/api/admin/notifications/read'&&r.method==='POST'){
+      const b=await r.json().catch(()=>({}));
+      if(b.all===true)await e.DB.prepare("UPDATE web_notifications SET read_at=datetime('now') WHERE recipient_type='admin' AND recipient_id='master' AND read_at IS NULL").run();
+      else if(b.id)await e.DB.prepare("UPDATE web_notifications SET read_at=datetime('now') WHERE id=? AND recipient_type='admin' AND recipient_id='master' AND read_at IS NULL").bind(clean(b.id,100)).run();
+      return J({ok:true});
+    }
+  }
   if(p.startsWith('/api/tenant/')&&p!=='/api/tenant/login')return await handleTenantAdmin(r,e);
   if(p.startsWith('/api/admin/tenants'))return await handleMasterTenant(r,e);
+  if(p.startsWith('/api/admin/withdrawals')){
+    if(!(await isAdmin(r,e)))return J({ok:false,error:'ADMIN_REQUIRED'},401);
+    await ensureTenantSchema(e);
+    if(p==='/api/admin/withdrawals'&&r.method==='GET'){
+      const status=clean(new URL(r.url).searchParams.get('status')||'',20);const where=status? 'WHERE w.status=?':'';
+      const rows=(await e.DB.prepare(`SELECT w.*,a.slug,a.id AS tenant_key FROM tenant_withdrawals w LEFT JOIN tenant_accounts a ON (a.id=w.tenant_id OR a.slug=w.tenant_id) ${where} ORDER BY CASE w.speed WHEN 'priority' THEN 0 ELSE 1 END,w.created_at ASC LIMIT 300`).bind(...(status?[status]:[])).all()).results||[];
+      return J({ok:true,withdrawals:rows.map(x=>({...x,payout:JSON.parse(x.payout_snapshot||'{}')}))});
+    }
+    const mm=p.match(/^\/api\/admin\/withdrawals\/([^/]+)\/(approve|paid|reject)$/);
+    if(mm&&r.method==='POST'){
+      const id=decodeURIComponent(mm[1]),action=mm[2],b=await r.json().catch(()=>({}));const w=await e.DB.prepare('SELECT * FROM tenant_withdrawals WHERE id=?').bind(id).first();if(!w)return J({ok:false,error:'WITHDRAWAL_NOT_FOUND'},404);
+      if(action==='approve'){
+        if(w.status!=='pending')return J({ok:false,error:'INVALID_WITHDRAWAL_STATUS'},409);
+        await e.DB.prepare("UPDATE tenant_withdrawals SET status='approved',admin_note=?,reviewed_at=datetime('now') WHERE id=? AND status='pending'").bind(clean(b.note,500),id).run();
+      }else if(action==='paid'){
+        if(!['approved','pending'].includes(w.status))return J({ok:false,error:'INVALID_WITHDRAWAL_STATUS'},409);
+        await e.DB.prepare("UPDATE tenant_withdrawals SET status='paid',admin_note=?,paid_at=datetime('now'),reviewed_at=COALESCE(reviewed_at,datetime('now')) WHERE id=? AND status IN ('approved','pending')").bind(clean(b.note,500),id).run();
+      }else{
+        if(['paid','rejected'].includes(w.status))return J({ok:false,error:'INVALID_WITHDRAWAL_STATUS'},409);
+        await e.DB.prepare("UPDATE tenant_withdrawals SET status='rejected',admin_note=?,reviewed_at=datetime('now') WHERE id=?").bind(clean(b.note,500),id).run();
+        await e.DB.prepare("INSERT OR IGNORE INTO tenant_wallet_ledger(id,tenant_id,amount_vnd,kind,ref_type,ref_id,note) VALUES(?,?,?,'withdrawal_refund','withdrawal',?,'Hoàn số dư do yêu cầu rút bị từ chối')").bind(crypto.randomUUID(),w.tenant_id,Number(w.gross_vnd),id).run();
+      }
+      const updated=await e.DB.prepare('SELECT * FROM tenant_withdrawals WHERE id=?').bind(id).first();
+      const account=await e.DB.prepare('SELECT email,slug FROM tenant_accounts WHERE id=? OR slug=? LIMIT 1').bind(w.tenant_id,w.tenant_id).first().catch(()=>null);
+      const recipient=validEmail(account?.email);
+      const label=action==='approve'?'đã được duyệt':action==='paid'?'đã được đánh dấu thanh toán':'bị từ chối';
+      const body=`Yêu cầu rút tiền ${id} ${label}.\nTenant: ${account?.slug||w.tenant_id}\nSố tiền gốc: ${Number(w.gross_vnd||0).toLocaleString('vi-VN')} ₫\nPhí: ${Number(w.fee_vnd||0).toLocaleString('vi-VN')} ₫\nThực nhận: ${Number(w.payout_vnd||0).toLocaleString('vi-VN')} ₫\nTrạng thái: ${updated?.status||action}\n${updated?.admin_note?`Ghi chú: ${updated.admin_note}`:''}`;
+      await createNotification(e,{recipientType:'tenant',recipientId:w.tenant_id,title:`Yêu cầu rút tiền ${label}`,body:`Mã: ${id}. Số tiền: ${Number(w.gross_vnd||0).toLocaleString('vi-VN')} ₫. Trạng thái: ${updated?.status||action}. ${updated?.admin_note?`Ghi chú: ${updated.admin_note}`:''}`,kind:'withdrawal'});
+      await createNotification(e,{recipientType:'admin',recipientId:'master',title:`Yêu cầu rút tiền ${label}`,body:`Tenant ${account?.slug||w.tenant_id}, mã ${id}, số tiền ${Number(w.gross_vnd||0).toLocaleString('vi-VN')} ₫.`,kind:'withdrawal'});
+      if(recipient)await notifyEmail(e,{to:recipient,subject:`Téo Studio: Yêu cầu rút tiền ${label}`,text:body});
+      const adminTo=validEmail(e.EMAIL_ADMIN_TO||'teostudio@teostudio.top');
+      if(adminTo)await notifyEmail(e,{to:adminTo,subject:`Téo Studio: Rút tiền ${label}`,text:body});
+      return J({ok:true,emailNotified:!!recipient});
+    }
+    return J({ok:false,error:'NOT_FOUND'},404);
+  }
   if(p==='/api/admin/logout'&&r.method==='POST'){const t=tokenFrom(r);if(t)await e.DB.prepare('DELETE FROM admin_sessions WHERE token=?').bind(t).run();return J({ok:true})}
   if(!(await isAdmin(r,e)))return J({ok:false,error:'ADMIN_REQUIRED'},401);
+  if(p==='/api/admin/email/test'&&r.method==='POST'){
+    const rl=limited(r,'admin-email-test',3,60000);if(rl)return rl;
+    const b=await r.json().catch(()=>({})),to=validEmail(b.to||e.EMAIL_ADMIN_TO||'teostudio@teostudio.top');
+    if(!to)return J({ok:false,error:'INVALID_EMAIL'},400);
+    const result=await notifyEmail(e,{to,subject:'Kiểm tra email Téo Studio',text:`Email kiểm tra gửi từ Téo Studio đã được gửi lúc ${new Date().toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}.\n\nNếu bạn nhận được thư này, cấu hình SMTP của Worker đã gửi thư thành công.`});
+    if(!result.ok)return J({ok:false,error:'EMAIL_SEND_FAILED',detail:result.error},502);
+    return J({ok:true,message:'SMTP đã chấp nhận email kiểm tra.',to});
+  }
   if(p==='/api/admin/stats'&&r.method==='GET')return J({ok:true,...await stats(e,new URL(r.url).searchParams.get('days')||30)});
   if(p==='/api/admin/comments'&&r.method==='GET')return J({ok:true,comments:(await e.DB.prepare('SELECT id,name,text,image,created_at,visible FROM comments ORDER BY created_at DESC').all()).results||[]});
   let cm=p.match(/^\/api\/admin\/comments\/([^/]+)$/);if(cm){const id=cm[1];if(r.method==='DELETE'){await e.DB.prepare('DELETE FROM comments WHERE id=?').bind(id).run();return J({ok:true})}if(r.method==='PUT'){const b=await r.json().catch(()=>({}));if(typeof b.visible!=='boolean')return J({ok:false,error:'VISIBLE_REQUIRED'},400);await e.DB.prepare('UPDATE comments SET visible=? WHERE id=?').bind(b.visible?1:0,id).run();return J({ok:true,visible:b.visible})}}
