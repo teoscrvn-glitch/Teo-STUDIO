@@ -886,7 +886,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
         image=image||pick(html,/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']*)/i)||pick(html,/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:image["']/i);
         title=title||pick(html,/["']nickname["']\s*[:=]\s*["']([^"']+)/i);
         handle=handle||pick(html,/["']unique[_-]?id["']\s*[:=]\s*["']([^"']+)/i);
-        image=image||pick(html,/["']avatar(?:Larger|Medium|Thumb)?["']\s*[:=]\s*["'](https?:\\/\\/[^"']+)/i);
+        image=image||pick(html,/["']avatar(?:Larger|Medium|Thumb)?["']\s*[:=]\s*["'](https?:\/\/[^"']+)/i);
         followers=cleanCount(followers||pick(html,/["']follower[_-]?count["']\s*[:=]\s*([0-9]+)/i)||pick(html,/(?:followers|followerCount|follower_count)[^0-9]{0,160}([0-9][0-9.,KMB]*)/i));
         if(handle&&!/^@/.test(handle))handle='@'+handle;
         title=String(title||profileHandle||'TikTok').replace(/\s*\|\s*TikTok.*$/i,'').trim();
