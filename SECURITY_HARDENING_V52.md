@@ -1,0 +1,32 @@
+# TeoStudio — Production security hardening checklist (V52)
+
+## What code enforces
+- Browser write endpoints require same-origin (`https://teostudio.top`, optionally `https://www.teostudio.top`) and reject `Sec-Fetch-Site: cross-site` requests when Origin is absent. SePay webhook is the deliberate server-to-server exception and requires API Key authentication.
+- SePay credential comparison uses a fixed-length byte comparison; payment activation requires an incoming transaction, exact order code, pending/unexpired order and amount at least the expected amount. Duplicate transaction IDs are de-duplicated.
+- Restrictive CSP/HSTS/security headers, same-origin writes, body/URL size caps, restricted social-preview redirect hosts and bounded external response reads, API/navigation burst throttles and temporary abuse blocks help against common abuse. Worker rate limits are per-isolate, can reset/restart and can be bypassed by distributed source IPs; they are not global DDoS protection.
+- Turnstile Siteverify is required for rental/file-payment order creation. If either `TURNSTILE_SECRET` or `TURNSTILE_SITE_KEY` is missing, order creation fails closed; a successful Siteverify response must name `teostudio.top` or `www.teostudio.top` as the hostname. Keep the secret only in Worker Secrets and use the matching public site key.
+- Tenant page/product analytics are de-duplicated for 15-minute IP+user-agent+tenant+content buckets using a SHA-256 key; the raw visitor IP is not stored. This is anti-inflation, not proof that a view is human.
+- Master tenant deletion preserves finance records and content through soft archive instead of hard deletion. Withdrawal state transitions use conditional updates and a unique ledger reference to reduce double processing.
+
+## Cloudflare Dashboard rules to configure (edge-level, required for meaningful DDoS resilience)
+Cloudflare DDoS mitigation is automatic for proxied zones on all plans, but path-specific WAF/rate-limit controls vary by plan. Apply on the `teostudio.top` zone via Security rules → Rate limiting rules and WAF/Managed rules. Start with logging/simulate where available, then enforce and monitor false positives. Official references: [DDoS protection](https://developers.cloudflare.com/ddos-protection/), [Rate limiting rules](https://developers.cloudflare.com/waf/rate-limiting-rules/create-zone-dashboard/), [Bot Fight Mode](https://developers.cloudflare.com/bots/get-started/bot-fight-mode/), [Cloudflare Managed Ruleset](https://developers.cloudflare.com/waf/managed-rules/reference/cloudflare-managed-ruleset/).
+
+1. **Managed WAF rules**: enable Cloudflare Managed Ruleset; enable OWASP Core Ruleset if available on the plan. Avoid blanket blocking by user-agent because good search/social preview crawlers use user agents too.
+2. **Bot controls**: enable Bot Fight Mode (or Super Bot Fight Mode where available). Use managed challenge for likely automation on sensitive POST endpoints, rather than blanket blocking all visitors.
+3. **Rate limit credential/order endpoints** (edge rules shared across Worker isolates):
+   - `POST /api/admin/login`: e.g. 5 requests per IP per 60 seconds; Managed Challenge or block for 1–5 minutes after threshold.
+   - `POST /api/tenant/login`: e.g. 8 requests per IP per 60 seconds.
+   - `POST /api/rental/orders/create` and `POST /api/public-tenant/*/orders/create`: e.g. 5 requests per IP per 60 seconds.
+   - `POST /api/tenant/withdrawals`: e.g. 3 requests per IP per 60 seconds.
+   - `POST /api/comments` and tenant public comments: e.g. 3 requests per IP per 60 seconds.
+   Adjust after observing traffic. If Cloudflare uses separate expression builder syntax, translate the path/method conditions to the available rule UI.
+4. **Do not apply aggressive generic rate limits to `/api/webhook/sepay`**: SePay may retry a successful bank event. Instead require API Key at the Worker, monitor 401/5xx, and optionally restrict source IPs only if SePay publishes a current authoritative IP list suitable for allowlisting.
+5. **Cache safely**: cache versioned static JS/CSS/images; bypass cache on `/api/*`, QR/payment status, admin pages, tenant Admin and any page with private/session data. Do not cache webhook responses or authenticated API responses.
+6. **D1 recovery**: enable/confirm D1 Time Travel/backup availability for this database and perform an export before schema updates; keep the existing database ID binding. Never run `DROP TABLE`, reset scripts or replace production D1 with an empty database.
+7. **Logs/alerts**: enable Worker Logs and exceptions in Observability, monitor 401/403/429/5xx on login, rental order create, webhook and withdrawal routes. Set alerts for sustained 5xx and unusual traffic. Avoid logging tokens, passwords, full bank account details or raw payment payloads containing private data.
+8. **Domain routing**: ensure `teostudio.top/api/*` reaches the deployed `teo-studio` Worker. The `workers.dev` URL by itself does not prove the custom domain route is correctly attached.
+9. **How to create edge rate limits (if available)**: in Cloudflare go to Security rules → Create rule → Rate limiting rules. Start with one rule each for admin login (5/min/IP), tenant login (8/min/IP), rental/file-order create (5/min/IP), comments (3/min/IP), and withdrawals (3/min/IP). Use Managed Challenge or a short block after the threshold and monitor false positives. Do not put a generic aggressive rule on `/api/webhook/sepay`; SePay retries webhooks and the Worker already authenticates the API key.
+10. **Bot Fight Mode caution**: it applies at domain level and can challenge legitimate API/mobile requests; enable and test with actual sign-in, Turnstile, payment and SePay webhook flows. Do not blanket-block based on User-Agent because social preview crawlers may use it.
+
+## Limits / honest claims
+This package has **not** been deployed to your live Worker or tested with a real bank transfer; Cloudflare Dashboard edge rules have not been enabled by this code. No code snippet guarantees protection against all DDoS attacks. Large volumetric attacks must be absorbed at Cloudflare's edge; WAF/rate limits are plan-dependent. The Worker in-memory throttles are defense-in-depth only. No anti-bot check can perfectly distinguish all humans and bots. Validate with observed logs, legitimate mobile access, and payment end-to-end tests before relying on the system for income.

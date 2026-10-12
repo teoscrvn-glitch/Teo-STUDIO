@@ -3,7 +3,7 @@ const DEFAULT_SETTINGS={siteName:'Lại Húp File',studio:'Téo Studio',avatar:'
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 const apiUrl=p=>(CFG.API_BASE_URL||'').replace(/\/$/,'')+p;
 async function apiJson(p,o={}){const r=await fetch(apiUrl(p),{...o,headers:{'content-type':'application/json',...(o.headers||{})}});let x={};try{x=await r.json()}catch{}if(!r.ok)throw Error(x.error||`API ${r.status}`);return x}
-let products=[],tags=[],site={...DEFAULT_SETTINGS};
+let products=[],tags=[],site={...DEFAULT_SETTINGS};try{const rr=new URLSearchParams(location.search).get('ref');if(rr&&/^[a-z0-9_-]{2,60}$/i.test(rr))localStorage.setItem('TEO_REFERRER',rr)}catch{}
 let publicProductLimit=9,publicCommentLimit=5,publicProductsFiltered=[],publicComments=[];
 function normalize(p){return {...p,downloadLink:p.download_link??p.downloadLink,createdAt:p.created_at??p.createdAt,date:p.date||p.created_at||'Mới đăng',thumb:p.thumb||'assets/img/default-avatar.svg'};}
 function formatVN(v){if(!v)return '';const d=new Date(String(v).replace(' ','T')+'Z');if(Number.isNaN(d.getTime()))return String(v);return d.toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}

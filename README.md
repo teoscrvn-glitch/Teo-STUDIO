@@ -1,6 +1,8 @@
-# Téo Studio Rental V27
+# Téo Studio — Security & Rental Checkout V52
 
-Bản sửa tiếp theo cho hệ thống thuê Share File.
+Gói nguồn V52: bổ sung nền tảng thanh toán SePay/VietQR, theo dõi doanh thu tenant và hardening bảo mật.
+
+**Đây là gói nguồn để đối chiếu/triển khai có kiểm soát, không phải xác nhận đã deploy production.**
 
 ## Sửa chính
 - Tương thích tenant_accounts cũ dùng `id`, `tenant_id` hoặc `slug`.
@@ -15,3 +17,12 @@ Bản sửa tiếp theo cho hệ thống thuê Share File.
 
 ## Deploy
 Upload/deploy `cloudflare/worker.js` và frontend đi kèm. Sau deploy kiểm tra `/api/health`; kết quả phải có `version: rental-v27-safe`.
+
+
+## V52 Security / Rental checkout update
+See `VERSION_V52.md` for scope and limitations, and `SECURITY_HARDENING_V52.md` for required Cloudflare edge configuration. This source keeps the current D1 and performs additive migrations only. Do not reset production database or expose secrets.
+
+
+## V52 security and rental checkout
+
+See `VERSION_V52.md`, `SECURITY_HARDENING_V52.md`, and `DEPLOY_V52_MOBILE.md` for current features, known gaps, and safe production rollout. This archive is based on the V51 package available in the conversation, not a verified export of the current GitHub main branch. Compare/merge matching paths; keep the existing D1 database ID and secrets. Do not reset production D1.
