@@ -881,7 +881,27 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
       if(host==='tiktok.com'){
         const profileHandle=decode((u.pathname.match(/@[^/]+/)||[])[0]||'').replace(/^@/,'');
         try{const oe=await fetch('https://www.tiktok.com/oembed?url='+encodeURIComponent(u.toString()),{headers:{'user-agent':'Mozilla/5.0','accept':'application/json'},redirect:'follow'});if(oe.ok){const j=await oe.json();title=j.author_name||'';image=j.thumbnail_url||'';handle=j.author_url?((String(j.author_url).match(/@[^/?#]+/)||[])[0]||''):'';}}catch{}
-        if(profileHandle){try{const apiUrls=['https://www.tiktok.com/node/share/user/@'+encodeURIComponent(profileHandle),'https://www.tiktok.com/api/user/detail/?unique_id='+encodeURIComponent(profileHandle)];for(const endpoint of apiUrls){if(title&&image&&followers)break;try{const ar=await fetch(endpoint,{headers:{'user-agent':'Mozilla/5.0 (compatible; TeoStudioBot/1.0)','accept':'application/json,text/plain,*/*'},redirect:'follow'});if(!ar.ok)continue;const aj=await ar.text();title=title||pick(aj,/["']nickname["']\s*[:=]\s*["']([^"']+)/i);handle=handle||pick(aj,/["']unique[_-]?id["']\s*[:=]\s*["']([^"']+)/i);followers=followers||pick(aj,/["']follower[_-]?count["']\s*[:=]\s*([0-9]+)/i);image=image||pick(aj,/["']avatar(?:Larger|Medium|Thumb)?["']\s*[:=]\s*["']([^"']+)/i);}catch{}}}catch{}
+        if (profileHandle) {
+          const apiUrls = [
+            'https://www.tiktok.com/node/share/user/@' + encodeURIComponent(profileHandle),
+            'https://www.tiktok.com/api/user/detail/?unique_id=' + encodeURIComponent(profileHandle)
+          ];
+          for (const endpoint of apiUrls) {
+            if (title && image && followers) break;
+            try {
+              const ar = await fetch(endpoint, {
+                headers: { 'user-agent': 'Mozilla/5.0 (compatible; TeoStudioBot/1.0)', 'accept': 'application/json,text/plain,*/*' },
+                redirect: 'follow'
+              });
+              if (!ar.ok) continue;
+              const aj = await ar.text();
+              title = title || pick(aj, /["']nickname["']\s*[:=]\s*["']([^"']+)/i);
+              handle = handle || pick(aj, /["']unique[_-]?id["']\s*[:=]\s*["']([^"']+)/i);
+              followers = followers || pick(aj, /["']follower[_-]?count["']\s*[:=]\s*([0-9]+)/i);
+              image = image || pick(aj, /["']avatar(?:Larger|Medium|Thumb)?["']\s*[:=]\s*["']([^"']+)/i);
+            } catch (lookupError) { /* Ignore this endpoint and try the next one. */ }
+          }
+        }
         title=title||pick(html,/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']*)/i)||pick(html,/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:title["']/i)||pick(html,/<title[^>]*>([^<]+)<\/title>/i);
         image=image||pick(html,/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']*)/i)||pick(html,/<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:image["']/i);
         title=title||pick(html,/["']nickname["']\s*[:=]\s*["']([^"']+)/i);
