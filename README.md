@@ -1,6 +1,6 @@
-# TeoStudio V53
+# TeoStudio V54
 
-This source update is based on the supplied `TeoStudio-V52-Security-Rental.zip`. See `VERSION_V53.md` for changes, setup requirements, and limitations; see `TEST_REPORT_V53.md` for local checks.
+This source update is based on the supplied `TeoStudio-V52-Security-Rental.zip`. See `VERSION_V54.md` for changes, setup requirements, and limitations; see `TEST_REPORT_V54.md` for local checks.
 
 Important: this archive is not a live production backup and has not been deployed. Preserve the existing Cloudflare D1 binding/database ID and secrets, compare against the current GitHub branch, and back up D1 before rollout.
 
@@ -32,3 +32,6 @@ See `VERSION_V52.md` for scope and limitations, and `SECURITY_HARDENING_V52.md` 
 ## V52 security and rental checkout
 
 See `VERSION_V52.md`, `SECURITY_HARDENING_V52.md`, and `DEPLOY_V52_MOBILE.md` for current features, known gaps, and safe production rollout. This archive is based on the V51 package available in the conversation, not a verified export of the current GitHub main branch. Compare/merge matching paths; keep the existing D1 database ID and secrets. Do not reset production D1.
+
+
+See `V54_FIXES_AND_RUNTIME_SETUP.md` for runtime SePay/Turnstile setup, why stale frontend files hide sale-mode and wallet forms, and production-safe verification steps.

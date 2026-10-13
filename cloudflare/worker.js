@@ -500,7 +500,24 @@ async function tenantFromSession(r,e){
 }
 
 async function tenantSettings(e,t){const k=tenantInSql(t);const rows=(await e.DB.prepare(`SELECT key,value FROM tenant_settings WHERE ${k.clause}`).bind(...k.vals).all()).results||[];const out={siteName:'Lại Húp File',studio:'Téo Studio',heroTitle:'Kho Share File riêng',heroText:'Kho file riêng của bạn.',avatar:'assets/img/default-avatar.svg',avatarVideoUrl:'',groupLink:'#',adminContact:'#',announcementEnabled:true,announcementTitle:'Thông báo từ Téo Studio',announcementText:'Hãy đọc kỹ thông báo trước khi vào web.',donateTitle:'Ủng hộ Téo',donateText:'Nếu thấy web hữu ích, bạn có thể donate để Téo có thêm động lực duy trì và nâng cấp web.',donateQr:'',ownerName:'Téo Studio',ownerText:'Kho Share File được vận hành bởi Téo Studio.',adText:'',adLink:'#',heroBackground:''};for(const x of rows){try{out[x.key]=JSON.parse(x.value)}catch{out[x.key]=x.value}}for(const key of ['groupLink','adminContact','adLink','avatarVideoUrl','socialTikTokUrl','socialYoutubeUrl'])if(out[key]&&out[key]!=='#')out[key]=safeHttpUrl(out[key],4000)||'#';for(const key of ['avatar','donateQr'])if(out[key])out[key]=safeImageValue(out[key],1500000)||'';out.ownerName='Téo Studio';out.ownerText='Kho Share File được vận hành bởi Téo Studio.';return out}
-async function tenantProducts(e,t,admin=false){const k=tenantInSql(t);return ((await e.DB.prepare(`SELECT * FROM tenant_products WHERE ${k.clause} ${admin?'':'AND visible=1'} ORDER BY updated_at DESC`).bind(...k.vals).all()).results||[]).map(row=>({...row,download_link:safeHttpUrl(row.download_link,10000),original_link:safeHttpUrl(row.original_link,10000),thumb:row.thumb?safeImageValue(row.thumb,1500000):''}))}
+async function tenantProducts(e,t,admin=false){
+  const k=tenantInSql(t);
+  const rows=((await e.DB.prepare(`SELECT * FROM tenant_products WHERE ${k.clause} ${admin?'':'AND visible=1'} ORDER BY updated_at DESC`).bind(...k.vals).all()).results||[]);
+  return rows.map(row=>{
+    const mode=['free','unlock','paid','both'].includes(String(row.product_mode||''))?String(row.product_mode):(Number(row.sale_enabled)===1?'paid':'free');
+    const price=Math.max(0,Number(row.price_vnd)||0);
+    const out={...row,product_mode:mode,price_vnd:price,sale_enabled:['paid','both'].includes(mode)&&price>=1000?1:0,
+      download_link:safeHttpUrl(row.download_link,10000),original_link:safeHttpUrl(row.original_link,10000),thumb:row.thumb?safeImageValue(row.thumb,1500000):''};
+    // Public Share list must never serialize the paid/original URL. A client-side hide is not protection.
+    // Admin API gets full URLs for editing; public mode returns only the link appropriate to the sale mode.
+    if(!admin){
+      if(mode==='paid'){out.download_link='';out.original_link='';}
+      else if(mode==='both'||mode==='unlock'){out.original_link='';}
+      else {out.original_link='';}
+    }
+    return out;
+  });
+}
 async function tenantTags(e,t){const k=tenantInSql(t);return (await e.DB.prepare(`SELECT id,name,parent_id,created_at FROM tenant_tags WHERE ${k.clause} ORDER BY name COLLATE NOCASE`).bind(...k.vals).all()).results||[]}
 async function tenantComments(e,t,admin=false){const k=tenantInSql(t);return ((await e.DB.prepare(`SELECT id,name,text,image,created_at,visible FROM tenant_comments WHERE ${k.clause} ${admin?'':'AND visible=1'} ORDER BY created_at DESC`).bind(...k.vals).all()).results||[]).map(x=>({...x,image:x.image?safeImageValue(x.image,600000):''}))}
 async function tenantAuditColumns(e){
@@ -1240,7 +1257,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   if(p==='/api/rental/free/bypass/complete'&&r.method==='POST')return await completeFreeBypass(r,e);
   if(p==='/api/rental/orders/create'&&r.method==='POST')return await handleRentalOrderCreate(r,e);
   const rentalOrderMatch=p.match(/^\/api\/rental\/orders\/([^/]+)$/);if(rentalOrderMatch&&r.method==='GET')return await handleRentalOrderStatus(r,e,rentalOrderMatch[1]);
-  if(p==='/api/health')return J({ok:true,service:'teo-studio-api',version:'v53-rental-catalog' ,auth:'admin-key-session',payment:paymentConfig(e)});
+  if(p==='/api/health')return J({ok:true,service:'teo-studio-api',version:'v54-rental-catalog-payout' ,frontendVersion:'v54-rental-catalog-payout',auth:'admin-key-session',payment:paymentConfig(e)});
   if(p==='/api/admin/login'&&r.method==='POST'){const rl=limited(r,'admin-login',8,60000);if(rl)return rl;await ensureAdminSessionSchema(e);const b=await r.json().catch(()=>({}));const supplied=clean(b.adminKey??b.password??'',500);const expected=clean(e.ADMIN_KEY??'',500);if(!expected)return J({ok:false,error:'ADMIN_KEY_MISSING'},500);if(!supplied||!safeEq(supplied,expected))return J({ok:false,error:'INVALID_ADMIN_KEY'},401);const token=crypto.randomUUID()+crypto.randomUUID();await e.DB.prepare('INSERT INTO admin_sessions(token,expires_at) VALUES(?,?)').bind(token,Date.now()+7*24*60*60*1000).run();return J({ok:true,token,expiresIn:7*24*60*60*1000})}
   await ensureSchema(e);
   if(p==='/api/products'&&r.method==='GET')return J({ok:true,products:await products(e)});
