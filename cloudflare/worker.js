@@ -114,6 +114,17 @@ async function ensureSchema(e){
     await e.DB.prepare(`CREATE TABLE IF NOT EXISTS comments (id TEXT PRIMARY KEY,name TEXT NOT NULL,text TEXT NOT NULL,image TEXT DEFAULT '',created_at TEXT NOT NULL DEFAULT(datetime('now')),visible INTEGER NOT NULL DEFAULT 1)`).run();
     await e.DB.prepare(`CREATE TABLE IF NOT EXISTS view_daily (day TEXT NOT NULL,kind TEXT NOT NULL,product_id TEXT NOT NULL DEFAULT '',views INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(day,kind,product_id))`).run();
     await e.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_view_daily_day ON view_daily(day)`).run();
+    await e.DB.prepare(`CREATE TABLE IF NOT EXISTS view_referrers_daily(day TEXT NOT NULL,kind TEXT NOT NULL,product_id TEXT NOT NULL DEFAULT '',domain TEXT NOT NULL,views INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(day,kind,product_id,domain))`).run();
+    await e.DB.prepare(`CREATE TABLE IF NOT EXISTS product_payment_orders (
+      id TEXT PRIMARY KEY, product_id TEXT NOT NULL, payment_code TEXT NOT NULL UNIQUE,
+      amount_vnd INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending', transaction_id TEXT UNIQUE,
+      created_at TEXT NOT NULL DEFAULT(datetime('now')), expires_at INTEGER NOT NULL, paid_at TEXT DEFAULT NULL
+    )`).run();
+    await e.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_product_orders_status ON product_payment_orders(status,expires_at)`).run();
+    await addColumnSafe(e,'product_payment_orders','transaction_id','TEXT');
+    await addColumnSafe(e,'product_payment_orders','created_at','TEXT');
+    await addColumnSafe(e,'product_payment_orders','expires_at','INTEGER');
+    await addColumnSafe(e,'product_payment_orders','paid_at','TEXT');
 
     // Migrate legacy D1 tables in-place. These are additive only: no DROP/DELETE/reset.
     await addColumnSafe(e,'tags','parent_id','TEXT DEFAULT NULL');
@@ -122,6 +133,10 @@ async function ensureSchema(e){
     await addColumnSafe(e,'products','visible','INTEGER');
     await addColumnSafe(e,'products','created_at','TEXT');
     await addColumnSafe(e,'products','updated_at','TEXT');
+    await addColumnSafe(e,'products','sale_mode',"TEXT DEFAULT 'free'");
+    await addColumnSafe(e,'products','free_link_mode',"TEXT DEFAULT 'direct'");
+    await addColumnSafe(e,'products','original_link','TEXT DEFAULT \"\"');
+    await addColumnSafe(e,'products','price_vnd','INTEGER DEFAULT 0');
     await addColumnSafe(e,'comments','image','TEXT');
     await addColumnSafe(e,'comments','created_at','TEXT');
     await addColumnSafe(e,'comments','visible','INTEGER');
@@ -144,10 +159,11 @@ async function ensureSchema(e){
 async function isAdmin(r,e){const t=tokenFrom(r);if(!t)return false;await ensureSchema(e);const x=await e.DB.prepare('SELECT token FROM admin_sessions WHERE token=? AND expires_at>?').bind(t,Date.now()).first();return !!x}
 async function settings(e){const a=(await e.DB.prepare('SELECT key,value FROM settings').all()).results||[];const s={};for(const x of a){if(['adminPasswordHash'].includes(x.key))continue;try{s[x.key]=JSON.parse(x.value)}catch{s[x.key]=x.value}}for(const k of ['groupLink','adminContact','rentZalo','socialTikTokUrl','socialYoutubeUrl'])if(s[k])s[k]=safeHttpUrl(s[k],4000)||'#';for(const k of ['avatar','donateQr'])if(s[k])s[k]=safeImageValue(s[k],1500000)||'';return s}
 async function tags(e){return (await e.DB.prepare('SELECT id,name,parent_id,created_at FROM tags ORDER BY CASE WHEN parent_id IS NULL OR parent_id=\'\' THEN 0 ELSE 1 END,name COLLATE NOCASE').all()).results||[]}
-function safeProductRow(row){if(!row)return row;return {...row,download_link:safeHttpUrl(row.download_link,10000),thumb:row.thumb?safeImageValue(row.thumb,1500000):''}}
-async function products(e){return ((await e.DB.prepare('SELECT * FROM products WHERE visible=1 ORDER BY updated_at DESC').all()).results||[]).map(safeProductRow)}
+function safeProductRow(row){if(!row)return row;return {...row,sale_mode:['free','both','paid'].includes(String(row.sale_mode||''))?String(row.sale_mode):'free',free_link_mode:String(row.free_link_mode||'direct')==='unlock'?'unlock':'direct',price_vnd:Math.max(0,Number(row.price_vnd)||0),download_link:safeHttpUrl(row.download_link,10000),original_link:safeHttpUrl(row.original_link,10000),thumb:row.thumb?safeImageValue(row.thumb,1500000):''}}
+function publicProductRow(row){const p=safeProductRow(row);if(!p)return p;const mode=p.sale_mode;if(mode==='paid'){p.download_link='';p.original_link='';}else if(mode==='both'){p.original_link='';}else{p.original_link='';}return p}
+async function products(e){return ((await e.DB.prepare('SELECT * FROM products WHERE visible=1 ORDER BY updated_at DESC').all()).results||[]).map(publicProductRow)}
 async function adminProducts(e){return ((await e.DB.prepare('SELECT * FROM products ORDER BY updated_at DESC').all()).results||[]).map(safeProductRow)}
-async function productById(e,id){return safeProductRow(await e.DB.prepare('SELECT * FROM products WHERE id=? AND visible=1').bind(id).first())}
+async function productById(e,id){return publicProductRow(await e.DB.prepare('SELECT * FROM products WHERE id=? AND visible=1').bind(id).first())}
 
 let tenantSchemaReady=null;
 async function tenantExec(e,sql){return e.DB.prepare(sql).run()}
@@ -277,6 +293,7 @@ async function ensureTenantSchema(e){
       tenant_id TEXT NOT NULL, day TEXT NOT NULL, kind TEXT NOT NULL, product_id TEXT NOT NULL DEFAULT '',
       views INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(tenant_id,day,kind,product_id)
     )`);
+    await tenantExec(e,`CREATE TABLE IF NOT EXISTS tenant_referrers_daily (day TEXT NOT NULL,tenant_id TEXT NOT NULL,kind TEXT NOT NULL DEFAULT 'visit',domain TEXT NOT NULL,views INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(day,tenant_id,kind,domain))`);
     await tenantExec(e,`CREATE TABLE IF NOT EXISTS tenant_audit_log (
       id TEXT PRIMARY KEY, tenant_id TEXT, actor TEXT NOT NULL, action TEXT NOT NULL,
       detail TEXT DEFAULT '', created_at TEXT NOT NULL DEFAULT(datetime('now'))
@@ -304,6 +321,20 @@ async function ensureTenantSchema(e){
     await tenantAddColumn(e,'tenant_accounts','plan_type',"TEXT DEFAULT 'paid'");
     await tenantAddColumn(e,'tenant_accounts','referrer_tenant_id','TEXT DEFAULT NULL');
     await tenantAddColumn(e,'tenant_accounts','pending_order_id','TEXT DEFAULT NULL');
+    await tenantAddColumn(e,'tenant_accounts','free_bypass_count','INTEGER DEFAULT 0');
+    await tenantAddColumn(e,'tenant_accounts','free_admin_unlocked','INTEGER DEFAULT 0');
+    await tenantAddColumn(e,'tenant_accounts','email_verified_at','TEXT DEFAULT NULL');
+    await tenantExec(e,`CREATE TABLE IF NOT EXISTS rental_email_verifications (
+      id TEXT PRIMARY KEY, email TEXT NOT NULL, code_hash TEXT NOT NULL, token_hash TEXT DEFAULT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0, expires_at INTEGER NOT NULL, verified_at TEXT DEFAULT NULL,
+      used_at TEXT DEFAULT NULL, created_at TEXT NOT NULL DEFAULT(datetime('now'))
+    )`);
+    await tenantExec(e,`CREATE INDEX IF NOT EXISTS idx_rental_email_verifications_email ON rental_email_verifications(email,created_at)`);
+    await tenantExec(e,`CREATE TABLE IF NOT EXISTS free_bypass_attempts (
+      id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, step INTEGER NOT NULL, state_hash TEXT NOT NULL UNIQUE,
+      expires_at INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT(datetime('now')),
+      verified_at TEXT DEFAULT NULL
+    )`);
     if(!tenantAccountHasId){
       await tenantAddColumn(e,'tenant_accounts','id','TEXT');
       if(tenantAccountHasTenantId){
@@ -335,6 +366,8 @@ async function ensureTenantSchema(e){
     try{await tenantExec(e,"UPDATE tenant_accounts SET locked=0 WHERE locked IS NULL")}catch{}
     try{await tenantExec(e,"UPDATE tenant_accounts SET deleted_at=NULL WHERE deleted_at IS NULL")}catch{}
     try{await tenantExec(e,"UPDATE tenant_accounts SET created_at=datetime('now') WHERE created_at IS NULL")}catch{}
+    try{await tenantExec(e,"UPDATE tenant_accounts SET free_bypass_count=0 WHERE free_bypass_count IS NULL")}catch{}
+    try{await tenantExec(e,"UPDATE tenant_accounts SET free_admin_unlocked=0 WHERE free_admin_unlocked IS NULL")}catch{}
     try{await tenantExec(e,"UPDATE tenant_products SET views=0 WHERE views IS NULL")}catch{}
     try{await tenantExec(e,"UPDATE tenant_products SET visible=1 WHERE visible IS NULL")}catch{}
     try{await tenantExec(e,"UPDATE tenant_products SET created_at=datetime('now') WHERE created_at IS NULL")}catch{}
@@ -374,7 +407,7 @@ function tenantDaysLeft(x){
   const ex=tenantDateMs(x?.expires_at);
   return Number.isFinite(ex)?Math.max(0,Math.ceil((ex-Date.now())/86400000)):0;
 }
-function tenantInfo(x){return {id:x?.id??x?.tenant_id,slug:x?.slug??x?.tenant_id??x?.id,startsAt:x?.starts_at,expiresAt:x?.expires_at,daysLeft:tenantDaysLeft(x),status:tenantStatus(x),locked:!!x?.locked,deleted:!!x?.deleted_at,planType:String(x?.plan_type||'paid'),referralCode:String(x?.slug||x?.id||x?.tenant_id||''),createdAt:x?.created_at}}
+function tenantInfo(x){const freeGate=String(x?.plan_type||'paid')==='free'&&Number(x?.free_admin_unlocked||0)!==1&&!x?.deleted_at&&!Number(x?.locked);return {id:x?.id??x?.tenant_id,slug:x?.slug??x?.tenant_id??x?.id,startsAt:x?.starts_at,expiresAt:x?.expires_at,daysLeft:tenantDaysLeft(x),status:freeGate?'free_bypass_required':tenantStatus(x),locked:!!x?.locked,deleted:!!x?.deleted_at,planType:String(x?.plan_type||'paid'),freeBypassCount:Number(x?.free_bypass_count||0),freeAdminUnlocked:Number(x?.free_admin_unlocked||0)===1,referralCode:String(x?.slug||x?.id||x?.tenant_id||''),createdAt:x?.created_at}}
 async function tenantPasswordMatches(e,t,password){
   const raw=String(password??'');
   const hash=await sha256(raw);
@@ -497,7 +530,7 @@ async function tenantLog(e,tid,actor,action,detail=''){
   }catch{}
 }
 let lastViewDedupPruneAt=0;
-async function tenantBump(e,t,kind,pid='',request=null){
+async function tenantBump(e,t,kind,pid='',request=null,source=''){
   const day=dayVN(),tid=t.id;
   if(request){
     const now=Date.now(),ip=clientIp(request)||'unknown',ua=clean(request.headers.get('user-agent')||'',180);
@@ -507,6 +540,7 @@ async function tenantBump(e,t,kind,pid='',request=null){
     try{await e.DB.prepare('INSERT INTO tenant_view_dedup(event_key,expires_at) VALUES(?,?)').bind(key,now+20*60*1000).run()}catch{return false}
   }
   await e.DB.prepare(`INSERT INTO tenant_views(tenant_id,day,kind,product_id,views) VALUES(?,?,?,?,1) ON CONFLICT(tenant_id,day,kind,product_id) DO UPDATE SET views=views+1`).bind(tid,day,kind,pid).run();
+  const domain=safeReferrerDomain(source||(request?.headers?.get('referer')||''));if(domain&&(kind==='visit'||kind==='outbound')){try{await e.DB.prepare(`INSERT INTO tenant_referrers_daily(day,tenant_id,kind,domain,views) VALUES(?,?,?, ?,1) ON CONFLICT(day,tenant_id,kind,domain) DO UPDATE SET views=views+1`).bind(day,tid,kind,domain).run()}catch{}}
   if(kind==='product'&&pid){const k=tenantInSql(t);await e.DB.prepare(`UPDATE tenant_products SET views=COALESCE(views,0)+1 WHERE ${k.clause} AND id=?`).bind(...k.vals,pid).run()}
   return true;
 }
@@ -516,32 +550,27 @@ async function tenantStats(e,tid,days=30,month=''){
     const paid=(await e.DB.prepare(`SELECT COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenue FROM tenant_payment_orders WHERE tenant_id=? AND status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<date(?, '+1 month')`).bind(tid,start,start).first())||{};
     sales.orders=Number(paid.orders||0);sales.revenueVnd=Number(paid.revenue||0);sales.views=rows.filter(x=>x.kind==='product').reduce((a,x)=>a+Number(x.views||0),0);sales.siteVisits=rows.filter(x=>x.kind==='visit').reduce((a,x)=>a+Number(x.views||0),0);sales.conversionRate=sales.views?Math.round(sales.orders/sales.views*10000)/100:0;
     sales.byDay=(await e.DB.prepare(`SELECT date(paid_at,'+7 hours') AS day,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenue FROM tenant_payment_orders WHERE tenant_id=? AND status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<date(?, '+1 month') GROUP BY date(paid_at,'+7 hours') ORDER BY day`).bind(tid,start,start).all()).results||[];
-    return {days:rows.length,month,start,rows,products:await tenantProducts(e,tid,true),today:rows.filter(x=>x.day===dayVN()&&x.kind==='visit').reduce((a,x)=>a+Number(x.views||0),0),sales};
+    const referrers=(await e.DB.prepare("SELECT domain,SUM(views) AS views FROM tenant_referrers_daily WHERE tenant_id=? AND day>=? AND day<date(?, '+1 month') GROUP BY domain ORDER BY views DESC LIMIT 50").bind(tid,start,start).all()).results||[];
+    return {days:rows.length,month,start,rows,products:await tenantProducts(e,tid,true),referrers,today:rows.filter(x=>x.day===dayVN()&&x.kind==='visit').reduce((a,x)=>a+Number(x.views||0),0),sales};
   }
   const n=Math.max(1,Math.min(Number(days)||30,3650));rows=(await e.DB.prepare(`SELECT day,kind,product_id,views FROM tenant_views WHERE tenant_id=? AND day>=date(?, '-'||?||' days') ORDER BY day ASC`).bind(tid,dayVN(),n-1).all()).results||[];
   const from=(await e.DB.prepare(`SELECT date(?, '-'||?||' days') AS d`).bind(dayVN(),n-1).first())?.d||dayVN();
+  const referrers=(await e.DB.prepare("SELECT domain,SUM(views) AS views FROM tenant_referrers_daily WHERE tenant_id=? AND day>=? GROUP BY domain ORDER BY views DESC LIMIT 50").bind(tid,from).all()).results||[];
   const paid=(await e.DB.prepare(`SELECT COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenue FROM tenant_payment_orders WHERE tenant_id=? AND status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<=?`).bind(tid,from,dayVN()).first())||{};
   sales.orders=Number(paid.orders||0);sales.revenueVnd=Number(paid.revenue||0);sales.views=rows.filter(x=>x.kind==='product').reduce((a,x)=>a+Number(x.views||0),0);sales.siteVisits=rows.filter(x=>x.kind==='visit').reduce((a,x)=>a+Number(x.views||0),0);sales.conversionRate=sales.views?Math.round(sales.orders/sales.views*10000)/100:0;
   sales.byDay=(await e.DB.prepare(`SELECT date(paid_at,'+7 hours') AS day,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenue FROM tenant_payment_orders WHERE tenant_id=? AND status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<=? GROUP BY date(paid_at,'+7 hours') ORDER BY day`).bind(tid,from,dayVN()).all()).results||[];
-  return {days:n,rows,products:await tenantProducts(e,tid,true),today:rows.filter(x=>x.day===dayVN()&&x.kind==='visit').reduce((a,x)=>a+Number(x.views||0),0),sales};
+  return {days:n,rows,products:await tenantProducts(e,tid,true),referrers,today:rows.filter(x=>x.day===dayVN()&&x.kind==='visit').reduce((a,x)=>a+Number(x.views||0),0),sales};
 }
 async function purgeExpired(e){
+  // Expiry changes access/plan state; it must never erase user content or financial history.
+  // Keep this maintenance path additive and limited to expired ephemeral sessions/verification attempts.
   await ensureTenantSchema(e);
-  const rows=(await e.DB.prepare('SELECT * FROM tenant_accounts').all()).results||[];
-  const key=await tenantAccountKeyColumn(e);
   const now=Date.now();
-  for(const raw of rows){const x=await normalizeTenantRow(e,raw);
-    if(x.deleted_at)continue;
-    const ex=Date.parse(String(x.expires_at||'').replace(' ','T')+'Z');
-    if(Number.isFinite(ex)&&now>ex+6*86400000){
-      // Delete the whole tenant dataset after the 6-day grace period.
-      try{await tenantLog(e,x.id,'system','auto_delete','Hết hạn gia hạn 6 ngày — xóa toàn bộ dữ liệu')}catch{}
-      for(const table of ['tenant_sessions','tenant_products','tenant_tags','tenant_comments','tenant_settings','tenant_views','tenant_audit_log']){
-        try{await e.DB.prepare(`DELETE FROM ${table} WHERE tenant_id=?`).bind(x.id).run()}catch{}
-      }
-      try{await e.DB.prepare(`DELETE FROM tenant_accounts WHERE ${key}=?`).bind(x.id).run()}catch{}
-    }
-  }
+  try{await e.DB.prepare("DELETE FROM tenant_sessions WHERE typeof(expires_at)='integer' AND expires_at<=?").bind(now).run()}catch{}
+  try{await e.DB.prepare("UPDATE tenant_rental_orders SET status='expired' WHERE status='pending' AND expires_at<=?").bind(now).run()}catch{}
+  try{await e.DB.prepare("DELETE FROM rental_email_verifications WHERE expires_at<=? OR (used_at IS NOT NULL AND created_at < datetime('now', '-7 days'))").bind(now).run()}catch{}
+  try{await e.DB.prepare("DELETE FROM free_bypass_attempts WHERE expires_at<=? OR (status='verified' AND verified_at < datetime('now','-30 days'))").bind(now).run()}catch{}
+  try{await e.DB.prepare('DELETE FROM tenant_view_dedup WHERE expires_at<=?').bind(now).run()}catch{}
 }
 
 async function walletBalance(e,tenantId){
@@ -555,7 +584,7 @@ async function walletCreditSale(e,order,txId,amount){
 function buildVietQr(e,amount,code){const bank=encodeURIComponent(clean(e.SEPAY_BANK_CODE,40)),account=encodeURIComponent(clean(e.SEPAY_ACCOUNT_NUMBER,40)),name=encodeURIComponent(clean(e.SEPAY_ACCOUNT_NAME||'',100));return `https://img.vietqr.io/image/${bank}-${account}-compact2.png?amount=${Math.floor(amount)}&addInfo=${encodeURIComponent(code)}${name?'&accountName='+name:''}`}
 function safeEq(a,b){const x=new TextEncoder().encode(String(a??'')),y=new TextEncoder().encode(String(b??''));if(x.length!==y.length)return false;let diff=0;for(let i=0;i<x.length;i++)diff|=x[i]^y[i];return diff===0}
 async function verifyTurnstile(e,token,r){if(!e.TURNSTILE_SECRET||!e.TURNSTILE_SITE_KEY)return {ok:false,enabled:true,reason:'TURNSTILE_NOT_CONFIGURED'};if(!token)return {ok:false,enabled:true};try{const body=new URLSearchParams({secret:String(e.TURNSTILE_SECRET),response:String(token),remoteip:clientIp(r)});const resp=await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body});const data=await resp.json();const host=String(data.hostname||'').toLowerCase();return {ok:!!data.success&&['teostudio.top','www.teostudio.top'].includes(host),enabled:true}}catch{return {ok:false,enabled:true}}}
-function paymentConfig(e){return {paymentsEnabled:!!(e.SEPAY_API_KEY&&e.SEPAY_BANK_CODE&&e.SEPAY_ACCOUNT_NUMBER),missing:['SEPAY_API_KEY','SEPAY_BANK_CODE','SEPAY_ACCOUNT_NUMBER'].filter(k=>!e[k]),turnstileEnabled:!!e.TURNSTILE_SECRET,turnstileSiteKey:clean(e.TURNSTILE_SITE_KEY||'',200),rentalPriceVnd:50000,rentalDays:30}}
+function paymentConfig(e){return {paymentsEnabled:!!(e.SEPAY_API_KEY&&e.SEPAY_BANK_CODE&&e.SEPAY_ACCOUNT_NUMBER),missing:['SEPAY_API_KEY','SEPAY_BANK_CODE','SEPAY_ACCOUNT_NUMBER'].filter(k=>!e[k]),turnstileEnabled:true,turnstileConfigured:!!(e.TURNSTILE_SECRET&&e.TURNSTILE_SITE_KEY),turnstileSiteKey:clean(e.TURNSTILE_SITE_KEY||'',200),turnstileMissing:['TURNSTILE_SECRET','TURNSTILE_SITE_KEY'].filter(k=>!e[k]),rentalPriceVnd:50000,rentalDays:30}}
 async function handleSePayWebhook(r,e){
   // SePay expects a 2xx response with {"success":true}. Acknowledged ignored events are safe to retry.
   if(r.method!=='POST')return J({success:false,error:'METHOD_NOT_ALLOWED'},405);
@@ -624,7 +653,18 @@ async function handleSePayWebhook(r,e){
   }
 
   const order=await e.DB.prepare("SELECT * FROM tenant_payment_orders WHERE payment_code=? AND status='pending' AND expires_at>? LIMIT 1").bind(code,Date.now()).first();
-  if(!order)return J({success:true,ignored:true,reason:'ORDER_NOT_PENDING'});
+  if(!order){
+    await ensureSchema(e);
+    const mainOrder=await e.DB.prepare("SELECT * FROM product_payment_orders WHERE payment_code=? AND status='pending' AND expires_at>? LIMIT 1").bind(code,Date.now()).first();
+    if(!mainOrder)return J({success:true,ignored:true,reason:'ORDER_NOT_PENDING'});
+    if(amount<Number(mainOrder.amount_vnd))return J({success:false,error:'AMOUNT_TOO_LOW'},400);
+    try{await e.DB.prepare('INSERT INTO sepay_webhook_events(transaction_id,order_code,amount_vnd) VALUES(?,?,?)').bind(txId,code,amount).run()}catch{return J({success:true,duplicate:true})}
+    const updMain=await e.DB.prepare("UPDATE product_payment_orders SET status='paid',transaction_id=?,paid_at=datetime('now') WHERE id=? AND status='pending' AND amount_vnd<=?").bind(txId,mainOrder.id,amount).run();
+    if(!updMain?.meta?.changes){try{await e.DB.prepare('DELETE FROM sepay_webhook_events WHERE transaction_id=?').bind(txId).run()}catch{};return J({success:true,ignored:true,reason:'ORDER_ALREADY_PROCESSED'})}
+    await createNotification(e,{recipientType:'admin',recipientId:'master',title:'Đã nhận thanh toán file trên web chính',body:`Đơn ${mainOrder.id} · file ${mainOrder.product_id} · ${amount.toLocaleString('vi-VN')}đ`,kind:'payment'});
+    const adminTo=validEmail(e.EMAIL_ADMIN_TO||'teostudio@teostudio.top');if(adminTo)await notifyEmail(e,{to:adminTo,subject:'Téo Studio: Đã nhận thanh toán file',text:`Đơn file web chính: ${mainOrder.id}\nMã: ${code}\nSố tiền: ${amount.toLocaleString('vi-VN')} VND\nTình trạng: đã xác nhận.`});
+    return J({success:true,paid:true,order_id:mainOrder.id,kind:'main_product'});
+  }
   if(amount<Number(order.amount_vnd))return J({success:false,error:'AMOUNT_TOO_LOW'},400);
   try{await e.DB.prepare('INSERT INTO sepay_webhook_events(transaction_id,order_code,amount_vnd) VALUES(?,?,?)').bind(txId,code,amount).run()}
   catch{return J({success:true,duplicate:true})}
@@ -653,6 +693,97 @@ async function handleSePayWebhook(r,e){
   return J({success:true,paid:true,order_id:order.id,kind:'file'});
 }
 
+function isoSqlDate(ms=Date.now()){return new Date(ms).toISOString().slice(0,19).replace('T',' ')}
+async function refreshTenantPlan(e,t){
+  if(!t)return t;const expiry=tenantDateMs(t.expires_at),now=Date.now(),key=await tenantAccountKeyColumn(e);if(!key)return t;
+  if(String(t.plan_type||'paid')==='paid'&&Number.isFinite(expiry)&&expiry<=now){
+    // Paid rental automatically falls back to Free. The Free admin remains locked until the
+    // two server-verified bypass steps are completed; public Share links can remain addressable.
+    await e.DB.prepare(`UPDATE tenant_accounts SET plan_type='free',free_bypass_count=0,free_admin_unlocked=0,expires_at=? WHERE ${key}=? AND plan_type='paid'`).bind(isoSqlDate(now),t.id).run();
+    const raw=await tenantByIdentifier(e,t.id);return await normalizeTenantRow(e,raw)||{...t,plan_type:'free',free_bypass_count:0,free_admin_unlocked:0,expires_at:isoSqlDate(now)};
+  }
+  if(String(t.plan_type||'paid')==='free'&&Number(t.free_admin_unlocked)===1&&Number.isFinite(expiry)&&expiry<=now){
+    // A Free access period has ended: require both verification steps again before re-entering Admin.
+    await e.DB.prepare(`UPDATE tenant_accounts SET free_bypass_count=0,free_admin_unlocked=0,expires_at=? WHERE ${key}=? AND plan_type='free' AND free_admin_unlocked=1`).bind(isoSqlDate(now),t.id).run();
+    const raw=await tenantByIdentifier(e,t.id);return await normalizeTenantRow(e,raw)||{...t,free_bypass_count:0,free_admin_unlocked:0,expires_at:isoSqlDate(now)};
+  }
+  return t;
+}
+async function startRentalEmailVerification(r,e){
+  const rl=limited(r,'rental-email-verify',3,60000);if(rl)return rl;await ensureTenantSchema(e);
+  if(!e.OXMAIL_SMTP_PASS)return J({ok:false,error:'EMAIL_NOT_CONFIGURED',message:'Email xác minh chưa được cấu hình. Vui lòng liên hệ Admin.'},503);
+  const b=await r.json().catch(()=>({})),email=validEmail(b.email||''),id=tenantSlug(b.id||''),operation=b.operation==='renew'?'renew':'new';
+  const proof=await verifyTurnstile(e,b.turnstileToken,r);if(!proof.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy hoàn thành xác minh chống bot trước khi gửi email.'},400);
+  if(!email)return J({ok:false,error:'INVALID_EMAIL'},400);
+  if(!/^[a-z0-9_-]{2,60}$/.test(id))return J({ok:false,error:'INVALID_TENANT_ID',message:'ID từ 2–60 ký tự, chỉ chữ, số, gạch ngang hoặc gạch dưới.'},400);
+  const exists=await e.DB.prepare('SELECT * FROM tenant_accounts WHERE lower(slug)=lower(?) LIMIT 1').bind(id).first();
+  if(operation==='new'&&exists){const retryable=Number(exists.locked)===1&&!exists.deleted_at&&String(exists.plan_type||'paid')==='paid'&&String(exists.pending_order_id||'')!==''&&String(exists.email||'').toLowerCase()===email.toLowerCase();if(!retryable)return J({ok:false,error:'TENANT_EXISTS',message:'ID đã được sử dụng; hãy chọn ID khác hoặc đăng nhập/gia hạn tài khoản hiện có.'},409);}
+  if(operation==='renew'&&(!exists||String(exists.email||'').toLowerCase()!==email.toLowerCase()))return J({ok:false,error:'RENEW_EMAIL_MISMATCH',message:'ID không tồn tại hoặc email không khớp email tài khoản đã đăng ký.'},400);
+  const code=String(crypto.getRandomValues(new Uint32Array(1))[0]%1000000).padStart(6,'0'),challengeId=crypto.randomUUID(),expires=Date.now()+10*60*1000;
+  await e.DB.prepare("UPDATE rental_email_verifications SET used_at=datetime('now') WHERE lower(email)=lower(?) AND used_at IS NULL").bind(email).run();
+  await e.DB.prepare("INSERT INTO rental_email_verifications(id,email,code_hash,attempts,expires_at) VALUES(?,?,?,0,?)").bind(challengeId,email,await sha256(code),expires).run();
+  const sent=await notifyEmail(e,{to:email,subject:'Mã xác minh email — Téo Studio',text:`Mã xác minh email thuê Share File của bạn là: ${code}\n\nMã hết hạn sau 10 phút và chỉ dùng một lần. Nếu bạn không yêu cầu thư này, hãy bỏ qua.`});
+  if(!sent.ok){await e.DB.prepare('DELETE FROM rental_email_verifications WHERE id=?').bind(challengeId).run();return J({ok:false,error:'EMAIL_SEND_FAILED',message:'Không gửi được mã xác minh. Kiểm tra email hoặc liên hệ Admin.'},502)}
+  return J({ok:true,challengeId,expiresAt:expires,message:'Đã gửi mã 6 số tới email. Kiểm tra cả thư rác.'},201);
+}
+async function verifyRentalEmail(r,e){
+  const rl=limited(r,'rental-email-verify-code',6,60000);if(rl)return rl;await ensureTenantSchema(e);const b=await r.json().catch(()=>({})),email=validEmail(b.email||''),code=clean(b.code||'',6);
+  if(!email||!/^\d{6}$/.test(code))return J({ok:false,error:'INVALID_VERIFICATION_INPUT'},400);
+  const challengeId=clean(b.challengeId||'',100);const row=challengeId?await e.DB.prepare('SELECT * FROM rental_email_verifications WHERE id=? AND lower(email)=lower(?) AND used_at IS NULL LIMIT 1').bind(challengeId,email).first():await e.DB.prepare('SELECT * FROM rental_email_verifications WHERE lower(email)=lower(?) AND used_at IS NULL ORDER BY created_at DESC LIMIT 1').bind(email).first();
+  if(!row||Number(row.expires_at)<=Date.now())return J({ok:false,error:'VERIFICATION_EXPIRED',message:'Mã đã hết hạn. Hãy gửi mã mới.'},400);
+  if(Number(row.attempts)>=5)return J({ok:false,error:'VERIFICATION_ATTEMPTS_EXCEEDED',message:'Đã nhập sai quá nhiều lần. Hãy gửi mã mới.'},429);
+  if(String(row.code_hash)!==await sha256(code)){await e.DB.prepare('UPDATE rental_email_verifications SET attempts=attempts+1 WHERE id=?').bind(row.id).run();return J({ok:false,error:'INVALID_VERIFICATION_CODE',message:'Mã xác minh không đúng.'},400)}
+  const token=crypto.randomUUID()+crypto.randomUUID();await e.DB.prepare("UPDATE rental_email_verifications SET verified_at=datetime('now'),token_hash=? WHERE id=? AND used_at IS NULL").bind(await sha256(token),row.id).run();
+  return J({ok:true,verificationToken:token,expiresAt:row.expires_at,message:'Email đã xác minh. Hoàn tất tạo tài khoản trong 10 phút.'});
+}
+async function createFreeRentalAccount(r,e){
+  const rl=limited(r,'rental-free-create',3,60000);if(rl)return rl;await ensureTenantSchema(e);const b=await r.json().catch(()=>({}));const captcha=await verifyTurnstile(e,b.turnstileToken,r);if(!captcha.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy hoàn thành xác minh chống bot trước khi tạo tài khoản.'},400);
+  const idRaw=clean(b.id||'',60),slug=tenantSlug(idRaw),password=String(b.password||''),email=validEmail(b.email||''),proof=String(b.verificationToken||'');
+  if(!/^[a-z0-9_-]{2,60}$/.test(slug))return J({ok:false,error:'INVALID_TENANT_ID'},400);
+  if(password.length<8||password.length>128)return J({ok:false,error:'PASSWORD_POLICY',message:'Mật khẩu cần từ 8 đến 128 ký tự.'},400);
+  if(!email||!proof)return J({ok:false,error:'EMAIL_VERIFICATION_REQUIRED',message:'Hãy xác minh email trước khi tạo tài khoản.'},400);
+  const ver=await e.DB.prepare('SELECT * FROM rental_email_verifications WHERE lower(email)=lower(?) AND token_hash=? AND verified_at IS NOT NULL AND used_at IS NULL AND expires_at>? ORDER BY created_at DESC LIMIT 1').bind(email,await sha256(proof),Date.now()).first();
+  if(!ver)return J({ok:false,error:'EMAIL_VERIFICATION_INVALID',message:'Mã xác minh không hợp lệ hoặc đã hết hạn. Hãy xác minh lại email.'},400);
+  const prior=await e.DB.prepare('SELECT id FROM tenant_accounts WHERE lower(slug)=lower(?) LIMIT 1').bind(slug).first();if(prior)return J({ok:false,error:'TENANT_EXISTS',message:'ID đã được sử dụng; hãy chọn ID khác.'},409);
+  const key=await tenantAccountKeyColumn(e);if(!key)return J({ok:false,error:'TENANT_SCHEMA_KEY_MISSING'},500);
+  const tenantId='t-'+slug+'-'+crypto.randomUUID().slice(0,8),now=Date.now(),nowText=isoSqlDate(now),hash=await sha256(password),cols=(await e.DB.prepare('PRAGMA table_info(tenant_accounts)').all()).results||[],names=new Set(cols.map(x=>x.name)),data={slug,password_hash:hash,created_at:nowText,starts_at:nowText,expires_at:nowText,locked:0,email,plan_type:'free',email_verified_at:nowText,free_bypass_count:0,free_admin_unlocked:0,pending_order_id:null,deleted_at:null};
+  data[key]=tenantId;if(names.has('id'))data.id=tenantId;if(names.has('tenant_id'))data.tenant_id=tenantId;const use=Object.entries(data).filter(([k])=>names.has(k));
+  try{await e.DB.prepare(`INSERT INTO tenant_accounts(${use.map(([k])=>k).join(',')}) VALUES(${use.map(()=>'?').join(',')})`).bind(...use.map(([,v])=>v)).run();await e.DB.prepare("UPDATE rental_email_verifications SET used_at=datetime('now') WHERE id=? AND used_at IS NULL").bind(ver.id).run();}
+  catch(err){return J({ok:false,error:'FREE_ACCOUNT_CREATE_FAILED',message:'Không tạo được tài khoản. Kiểm tra ID hoặc thử lại.'},500)}
+  const account=await normalizeTenantRow(e,await tenantByIdentifier(e,tenantId));try{await tenantLog(e,tenantId,'system','free_signup','email_verified=true')}catch{};
+  const adminUrl=`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(slug)}`,shareUrl=`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(slug)}`;
+  await createNotification(e,{recipientType:'tenant',recipientId:tenantId,title:'Tài khoản Free đã tạo',body:'Để sử dụng Admin Free, hãy hoàn thành 2 bước vượt link đã được máy chủ xác minh. Mỗi bước cộng 2 ngày.',kind:'welcome'});
+  return J({ok:true,tenant:tenantInfo(account),adminUrl,shareUrl,requiresBypass:true,freeBypassConfigured:!!(e.FREE_BYPASS_TEMPLATE_1&&e.FREE_BYPASS_TEMPLATE_2&&e.FREE_BYPASS_VERIFY_URL&&e.FREE_BYPASS_API_KEY),message:'Tạo tài khoản Free thành công. Cần hoàn thành 2 bước vượt link được máy chủ xác minh để mở Admin Free và cộng 4 ngày.'},201);
+}
+async function startFreeBypass(r,e){
+  const rl=limited(r,'free-bypass-start',6,60000);if(rl)return rl;await ensureTenantSchema(e);const b=await r.json().catch(()=>({})),identifier=clean(b.id||'',100),password=String(b.password||'');
+  if(!(e.FREE_BYPASS_TEMPLATE_1&&e.FREE_BYPASS_TEMPLATE_2&&e.FREE_BYPASS_VERIFY_URL&&e.FREE_BYPASS_API_KEY))return J({ok:false,error:'FREE_BYPASS_NOT_CONFIGURED',message:'Admin chưa cấu hình API xác minh vượt link; không thể cộng ngày chỉ dựa vào chuyển hướng trình duyệt.'},503);
+  let t=await tenantFromSession(r,e);if(t&&identifier&&String(t.slug||'').toLowerCase()!==String(identifier).toLowerCase())t=null;
+  if(!t){const raw=await tenantByLogin(e,identifier,password);if(!raw||!(await tenantPasswordMatches(e,await normalizeTenantRow(e,raw),password)))return J({ok:false,error:'INVALID_LOGIN',message:'ID hoặc mật khẩu không đúng.'},401);t=await normalizeTenantRow(e,raw)}
+  t=await refreshTenantPlan(e,t);if(String(t.plan_type||'paid')!=='free')return J({ok:false,error:'FREE_PLAN_REQUIRED'},400);if(t.locked||t.deleted_at)return J({ok:false,error:'TENANT_LOCKED'},403);
+  const count=Number(t.free_bypass_count||0);if(count>=2&&Number(t.free_admin_unlocked)===1)return J({ok:true,complete:true,count:2,adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`});
+  const step=count+1;if(step>2)return J({ok:false,error:'BYPASS_STATE_INVALID'},409);const state=crypto.randomUUID()+crypto.randomUUID(),attemptId=crypto.randomUUID(),expires=Date.now()+20*60*1000;
+  await e.DB.prepare("INSERT INTO free_bypass_attempts(id,tenant_id,step,state_hash,expires_at,status) VALUES(?,?,?,?,?,'pending')").bind(attemptId,t.id,step,await sha256(state),expires).run();
+  const template=String(step===1?e.FREE_BYPASS_TEMPLATE_1:e.FREE_BYPASS_TEMPLATE_2);const returnUrl=`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}&bypass=${encodeURIComponent(state)}`;
+  const redirectUrl=template.replaceAll('{state}',encodeURIComponent(state)).replaceAll('{return_url}',encodeURIComponent(returnUrl)).replaceAll('{step}',String(step));const checked=safeHttpUrl(redirectUrl,4000);if(!checked)return J({ok:false,error:'FREE_BYPASS_TEMPLATE_INVALID'},500);
+  return J({ok:true,step,count,attemptId,state,redirectUrl:checked,returnUrl,expiresAt:expires,message:`Bắt đầu bước ${step}/2. Sau khi hoàn tất, quay lại trang này để xác minh.`},201);
+}
+async function completeFreeBypass(r,e){
+  const rl=limited(r,'free-bypass-complete',10,60000);if(rl)return rl;await ensureTenantSchema(e);const b=await r.json().catch(()=>({})),state=clean(b.state||'',200);if(!state)return J({ok:false,error:'BYPASS_STATE_REQUIRED'},400);
+  if(!(e.FREE_BYPASS_VERIFY_URL&&e.FREE_BYPASS_API_KEY))return J({ok:false,error:'FREE_BYPASS_NOT_CONFIGURED'},503);
+  const hash=await sha256(state),attempt=await e.DB.prepare("SELECT * FROM free_bypass_attempts WHERE state_hash=? AND status='pending' AND expires_at>? LIMIT 1").bind(hash,Date.now()).first();if(!attempt)return J({ok:false,error:'BYPASS_STATE_EXPIRED_OR_USED',message:'Phiên vượt link hết hạn hoặc đã dùng. Hãy bắt đầu lại.'},400);
+  let verifyUrl;try{verifyUrl=new URL(String(e.FREE_BYPASS_VERIFY_URL));verifyUrl.searchParams.set('state',state);verifyUrl.searchParams.set('step',String(attempt.step));}catch{return J({ok:false,error:'FREE_BYPASS_VERIFY_URL_INVALID'},500)}
+  let verified=false;try{const resp=await fetch(verifyUrl.toString(),{headers:{authorization:'Bearer '+String(e.FREE_BYPASS_API_KEY),'x-teo-bypass-state':state,'accept':'application/json'},redirect:'error',signal:AbortSignal.timeout(8000)});const data=await resp.json();verified=resp.ok&&data?.success===true&&data?.completed===true&&String(data?.state||'')===state;}catch{}
+  if(!verified)return J({ok:false,error:'BYPASS_NOT_VERIFIED',message:'API nhà cung cấp chưa xác nhận lượt vượt. Không cộng ngày; hãy thử lại hoặc liên hệ Admin.'},400);
+  const raw=await tenantByIdentifier(e,attempt.tenant_id);if(!raw)return J({ok:false,error:'TENANT_NOT_FOUND'},404);const t=await normalizeTenantRow(e,raw);if(String(t.plan_type||'paid')!=='free')return J({ok:false,error:'FREE_PLAN_REQUIRED'},409);
+  const count=Number(t.free_bypass_count||0);if(Number(attempt.step)!==count+1)return J({ok:false,error:'BYPASS_STEP_MISMATCH',message:'Lượt này không còn đúng thứ tự. Hãy bắt đầu bước hiện tại từ Admin Free.'},409);
+  const expiry=tenantDateMs(t.expires_at),base=Math.max(Date.now(),Number.isFinite(expiry)?expiry:Date.now()),newExpiry=base+2*86400000,key=await tenantAccountKeyColumn(e);if(!key)return J({ok:false,error:'TENANT_SCHEMA_KEY_MISSING'},500);
+  const done=await e.DB.prepare(`UPDATE free_bypass_attempts SET status='verified',verified_at=datetime('now') WHERE id=? AND status='pending'`).bind(attempt.id).run();if(!done?.meta?.changes)return J({ok:false,error:'BYPASS_ALREADY_USED'},409);
+  await e.DB.prepare(`UPDATE tenant_accounts SET free_bypass_count=?,free_admin_unlocked=?,expires_at=?,starts_at=COALESCE(starts_at,?) WHERE ${key}=?`).bind(count+1,count+1>=2?1:0,isoSqlDate(newExpiry),isoSqlDate(Date.now()),t.id).run();
+  const next=count+1>=2,adminUrl=`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`;try{await tenantLog(e,t.id,'system','free_bypass_verified',`step=${attempt.step}; count=${count+1}`)}catch{};
+  return J({ok:true,step:Number(attempt.step),count:count+1,complete:next,expiresAt:isoSqlDate(newExpiry),adminUrl,message:next?'Đã xác minh đủ 2/2 lần. Admin Free được mở và cộng tổng cộng 4 ngày.':'Đã xác minh 1/2 lần, cộng 2 ngày. Tiếp tục vượt link lần 2.'});
+}
+
 async function handleRentalOrderCreate(r,e){
   const rl=limited(r,'rental-order-create',4,60000);if(rl)return rl;
   await ensureTenantSchema(e);
@@ -664,11 +795,31 @@ async function handleRentalOrderCreate(r,e){
   if(!/^[a-z0-9_-]{2,60}$/.test(slug))return J({ok:false,error:'INVALID_TENANT_ID',message:'ID chỉ dùng chữ, số, dấu gạch ngang hoặc gạch dưới; dài 2–60 ký tự.'},400);
   if(password.length<8||password.length>128)return J({ok:false,error:'PASSWORD_POLICY',message:'Mật khẩu cần từ 8 đến 128 ký tự.'},400);
   if(!email)return J({ok:false,error:'EMAIL_REQUIRED',message:'Vui lòng nhập email hợp lệ.'},400);
+  const emailProof=String(b.verificationToken||'');if(!emailProof)return J({ok:false,error:'EMAIL_VERIFICATION_REQUIRED',message:'Hãy xác minh email trước khi tạo đơn thuê hoặc gia hạn.'},400);
+  const verifiedEmail=await e.DB.prepare('SELECT * FROM rental_email_verifications WHERE lower(email)=lower(?) AND token_hash=? AND verified_at IS NOT NULL AND used_at IS NULL AND expires_at>? ORDER BY created_at DESC LIMIT 1').bind(email,await sha256(emailProof),Date.now()).first();
+  if(!verifiedEmail)return J({ok:false,error:'EMAIL_VERIFICATION_INVALID',message:'Mã xác minh email không hợp lệ hoặc hết hạn. Hãy xác minh lại.'},400);
   const key=await tenantAccountKeyColumn(e);if(!key)return J({ok:false,error:'TENANT_SCHEMA_KEY_MISSING'},500);
   let tenantId='',account=null,hash=await sha256(password);
   if(operation==='new'){
     const prior=await e.DB.prepare('SELECT * FROM tenant_accounts WHERE lower(slug)=lower(?) LIMIT 1').bind(slug).first();
-    if(prior)return J({ok:false,error:'TENANT_EXISTS',message:prior.deleted_at?'ID này đã được lưu trữ để giữ lịch sử tài chính, không thể tái sử dụng. Hãy chọn ID khác.':'ID này đã được sử dụng. Hãy chọn ID khác hoặc chuyển sang Gia hạn.'},409);
+    if(prior){
+      const normalized=await normalizeTenantRow(e,prior);
+      const retryable=Number(prior.locked)===1&&!prior.deleted_at&&String(prior.plan_type||'paid')==='paid'&&String(prior.email||'').toLowerCase()===email.toLowerCase()&&String(prior.pending_order_id||'')!==''&&await tenantPasswordMatches(e,normalized,password);
+      if(!retryable)return J({ok:false,error:'TENANT_EXISTS',message:prior.deleted_at?'ID này đã được lưu trữ để giữ lịch sử tài chính, không thể tái sử dụng. Hãy chọn ID khác.':'ID này đã được sử dụng. Hãy đăng nhập hoặc chọn một ID khác.'},409);
+      const tenantId=String(normalized.id),pending=await e.DB.prepare("SELECT * FROM tenant_rental_orders WHERE id=? AND tenant_id=? AND operation='new' AND status='pending' LIMIT 1").bind(String(prior.pending_order_id),tenantId).first();
+      if(pending&&Number(pending.expires_at)>Date.now()){
+        await e.DB.prepare("UPDATE rental_email_verifications SET used_at=datetime('now') WHERE id=? AND used_at IS NULL").bind(verifiedEmail.id).run();
+        return J({ok:true,order:{id:pending.id,code:pending.payment_code,amount:Number(pending.amount_vnd),status:'pending',expiresAt:pending.expires_at,qrUrl:buildVietQr(e,pending.amount_vnd,pending.payment_code),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(slug)}`,tenantId:slug,operation:'new'},message:'Đơn đang còn hiệu lực; dùng QR và nội dung chuyển khoản cũ. Không chuyển tiền lần hai.'});
+      }
+      if(pending)await e.DB.prepare("UPDATE tenant_rental_orders SET status='expired' WHERE id=? AND status='pending'").bind(pending.id).run();
+      const referrer=String(normalized.referrer_tenant_id||''),orderId=crypto.randomUUID(),code='TEO'+crypto.randomUUID().replace(/-/g,'').slice(0,10).toUpperCase(),expires=Date.now()+20*60*1000;
+      try{await e.DB.batch([
+        e.DB.prepare("INSERT INTO tenant_rental_orders(id,tenant_id,payment_code,amount_vnd,days,operation,referrer_tenant_id,status,expires_at) VALUES(?,?,?,?,30,'new',?,'pending',?)").bind(orderId,tenantId,code,50000,referrer||null,expires),
+        e.DB.prepare(`UPDATE tenant_accounts SET pending_order_id=? WHERE ${key}=? AND locked=1 AND deleted_at IS NULL`).bind(orderId,tenantId),
+        e.DB.prepare("UPDATE rental_email_verifications SET used_at=datetime('now') WHERE id=? AND used_at IS NULL").bind(verifiedEmail.id)
+      ])}catch{return J({ok:false,error:'RENTAL_ORDER_RETRY_FAILED',message:'Không tạo lại được đơn. Liên hệ Admin và không chuyển tiền vào QR cũ.'},500)}
+      return J({ok:true,order:{id:orderId,code,amount:50000,status:'pending',expiresAt:expires,qrUrl:buildVietQr(e,50000,code),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(slug)}`,tenantId:slug,operation:'new'},message:'Đã tạo QR mới cho tài khoản đang chờ thanh toán. Chỉ chuyển tiền theo QR hiện tại.'},201);
+    }
     const refSlug=tenantSlug(b.ref||b.referrer||''),refRaw=refSlug?await tenantBySlug(e,refSlug):null,ref=refRaw?await normalizeTenantRow(e,refRaw):null;
     const referrer=ref&&ref.status!=='deleted'&&String(ref.slug||'').toLowerCase()!==slug?String(ref.id):'';
     const id='t-'+slug+'-'+crypto.randomUUID().slice(0,8),orderId=crypto.randomUUID(),code='TEO'+crypto.randomUUID().replace(/-/g,'').slice(0,10).toUpperCase(),now=Date.now(),expires=now+20*60*1000;
@@ -682,7 +833,8 @@ async function handleRentalOrderCreate(r,e){
     try{
       await e.DB.batch([
         e.DB.prepare(`INSERT INTO tenant_accounts(${cols.join(',')}) VALUES(${placeholders})`).bind(...vals),
-        e.DB.prepare("INSERT INTO tenant_rental_orders(id,tenant_id,payment_code,amount_vnd,days,operation,referrer_tenant_id,status,expires_at) VALUES(?,?,?,?,30,'new',?,'pending',?)").bind(orderId,id,code,50000,referrer||null,expires)
+        e.DB.prepare("INSERT INTO tenant_rental_orders(id,tenant_id,payment_code,amount_vnd,days,operation,referrer_tenant_id,status,expires_at) VALUES(?,?,?,?,30,'new',?,'pending',?)").bind(orderId,id,code,50000,referrer||null,expires),
+        e.DB.prepare("UPDATE rental_email_verifications SET used_at=datetime('now') WHERE id=? AND used_at IS NULL").bind(verifiedEmail.id)
       ]);
     }catch(err){return J({ok:false,error:'RENTAL_ORDER_CREATE_FAILED',message:'Không tạo được đơn thuê. Kiểm tra ID/email và thử lại.'},500)}
     tenantId=id;account={id,slug,email,referrer_tenant_id:referrer,plan_type:'paid'};
@@ -690,12 +842,12 @@ async function handleRentalOrderCreate(r,e){
   }
   const match=await tenantByLogin(e,rawId,password);
   if(!match||!(await tenantPasswordMatches(e,await normalizeTenantRow(e,match),password)))return J({ok:false,error:'INVALID_LOGIN',message:'ID hoặc mật khẩu không đúng.'},401);
-  account=await normalizeTenantRow(e,match);if(account.deleted_at||account.locked)return J({ok:false,error:'TENANT_LOCKED',message:'Tài khoản đã bị khóa hoặc xóa, không thể gia hạn tự động.'},403);
+  account=await normalizeTenantRow(e,match);if(account.deleted_at||account.locked)return J({ok:false,error:'TENANT_LOCKED',message:'Tài khoản đã bị khóa hoặc xóa, không thể gia hạn tự động.'},403);if(String(account.email||'').toLowerCase()!==email.toLowerCase())return J({ok:false,error:'RENEW_EMAIL_MISMATCH',message:'Email phải trùng email đã xác minh của tài khoản thuê.'},400);
   tenantId=String(account.id);const referrer=String(account.referrer_tenant_id||'');
   const prior=await e.DB.prepare("SELECT id,payment_code,amount_vnd,status,expires_at FROM tenant_rental_orders WHERE tenant_id=? AND operation='renew' AND status='pending' AND expires_at>? ORDER BY created_at DESC LIMIT 1").bind(tenantId,Date.now()).first();
   if(prior)return J({ok:true,order:{...prior,code:prior.payment_code,amount:prior.amount_vnd,qrUrl:buildVietQr(e,prior.amount_vnd,prior.payment_code),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(account.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(account.slug)}`,tenantId:account.slug,operation:'renew'}});
   const orderId=crypto.randomUUID(),code='TEO'+crypto.randomUUID().replace(/-/g,'').slice(0,10).toUpperCase(),expires=Date.now()+20*60*1000;
-  await e.DB.prepare("INSERT INTO tenant_rental_orders(id,tenant_id,payment_code,amount_vnd,days,operation,referrer_tenant_id,status,expires_at) VALUES(?,?,?,?,30,'renew',?,'pending',?)").bind(orderId,tenantId,code,50000,referrer||null,expires).run();
+  await e.DB.batch([e.DB.prepare("INSERT INTO tenant_rental_orders(id,tenant_id,payment_code,amount_vnd,days,operation,referrer_tenant_id,status,expires_at) VALUES(?,?,?,?,30,'renew',?,'pending',?)").bind(orderId,tenantId,code,50000,referrer||null,expires),e.DB.prepare("UPDATE rental_email_verifications SET used_at=datetime('now') WHERE id=? AND used_at IS NULL").bind(verifiedEmail.id)]);
   return J({ok:true,order:{id:orderId,code,amount:50000,status:'pending',expiresAt:expires,qrUrl:buildVietQr(e,50000,code),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(account.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(account.slug)}`,tenantId:account.slug,operation:'renew'},message:'Quét QR, chuyển đúng 50.000đ và giữ nguyên nội dung chuyển khoản. Hạn thuê được cộng dồn sau khi SePay xác nhận.'},201);
 }
 async function handleRentalOrderStatus(r,e,id){
@@ -711,10 +863,10 @@ async function handleRentalOrderStatus(r,e,id){
 async function handleTenantPublic(r,e){
   await ensureTenantSchema(e);
   const u=new URL(r.url),parts=u.pathname.split('/').filter(Boolean);
-  const slug=clean(parts[2]||'',80),rawTenant=await tenantBySlug(e,slug),t=await normalizeTenantRow(e,rawTenant);
-  if(!t||tenantStatus(t)==='deleted'||tenantStatus(t)==='expired')return J({ok:false,error:'TENANT_NOT_FOUND'},404);
+  const slug=clean(parts[2]||'',80),rawTenant=await tenantBySlug(e,slug);let t=await normalizeTenantRow(e,rawTenant);t=await refreshTenantPlan(e,t);
+  if(!t||tenantStatus(t)==='deleted'||(tenantStatus(t)==='expired'&&String(t.plan_type||'paid')!=='free'))return J({ok:false,error:'TENANT_NOT_FOUND'},404);
   if(tenantStatus(t)==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);
-  if(r.method==='GET'&&parts.length===3){await tenantBump(e,t,'visit','',r);return J({ok:true,tenant:tenantInfo(t),settings:await tenantSettings(e,t),tags:await tenantTags(e,t),products:await tenantProducts(e,t)})}
+  if(r.method==='GET'&&parts.length===3){await tenantBump(e,t,'visit','',r,u.searchParams.get('source')||'');return J({ok:true,tenant:tenantInfo(t),settings:await tenantSettings(e,t),tags:await tenantTags(e,t),products:await tenantProducts(e,t)})}
   if(parts[3]==='product'&&parts[4]&&r.method==='GET'){
     const id=decodeURIComponent(parts[4]);
     const pk=tenantInSql(t);const p=await e.DB.prepare(`SELECT * FROM tenant_products WHERE ${pk.clause} AND id=? AND visible=1 ORDER BY updated_at DESC LIMIT 1`).bind(...pk.vals,id).first();
@@ -730,6 +882,12 @@ async function handleTenantPublic(r,e){
     else {pub.download_link=p.original_link||p.download_link;delete pub.original_link;}
     return J({ok:true,product:pub,tenant:tenantInfo(t),settings:await tenantSettings(e,t)});
   }
+  if(parts[3]==='track-outbound'&&parts[4]&&r.method==='POST'){
+    const rl=limited(r,'tenant-outbound-click',30,60000);if(rl)return rl;
+    const id=decodeURIComponent(parts[4]),pk=tenantInSql(t),product=await e.DB.prepare(`SELECT id FROM tenant_products WHERE ${pk.clause} AND id=? AND visible=1 LIMIT 1`).bind(...pk.vals,id).first();
+    if(!product)return J({ok:false,error:'PRODUCT_NOT_FOUND'},404);
+    await tenantBump(e,t,'outbound',id,r,u.searchParams.get('source')||'');return J({ok:true});
+  }
   if(parts[3]==='orders'&&parts[4]==='create'&&r.method==='POST'){
     const rl=limited(r,'tenant-file-order',4,60000);if(rl)return rl;
     const b=await r.json().catch(()=>({})),productId=clean(b.product_id,100);const k=tenantInSql(t);
@@ -738,11 +896,10 @@ async function handleTenantPublic(r,e){
     if(!prod)return J({ok:false,error:'PRODUCT_NOT_FOUND'},404);
     const amount=Math.floor(Number(prod.price_vnd)||0);if(Number(prod.sale_enabled)!==1||amount<1000||!['paid','both'].includes(String(prod.product_mode||'paid')))return J({ok:false,error:'PRODUCT_NOT_FOR_SALE'},400);
     const cfg=paymentConfig(e);if(!cfg.paymentsEnabled)return J({ok:false,error:'PAYMENT_NOT_CONFIGURED',missing:cfg.missing,message:`Chưa thể thanh toán. Worker còn thiếu: ${cfg.missing.join(', ')}.`},503);
-    const now=Date.now();const prior=await e.DB.prepare("SELECT * FROM tenant_payment_orders WHERE tenant_id=? AND product_id=? AND status='pending' AND expires_at>? ORDER BY created_at DESC LIMIT 1").bind(t.id,productId,now).first();
-    if(prior){const qr=buildVietQr(e,prior.amount_vnd,prior.payment_code);return J({ok:true,order:{id:prior.id,code:prior.payment_code,amount:prior.amount_vnd,status:prior.status,expiresAt:prior.expires_at,qrUrl:qr}})}
+    const now=Date.now();
     const refSlug=tenantSlug(b.referrer||b.ref||''),refRaw=refSlug?await tenantBySlug(e,refSlug):null,ref=refRaw?await normalizeTenantRow(e,refRaw):null;
     const referrer=ref&&String(ref.id)!==String(t.id)&&ref.status!=='deleted'?String(ref.id):'';
-    const id=crypto.randomUUID(),code='TEO'+crypto.randomUUID().replace(/-/g,'').slice(0,10).toUpperCase(),expires=now+20*60*1000;
+    const id=crypto.randomUUID(),code='TEO'+crypto.randomUUID().replace(/-/g,'').slice(0,10).toUpperCase(),expires=now+10*60*1000;
     await e.DB.prepare("INSERT INTO tenant_payment_orders(id,tenant_id,product_id,payment_code,amount_vnd,status,buyer_ref,expires_at) VALUES(?,?,?,?,?,'pending',?,?)").bind(id,t.id,productId,code,amount,referrer,expires).run();
     return J({ok:true,order:{id,code,amount,status:'pending',expiresAt:expires,qrUrl:buildVietQr(e,amount,code)}},201)
   }
@@ -761,12 +918,15 @@ async function handleTenantPublic(r,e){
 }
 async function handleTenantAdmin(r,e){
   await ensureTenantSchema(e);
-  const t=await tenantFromSession(r,e);
+  let t=await tenantFromSession(r,e);
   if(!t)return J({ok:false,error:'TENANT_REQUIRED'},401);
+  t=await refreshTenantPlan(e,t);
   const status=tenantStatus(t);
   if(status==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);
-  if(status==='expired')return J({ok:false,error:'TENANT_EXPIRED'},403);
+  if(status==='expired'&&!(String(t.plan_type||'paid')==='free'&&Number(t.free_admin_unlocked)!==1))return J({ok:false,error:'TENANT_EXPIRED'},403);
   const u=new URL(r.url),p=u.pathname;
+  if(String(t.plan_type||'paid')==='free'&&Number(t.free_admin_unlocked)!==1){return J({ok:false,error:'FREE_BYPASS_REQUIRED',message:'Gói Free cần hoàn thành 2 lần vượt link được máy chủ xác minh để mở Admin.',tenant:tenantInfo(t),bypassConfigured:!!(e.FREE_BYPASS_TEMPLATE_1&&e.FREE_BYPASS_TEMPLATE_2&&e.FREE_BYPASS_VERIFY_URL&&e.FREE_BYPASS_API_KEY)},403)}
+  if(String(t.plan_type||'paid')==='free'&&(/^\/api\/tenant\/(wallet|payout-profile|withdrawals)(?:\/|$)/.test(p)||p.includes('/orders/'))){return J({ok:false,error:'VIP_REQUIRED',message:'Tính năng kiếm tiền, bán file và rút tiền chỉ có ở gói VIP.'},403)}
   if(p==='/api/tenant/notifications'&&r.method==='GET'){
     const notifications=await notificationList(e,'tenant',t.id);
     return J({ok:true,notifications,unread:notifications.filter(x=>!x.read_at).length});
@@ -783,6 +943,7 @@ async function handleTenantAdmin(r,e){
     const b=await r.json().catch(()=>({}));
     if(!clean(b.title,200))return J({ok:false,error:'title_required'},400);
     const mode=['free','unlock','paid','both'].includes(String(b.product_mode))?String(b.product_mode):'free';
+    if(String(t.plan_type||'paid')==='free'&&['paid','both'].includes(mode))return J({ok:false,error:'VIP_REQUIRED',message:'Gói Free chỉ được chia sẻ file miễn phí. Nâng VIP để bật bán file.'},403);
     const downloadLink=safeHttpUrl(b.download_link,10000),originalLink=safeHttpUrl(b.original_link,10000);
     if(!downloadLink)return J({ok:false,error:'INVALID_DOWNLOAD_URL',message:'Link lấy file phải là URL http:// hoặc https:// hợp lệ.'},400);
     if(mode==='both'&&!originalLink)return J({ok:false,error:'INVALID_ORIGINAL_URL',message:'Chế độ miễn phí hoặc mua cần link gốc http(s) riêng.'},400);
@@ -804,6 +965,7 @@ async function handleTenantAdmin(r,e){
       if(Object.keys(b).length===1&&typeof b.visible==='boolean'){await e.DB.prepare('UPDATE tenant_products SET visible=?,updated_at=datetime(\'now\') WHERE tenant_id=? AND id=?').bind(b.visible?1:0,t.id,id).run();await tenantLog(e,t.id,t.id,b.visible?'product_show':'product_hide',id);return J({ok:true,visible:b.visible})}
       if(!clean(b.title,200))return J({ok:false,error:'title_required'},400);
       const mode=['free','unlock','paid','both'].includes(String(b.product_mode))?String(b.product_mode):'free';
+      if(String(t.plan_type||'paid')==='free'&&['paid','both'].includes(mode))return J({ok:false,error:'VIP_REQUIRED',message:'Gói Free chỉ được chia sẻ file miễn phí. Nâng VIP để bật bán file.'},403);
       const downloadLink=safeHttpUrl(b.download_link,10000),originalLink=safeHttpUrl(b.original_link,10000);
       if(!downloadLink)return J({ok:false,error:'INVALID_DOWNLOAD_URL',message:'Link lấy file phải là URL http:// hoặc https:// hợp lệ.'},400);
       if(mode==='both'&&!originalLink)return J({ok:false,error:'INVALID_ORIGINAL_URL',message:'Chế độ miễn phí hoặc mua cần link gốc http(s) riêng.'},400);
@@ -944,7 +1106,7 @@ async function handleMasterTenant(r,e){
   }
   if(p==='/api/admin/tenants'&&r.method==='POST'){
     const b=await r.json().catch(()=>({}));
-    const id=clean(b.id??b.tenantId??b.username??b.slug,80),slug=tenantSlug(id),password=String(b.password??b.pass??''),days=Math.max(1,Math.min(3650,Number(b.days)||30)),email=validEmail(b.email||'');
+    const id=clean(b.id??b.tenantId??b.username??b.slug,80),slug=tenantSlug(id),password=String(b.password??b.pass??''),days=Math.max(1,Math.min(3650,Number(b.days)||30)),planType=b.planType==='free'?'free':'paid',email=validEmail(b.email||'');
     if(b.email && !email)return J({ok:false,error:'INVALID_EMAIL'},400);
     if(!slug)return J({ok:false,error:'ID_REQUIRED'},400);
     if(password.length<6)return J({ok:false,error:'PASSWORD_TOO_SHORT'},400);
@@ -953,7 +1115,7 @@ async function handleMasterTenant(r,e){
       if(exists&&!exists.deleted_at)return J({ok:false,error:'TENANT_EXISTS'},409);
       const tid='t-'+slug+'-'+crypto.randomUUID().slice(0,8);
       const st=new Date(),ex=new Date(Date.now()+days*86400000);
-      const starts=st.toISOString().slice(0,19).replace('T',' '),expires=ex.toISOString().slice(0,19).replace('T',' ');
+      const starts=st.toISOString().slice(0,19).replace('T',' '),expires=(planType==='free'?starts:ex.toISOString().slice(0,19).replace('T',' '));
       let row;
       const hash=await sha256(password);
       // Write using the detected live key. If a deployed/legacy D1 still rejects
@@ -975,13 +1137,14 @@ async function handleMasterTenant(r,e){
         }
       }
       const finalKey=await tenantAccountKeyColumn(e)||key;
+      await e.DB.prepare(`UPDATE tenant_accounts SET plan_type=?,free_bypass_count=0,free_admin_unlocked=0,expires_at=?,starts_at=? WHERE ${finalKey}=?`).bind(planType,expires,starts,tid).run();
       row=await e.DB.prepare(`SELECT * FROM tenant_accounts WHERE ${finalKey}=?`).bind(tid).first();
       row=await normalizeTenantRow(e,row);
       if(!row)return J({ok:false,error:'TENANT_CREATE_FAILED'},500);
       if(email){await e.DB.prepare(`UPDATE tenant_accounts SET email=? WHERE ${finalKey}=?`).bind(email,tid).run();row.email=email;}
-      try{await tenantLog(e,row.id,'master','create',`days=${days}`)}catch{}
-      await createNotification(e,{recipientType:'admin',recipientId:'master',title:'Đã tạo tenant mới',body:`Tài khoản ${slug} đã được tạo với thời hạn ${days} ngày.`,kind:'tenant'});
-      await createNotification(e,{recipientType:'tenant',recipientId:row.id,title:'Chào mừng đến với Téo Studio',body:`Tài khoản ${slug} đã được tạo. Hãy đăng nhập trang quản trị tenant để bắt đầu.`,kind:'welcome'});
+      try{await tenantLog(e,row.id,'master','create',`plan=${planType};days=${planType==='free'?4:days}`)}catch{}
+      await createNotification(e,{recipientType:'admin',recipientId:'master',title:'Đã tạo tenant mới',body:planType==='free'?`Tài khoản ${slug} thuộc gói Free. Admin cần xác minh 2 lượt vượt link; mỗi lượt cộng 2 ngày.`:`Tài khoản ${slug} đã được tạo với thời hạn ${days} ngày.`,kind:'tenant'});
+      await createNotification(e,{recipientType:'tenant',recipientId:row.id,title:'Chào mừng đến với Téo Studio',body:planType==='free'?'Tài khoản Free đã được tạo. Hãy hoàn thành 2 lượt vượt link được máy chủ xác minh để mở Admin trong 4 ngày.':`Tài khoản ${slug} đã được tạo. Hãy đăng nhập trang quản trị tenant để bắt đầu.`,kind:'welcome'});
       let welcomeEmail=null;
       if(email){welcomeEmail=await notifyEmail(e,{to:email,subject:'Chào mừng bạn đến với Téo Studio',text:`Xin chào ${slug}!
 
@@ -1021,13 +1184,15 @@ Vì lý do bảo mật, mật khẩu ban đầu được gửi riêng bởi qu�
 }
 
 function dayVN(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
-async function bumpView(e,kind,productId=''){
+function safeReferrerDomain(raw){try{const u=new URL(String(raw||''));if(!['http:','https:'].includes(u.protocol))return '';const h=u.hostname.toLowerCase().replace(/^www\./,'');if(!h||h==='teostudio.top'||h.endsWith('.teostudio.top'))return '';return h.slice(0,253)}catch{return ''}}
+async function bumpView(e,kind,productId='',source=''){
   const day=dayVN();
   await e.DB.prepare(`INSERT INTO view_daily(day,kind,product_id,views) VALUES(?,?,?,1) ON CONFLICT(day,kind,product_id) DO UPDATE SET views=views+1`).bind(day,kind,productId).run();
+  const domain=safeReferrerDomain(source);if(domain){try{await e.DB.prepare(`INSERT INTO view_referrers_daily(day,kind,product_id,domain,views) VALUES(?,?,?,?,1) ON CONFLICT(day,kind,product_id,domain) DO UPDATE SET views=views+1`).bind(day,kind,productId,domain).run()}catch{}}
   if(kind==='product'&&productId)await e.DB.prepare('UPDATE products SET views=COALESCE(views,0)+1 WHERE id=?').bind(productId).run();
 }
 async function comments(e){return ((await e.DB.prepare('SELECT id,name,text,image,created_at FROM comments WHERE visible=1 ORDER BY created_at DESC LIMIT 50').all()).results||[]).map(x=>({...x,image:x.image?safeImageValue(x.image,1000000):''}))}
-async function stats(e,days=30){const n=Math.max(7,Math.min(Number(days)||30,365));const rows=(await e.DB.prepare(`SELECT day,kind,product_id,views FROM view_daily WHERE day>=date(?, '-'||?||' days') ORDER BY day ASC`).bind(dayVN(),n-1).all()).results||[];const prods=await e.DB.prepare('SELECT id,title,views FROM products ORDER BY views DESC,updated_at DESC').all();return {days:n,rows,products:prods.results||[],today:rows.filter(x=>x.day===dayVN()).reduce((a,x)=>a+Number(x.views||0),0)} }
+async function stats(e,days=30){const n=Math.max(1,Math.min(Number(days)||30,365));const today=dayVN(),month=today.slice(0,7),from=today;const rows=(await e.DB.prepare(`SELECT day,kind,product_id,views FROM view_daily WHERE day>=date(?, '-'||?||' days') ORDER BY day ASC`).bind(today,n-1).all()).results||[];const prods=await e.DB.prepare('SELECT id,title,views,sale_mode,price_vnd FROM products ORDER BY views DESC,updated_at DESC').all();let daily={orders:0,revenueVnd:0,views:0},monthly={orders:0,revenueVnd:0,byDay:[]};try{daily=await e.DB.prepare("SELECT COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenueVnd FROM product_payment_orders WHERE status='paid' AND date(paid_at,'+7 hours')=?").bind(today).first()||daily;monthly=await e.DB.prepare("SELECT COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenueVnd FROM product_payment_orders WHERE status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<date(?,'+1 month')").bind(month+'-01',month+'-01').first()||monthly;monthly.byDay=(await e.DB.prepare("SELECT date(paid_at,'+7 hours') AS day,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenueVnd FROM product_payment_orders WHERE status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<date(?,'+1 month') GROUP BY date(paid_at,'+7 hours') ORDER BY day").bind(month+'-01',month+'-01').all()).results||[]}catch{}let referrers=[],paidViewsByDay=[];try{referrers=(await e.DB.prepare(`SELECT domain,SUM(views) AS views FROM view_referrers_daily WHERE day>=date(?, '-'||?||' days') GROUP BY domain ORDER BY views DESC LIMIT 50`).bind(today,n-1).all()).results||[]}catch{}try{paidViewsByDay=(await e.DB.prepare(`SELECT v.day,v.product_id,p.title,SUM(v.views) AS views FROM view_daily v JOIN products p ON p.id=v.product_id WHERE v.day>=date(?, '-'||?||' days') AND p.sale_mode IN ('paid','both') AND v.kind IN ('product','outbound') GROUP BY v.day,v.product_id,p.title ORDER BY v.day DESC,views DESC`).bind(today,Math.max(n-1,29)).all()).results||[]}catch{}return {days:n,rows,products:prods.results||[],referrers,paidViewsByDay,today:rows.filter(x=>x.day===today).reduce((a,x)=>a+Number(x.views||0),0),sales:{today:{orders:Number(daily.orders||0),revenueVnd:Number(daily.revenueVnd||0)},month:{orders:Number(monthly.orders||0),revenueVnd:Number(monthly.revenueVnd||0),byDay:monthly.byDay||[]}}} }
 export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}},async fetch(r,e){if(r.method==='OPTIONS')return new Response(null,{headers:C});const u=new URL(r.url),p=u.pathname.replace(/\/$/,'');try{
   if(u.pathname.length>2048||u.search.length>4096)return J({ok:false,error:'URI_TOO_LARGE'},414);
   // Reject cross-site browser writes to cookie/session-backed APIs. SePay server webhook is exempt.
@@ -1067,14 +1232,32 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   }catch{}}
   if(p==='/api/webhook/sepay')return await handleSePayWebhook(r,e);
   if(p==='/api/public-config'&&r.method==='GET')return J(paymentConfig(e));
-  if(p==='/api/rental/config'&&r.method==='GET')return J({...paymentConfig(e),freeBypassConfigured:!!(e.FREE_BYPASS_TEMPLATE_1&&e.FREE_BYPASS_TEMPLATE_2)});
+  if(p==='/api/rental/config'&&r.method==='GET')return J({...paymentConfig(e),freeBypassConfigured:!!(e.FREE_BYPASS_TEMPLATE_1&&e.FREE_BYPASS_TEMPLATE_2&&e.FREE_BYPASS_VERIFY_URL&&e.FREE_BYPASS_API_KEY),emailConfigured:!!e.OXMAIL_SMTP_PASS});
+  if(p==='/api/rental/email/start'&&r.method==='POST')return await startRentalEmailVerification(r,e);
+  if(p==='/api/rental/email/verify'&&r.method==='POST')return await verifyRentalEmail(r,e);
+  if(p==='/api/rental/free/create'&&r.method==='POST')return await createFreeRentalAccount(r,e);
+  if(p==='/api/rental/free/bypass/start'&&r.method==='POST')return await startFreeBypass(r,e);
+  if(p==='/api/rental/free/bypass/complete'&&r.method==='POST')return await completeFreeBypass(r,e);
   if(p==='/api/rental/orders/create'&&r.method==='POST')return await handleRentalOrderCreate(r,e);
   const rentalOrderMatch=p.match(/^\/api\/rental\/orders\/([^/]+)$/);if(rentalOrderMatch&&r.method==='GET')return await handleRentalOrderStatus(r,e,rentalOrderMatch[1]);
-  if(p==='/api/health')return J({ok:true,service:'teo-studio-api',version:'v52-security-rental',auth:'admin-key-session',payment:paymentConfig(e)});
+  if(p==='/api/health')return J({ok:true,service:'teo-studio-api',version:'v53-rental-catalog' ,auth:'admin-key-session',payment:paymentConfig(e)});
   if(p==='/api/admin/login'&&r.method==='POST'){const rl=limited(r,'admin-login',8,60000);if(rl)return rl;await ensureAdminSessionSchema(e);const b=await r.json().catch(()=>({}));const supplied=clean(b.adminKey??b.password??'',500);const expected=clean(e.ADMIN_KEY??'',500);if(!expected)return J({ok:false,error:'ADMIN_KEY_MISSING'},500);if(!supplied||!safeEq(supplied,expected))return J({ok:false,error:'INVALID_ADMIN_KEY'},401);const token=crypto.randomUUID()+crypto.randomUUID();await e.DB.prepare('INSERT INTO admin_sessions(token,expires_at) VALUES(?,?)').bind(token,Date.now()+7*24*60*60*1000).run();return J({ok:true,token,expiresIn:7*24*60*60*1000})}
   await ensureSchema(e);
   if(p==='/api/products'&&r.method==='GET')return J({ok:true,products:await products(e)});
   if(p.match(/^\/api\/products\/[^/]+$/)&&r.method==='GET'){const id=decodeURIComponent(p.split('/').pop());const product=await productById(e,id);return product?J({ok:true,product}):J({ok:false,error:'NOT_FOUND'},404)}
+  const publicProductOrderCreate=p.match(/^\/api\/products\/([^/]+)\/orders\/create$/);
+  if(publicProductOrderCreate&&r.method==='POST'){
+    const rl=limited(r,'main-product-order',4,60000);if(rl)return rl;const id=decodeURIComponent(publicProductOrderCreate[1]);
+    const raw=await e.DB.prepare('SELECT * FROM products WHERE id=? AND visible=1 LIMIT 1').bind(id).first();if(!raw)return J({ok:false,error:'NOT_FOUND'},404);const prod=safeProductRow(raw);
+    if(!['paid','both'].includes(prod.sale_mode)||Number(prod.price_vnd)<1000)return J({ok:false,error:'PRODUCT_NOT_FOR_SALE'},400);
+    const cfg=paymentConfig(e);if(!cfg.paymentsEnabled)return J({ok:false,error:'PAYMENT_NOT_CONFIGURED',missing:cfg.missing},503);
+    const b=await r.json().catch(()=>({}));if(cfg.turnstileEnabled){const proof=await verifyTurnstile(e,b.turnstileToken,r);if(!proof.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Xác minh chống bot chưa thành công.'},400)}
+    const oid=crypto.randomUUID(),code='TEO'+crypto.randomUUID().replace(/-/g,'').slice(0,10).toUpperCase(),expires=Date.now()+10*60*1000;
+    await e.DB.prepare("INSERT INTO product_payment_orders(id,product_id,payment_code,amount_vnd,status,expires_at) VALUES(?,?,?,?,'pending',?)").bind(oid,id,code,Number(prod.price_vnd),expires).run();
+    return J({ok:true,order:{id:oid,productId:id,code,amount:Number(prod.price_vnd),status:'pending',expiresAt:expires,qrUrl:buildVietQr(e,prod.price_vnd,code)}},201);
+  }
+  const publicProductOrderStatus=p.match(/^\/api\/products\/([^/]+)\/orders\/([^/]+)$/);
+  if(publicProductOrderStatus&&r.method==='GET'){const productId=decodeURIComponent(publicProductOrderStatus[1]),orderId=clean(decodeURIComponent(publicProductOrderStatus[2]),100);const order=await e.DB.prepare('SELECT * FROM product_payment_orders WHERE id=? AND product_id=?').bind(orderId,productId).first();if(!order)return J({ok:false,error:'ORDER_NOT_FOUND'},404);if(order.status==='pending'&&Number(order.expires_at)<=Date.now()){await e.DB.prepare("UPDATE product_payment_orders SET status='expired' WHERE id=? AND status='pending'").bind(order.id).run();order.status='expired'}let downloadUrl=null;if(order.status==='paid'){const full=await e.DB.prepare('SELECT * FROM products WHERE id=? AND visible=1').bind(productId).first();if(full)downloadUrl=safeHttpUrl(full.original_link,10000)|| (String(full.sale_mode)==='paid'?safeHttpUrl(full.download_link,10000):'')}return J({ok:true,order:{id:order.id,status:order.status,amount:Number(order.amount_vnd),expiresAt:order.expires_at,paidAt:order.paid_at,downloadUrl}})}
   if(p==='/api/tags'&&r.method==='GET')return J({ok:true,tags:await tags(e)});
   if(p==='/api/settings'&&r.method==='GET')return J({ok:true,settings:await settings(e)});
   if(p==='/api/channel/preview'&&r.method==='GET') {const rl=limited(r,'channel-preview',8,60000);if(rl)return rl;}
@@ -1136,9 +1319,9 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   }
   if(p==='/api/comments'&&r.method==='GET')return J({ok:true,comments:await comments(e)});
   if(p==='/api/comments'&&r.method==='POST'){const rl=commentRateResponse(r);if(rl)return rl;const b=await r.json().catch(()=>({}));const name=clean(b.name,40)||'Ẩn danh';const text=clean(b.text,700);const image=b.image?safeImageValue(b.image,1000000):'';if(b.image&&!image)return J({ok:false,error:'INVALID_COMMENT_IMAGE'},400);if(!text&&!image)return J({ok:false,error:'COMMENT_EMPTY'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO comments(id,name,text,image) VALUES(?,?,?,?)').bind(id,name,text,image).run();return J({ok:true,id},201)}
-  if(p==='/api/track/site'&&r.method==='POST'){await bumpView(e,'site');return J({ok:true})}
-  let tv=p.match(/^\/api\/track\/product\/([^/]+)$/);if(tv&&r.method==='POST'){const id=decodeURIComponent(tv[1]);const product=await productById(e,id);if(!product)return J({ok:false,error:'NOT_FOUND'},404);await bumpView(e,'product',id);return J({ok:true,views:Number(product.views||0)+1})}
-  let to=p.match(/^\/api\/track\/outbound\/([^/]+)$/);if(to&&r.method==='POST'){const id=decodeURIComponent(to[1]);const product=await productById(e,id);if(!product)return J({ok:false,error:'NOT_FOUND'},404);await bumpView(e,'outbound',id);return J({ok:true})}
+  if(p==='/api/track/site'&&r.method==='POST'){await bumpView(e,'site','',u.searchParams.get('source')||'');return J({ok:true})}
+  let tv=p.match(/^\/api\/track\/product\/([^/]+)$/);if(tv&&r.method==='POST'){const id=decodeURIComponent(tv[1]);const product=await productById(e,id);if(!product)return J({ok:false,error:'NOT_FOUND'},404);await bumpView(e,'product',id,u.searchParams.get('source')||'');return J({ok:true,views:Number(product.views||0)+1})}
+  let to=p.match(/^\/api\/track\/outbound\/([^/]+)$/);if(to&&r.method==='POST'){const id=decodeURIComponent(to[1]);const product=await productById(e,id);if(!product)return J({ok:false,error:'NOT_FOUND'},404);await bumpView(e,'outbound',id,u.searchParams.get('source')||'');return J({ok:true})}
   if(p==='/api/tenant/security-login'&&r.method==='POST'){const rl=limited(r,'tenant-security-login',8,60000);if(rl)return rl;
     try{
       await ensureTenantSchema(e);
@@ -1147,9 +1330,9 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
       if(!identifier||!pass)return J({ok:false,error:'SECURITY_PASSWORD_REQUIRED'},400);
       const raw=await tenantByIdentifier(e,identifier);
       if(!raw)return J({ok:false,error:'INVALID_SECURITY_LOGIN'},401);
-      const t=await normalizeTenantRow(e,raw), st=tenantStatus(t);
+      let t=await normalizeTenantRow(e,raw);t=await refreshTenantPlan(e,t);const st=tenantStatus(t);
       if(st==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);
-      if(st==='expired')return J({ok:false,error:'TENANT_EXPIRED'},403);
+      if(st==='expired'&&String(t.plan_type||'paid')!=='free')return J({ok:false,error:'TENANT_EXPIRED'},403);
       if(!String(t.admin_confirm_password_hash||''))return J({ok:false,error:'SECURITY_PASSWORD_NOT_SET'},409);
       if(String(t.admin_confirm_password_hash)!==await sha256(pass))return J({ok:false,error:'INVALID_SECURITY_PASSWORD'},401);
       const token=crypto.randomUUID()+crypto.randomUUID();
@@ -1166,10 +1349,10 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
       const identifier=b.tenant||b.id||b.slug||'';
       const t0=await tenantByLogin(e,identifier,b.password);
       if(!t0)return J({ok:false,error:'INVALID_LOGIN'},401);
-      const t=await normalizeTenantRow(e,t0);
+      let t=await normalizeTenantRow(e,t0);t=await refreshTenantPlan(e,t);
       const st=tenantStatus(t);
       if(st==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);
-      if(st==='expired')return J({ok:false,error:'TENANT_EXPIRED'},403);
+      if(st==='expired'&&String(t.plan_type||'paid')!=='free')return J({ok:false,error:'TENANT_EXPIRED'},403);
       if(!(await tenantPasswordMatches(e,t,b.password)))return J({ok:false,error:'INVALID_LOGIN'},401);
       const token=crypto.randomUUID()+crypto.randomUUID();
       const sessionTenantId=clean(t?.id??t?.tenant_id??t?.slug,100);
@@ -1262,8 +1445,9 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   if(p==='/api/admin/comments'&&r.method==='GET')return J({ok:true,comments:(await e.DB.prepare('SELECT id,name,text,image,created_at,visible FROM comments ORDER BY created_at DESC').all()).results||[]});
   let cm=p.match(/^\/api\/admin\/comments\/([^/]+)$/);if(cm){const id=cm[1];if(r.method==='DELETE'){await e.DB.prepare('DELETE FROM comments WHERE id=?').bind(id).run();return J({ok:true})}if(r.method==='PUT'){const b=await r.json().catch(()=>({}));if(typeof b.visible!=='boolean')return J({ok:false,error:'VISIBLE_REQUIRED'},400);await e.DB.prepare('UPDATE comments SET visible=? WHERE id=?').bind(b.visible?1:0,id).run();return J({ok:true,visible:b.visible})}}
   if(p==='/api/admin/products'&&r.method==='GET')return J({ok:true,products:await adminProducts(e)});
-  if(p==='/api/admin/products'&&r.method==='POST'){const b=await r.json().catch(()=>({}));if(!clean(b.title,200))return J({ok:false,error:'title_required'},400);const dl=safeHttpUrl(b.download_link,10000),thumb=safeImageValue(b.thumb,1500000);if(!dl)return J({ok:false,error:'INVALID_DOWNLOAD_URL'},400);if(b.thumb&&!thumb)return J({ok:false,error:'INVALID_THUMB_URL'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO products(id,title,game,description,thumb,download_link,warning,visible) VALUES(?,?,?,?,?,?,?,1)').bind(id,clean(b.title,200),clean(b.game,100),clean(b.description),thumb,dl,clean(b.warning)).run();return J({ok:true,id},201)}
-  let m=p.match(/^\/api\/admin\/products\/([^/]+)$/);if(m){const id=m[1];if(r.method==='DELETE'){await e.DB.prepare('DELETE FROM products WHERE id=?').bind(id).run();return J({ok:true})}if(r.method==='PUT'){const b=await r.json().catch(()=>({}));if(Object.keys(b).length===1&&typeof b.visible==='boolean'){await e.DB.prepare(`UPDATE products SET visible=?,updated_at=datetime('now') WHERE id=?`).bind(b.visible?1:0,id).run();return J({ok:true,visible:b.visible})}const dl=safeHttpUrl(b.download_link,10000),thumb=safeImageValue(b.thumb,1500000);if(!clean(b.title,200)||!dl)return J({ok:false,error:'INVALID_PRODUCT_FIELDS'},400);if(b.thumb&&!thumb)return J({ok:false,error:'INVALID_THUMB_URL'},400);await e.DB.prepare(`UPDATE products SET title=?,game=?,description=?,thumb=?,download_link=?,warning=?,visible=COALESCE(?,visible),updated_at=datetime('now') WHERE id=?`).bind(clean(b.title,200),clean(b.game,100),clean(b.description),thumb,dl,clean(b.warning),typeof b.visible==='boolean'?(b.visible?1:0):null,id).run();return J({ok:true})}}
+  async function readMasterProductBody(b){const mode=['free','both','paid'].includes(String(b.sale_mode||'free'))?String(b.sale_mode||'free'):'free',freeMode=String(b.free_link_mode||'direct')==='unlock'?'unlock':'direct';const dl0=safeHttpUrl(b.download_link,10000),original0=safeHttpUrl(b.original_link,10000);const thumb=safeImageValue(b.thumb,1500000);const price=Math.max(0,Math.min(100000000,Math.floor(Number(b.price_vnd)||0)));if(!clean(b.title,200))throw new Error('title_required');if(b.thumb&&!thumb)throw new Error('INVALID_THUMB_URL');if(mode==='free'&&!dl0)throw new Error('INVALID_DOWNLOAD_URL');if(mode==='both'&&(!dl0||!original0))throw new Error('FREE_AND_PAID_LINKS_REQUIRED');if(mode==='paid'&&!((original0||dl0)))throw new Error('PAID_LINK_REQUIRED');if(mode!=='free'&&price<1000)throw new Error('PRICE_TOO_LOW');return {title:clean(b.title,200),game:clean(b.game,100),description:clean(b.description),thumb,download_link:mode==='paid'?(original0||dl0):dl0,original_link:mode==='free'?'':(original0||dl0),warning:clean(b.warning),sale_mode:mode,free_link_mode:freeMode,price_vnd:mode==='free'?0:price}}
+  if(p==='/api/admin/products'&&r.method==='POST'){const b=await r.json().catch(()=>({}));let d;try{d=await readMasterProductBody(b)}catch(err){return J({ok:false,error:String(err.message||err)},400)}const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO products(id,title,game,description,thumb,download_link,warning,visible,sale_mode,free_link_mode,original_link,price_vnd) VALUES(?,?,?,?,?,?,?,1,?,?,?,?)').bind(id,d.title,d.game,d.description,d.thumb,d.download_link,d.warning,d.sale_mode,d.free_link_mode,d.original_link,d.price_vnd).run();return J({ok:true,id},201)}
+  let m=p.match(/^\/api\/admin\/products\/([^/]+)$/);if(m){const id=m[1];if(r.method==='DELETE'){await e.DB.prepare('DELETE FROM products WHERE id=?').bind(id).run();return J({ok:true})}if(r.method==='PUT'){const b=await r.json().catch(()=>({}));if(Object.keys(b).length===1&&typeof b.visible==='boolean'){await e.DB.prepare(`UPDATE products SET visible=?,updated_at=datetime('now') WHERE id=?`).bind(b.visible?1:0,id).run();return J({ok:true,visible:b.visible})}let d;try{d=await readMasterProductBody(b)}catch(err){return J({ok:false,error:String(err.message||err)},400)}await e.DB.prepare(`UPDATE products SET title=?,game=?,description=?,thumb=?,download_link=?,warning=?,sale_mode=?,free_link_mode=?,original_link=?,price_vnd=?,visible=COALESCE(?,visible),updated_at=datetime('now') WHERE id=?`).bind(d.title,d.game,d.description,d.thumb,d.download_link,d.warning,d.sale_mode,d.free_link_mode,d.original_link,d.price_vnd,typeof b.visible==='boolean'?(b.visible?1:0):null,id).run();return J({ok:true})}}
   if(p==='/api/admin/tags'&&r.method==='POST'){const b=await r.json(),name=clean(b.name,100),parentId=clean(b.parent_id,100);if(!name)return J({ok:false,error:'name_required'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO tags(id,name,parent_id) VALUES(?,?,?)').bind(id,name,parentId||null).run();return J({ok:true,id},201)}
   let t=p.match(/^\/api\/admin\/tags\/([^/]+)$/);if(t){const id=t[1];if(r.method==='DELETE'){await e.DB.prepare('DELETE FROM tags WHERE id=? OR parent_id=?').bind(id,id).run();return J({ok:true})}if(r.method==='PUT'){const b=await r.json();await e.DB.prepare('UPDATE tags SET name=?,parent_id=? WHERE id=?').bind(clean(b.name,100),clean(b.parent_id,100)||null,id).run();return J({ok:true})}}
   if(p==='/api/admin/settings'&&r.method==='GET')return J({ok:true,settings:await settings(e)});

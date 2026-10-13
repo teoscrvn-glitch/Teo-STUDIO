@@ -1,3 +1,9 @@
+# TeoStudio V53
+
+This source update is based on the supplied `TeoStudio-V52-Security-Rental.zip`. See `VERSION_V53.md` for changes, setup requirements, and limitations; see `TEST_REPORT_V53.md` for local checks.
+
+Important: this archive is not a live production backup and has not been deployed. Preserve the existing Cloudflare D1 binding/database ID and secrets, compare against the current GitHub branch, and back up D1 before rollout.
+
 # Téo Studio — Security & Rental Checkout V52
 
 Gói nguồn V52: bổ sung nền tảng thanh toán SePay/VietQR, theo dõi doanh thu tenant và hardening bảo mật.
