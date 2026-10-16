@@ -37,7 +37,7 @@ async function login(){
         const token=await doLogin(adminKey);
         setLocked(false);loginMessage('');resolve(token);
       }catch(err){
-        loginMessage(err.message==='INVALID_ADMIN_KEY'?'Admin Key không đúng.':err.message==='ADMIN_KEY_MISSING'?'Cloudflare chưa có Secret ADMIN_KEY.':'Không kết nối được máy chủ Admin.');
+        loginMessage(err.message==='INVALID_ADMIN_KEY'?'Admin Key không đúng.':err.message==='ADMIN_KEY_MISSING'?'Cloudflare chưa có Secret ADMIN_KEY.':err.message==='CANONICAL_HOST_REQUIRED'?'Bạn đang mở link thử nghiệm workers.dev. Hãy mở https://teostudio.top/admin.html.':err.message==='CROSS_SITE_REQUEST_BLOCKED'?'Yêu cầu bị chặn do tên miền không hợp lệ. Hãy mở https://teostudio.top/admin.html.':'Không kết nối được máy chủ Admin. Kiểm tra https://teostudio.top/api/health rồi thử lại.');
         input.value='';input.focus();
       }finally{busy=false;input.disabled=false;$('#adminLoginButton').disabled=false}
     };

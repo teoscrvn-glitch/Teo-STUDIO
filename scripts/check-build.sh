@@ -11,7 +11,7 @@ node --check cloudflare/worker.js
 printf '%s\n' '[2/3] Checking frontend JavaScript syntax...'
 find frontend/assets/js -type f -name '*.js' -exec node --check '{}' \;
 printf '%s\n' '[3/3] Checking build fingerprint and key diagnostics routes...'
-grep -q "v56.3-stability-ai-config" cloudflare/worker.js
+grep -q "v56.4-canonical-runtime-fix" cloudflare/worker.js
 grep -q "/api/admin/config-status" cloudflare/worker.js
 grep -q "/api/admin/ai/test" cloudflare/worker.js
 grep -q "/api/admin/telegram/test" cloudflare/worker.js
