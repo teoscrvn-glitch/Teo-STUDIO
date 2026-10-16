@@ -1,37 +1,26 @@
-# TeoStudio V54
+# TeoStudio V55
 
-This source update is based on the supplied `TeoStudio-V52-Security-Rental.zip`. See `VERSION_V54.md` for changes, setup requirements, and limitations; see `TEST_REPORT_V54.md` for local checks.
+**Bản mã nguồn nâng cấp — chưa deploy production.** Package này được xây dựng từ file V54 được cung cấp trong cuộc trò chuyện, không phải bản export trực tiếp từ GitHub main hay bản sao lưu trực tiếp của production.
 
-Important: this archive is not a live production backup and has not been deployed. Preserve the existing Cloudflare D1 binding/database ID and secrets, compare against the current GitHub branch, and back up D1 before rollout.
+## Tài liệu
+- `VERSION_V55.md` — phạm vi tính năng, cơ chế dữ liệu và giới hạn.
+- `TEST_REPORT_V55.md` — kiểm tra đã chạy và kiểm thử còn cần thực hiện.
+- `DEPLOY_V55_MOBILE.md` — hướng dẫn triển khai từ điện thoại và checklist bảo mật.
+- `SECURITY_HARDENING_V52.md`, `SEPAY_SETUP_V45.md`, `OXMAIL_SETUP_V49.md` — tài liệu nền cũ, dùng khi cần đối chiếu.
 
-# Téo Studio — Security & Rental Checkout V52
+## Những phần mới trong V55
+1. Tài khoản người mua dùng chung với tài khoản studio; xác minh email, đăng nhập, đặt lại mật khẩu, hồ sơ và lịch sử mua.
+2. Ví nội bộ: nạp theo VietQR/SePay, mua file bằng số dư, sổ cái người mua/người bán/nền tảng; seller nhận 95%, platform ghi 5% với đơn bán từ studio.
+3. Thống kê admin theo tháng lấy từ D1: doanh thu, hoa hồng, doanh thu người bán, nạp ví, lượt xem, đơn hàng và bảng từng ngày.
+4. Trình chỉnh sửa giao diện studio theo khối, preset, ẩn/hiện, sao chép, xóa, sắp xếp bằng nút lên/xuống, tùy chỉnh cơ bản và preview.
+5. Bong bóng AI hỗ trợ người dùng, báo lỗi lưu vào D1, tuỳ chọn gửi Telegram; AI API chỉ bật khi cấu hình endpoint/key/model runtime.
+6. Thêm các biện pháp chống bypass: không trả link gốc file trả phí qua endpoint công khai, kiểm tra quyền và giá ở Worker, Turnstile server-side và idempotency giao dịch.
 
-Gói nguồn V52: bổ sung nền tảng thanh toán SePay/VietQR, theo dõi doanh thu tenant và hardening bảo mật.
+## Triển khai an toàn
+- Sao lưu D1 trước.
+- Đối chiếu/merge với repository hiện tại; không ghi đè mù các chỉnh sửa mới hơn.
+- Giữ nguyên D1 ID/binding `DB`, secrets và webhook SePay.
+- Không reset database.
+- Kiểm thử staging hoặc giao dịch nhỏ có đối soát trước khi mở rộng.
 
-**Đây là gói nguồn để đối chiếu/triển khai có kiểm soát, không phải xác nhận đã deploy production.**
-
-## Sửa chính
-- Tương thích tenant_accounts cũ dùng `id`, `tenant_id` hoặc `slug`.
-- Lookup tenant master/admin/share không còn phụ thuộc duy nhất vào một cột khóa.
-- Chuẩn hóa tenant trước khi Share File đọc settings/files/tags/comments.
-- Sửa thao tác gia hạn/đổi mật khẩu/khóa/xóa tenant để dùng đúng canonical tenant id.
-- Re-auth Admin: sai mật khẩu xác minh không làm mất session ngay.
-- Health API đổi version thành `rental-v27-safe` để kiểm tra đúng bản Worker đang chạy.
-- Ảnh nền avatar hiển thị thành một dải nhỏ phía sau avatar; avatar nằm đè khoảng giữa ảnh nền và bên ngoài.
-- Giữ nguyên D1 hiện tại, không reset database.
-- Giữ khu vực dịch vụ TikTok / YouTube / Zalo ở cuối Share File.
-
-## Deploy
-Upload/deploy `cloudflare/worker.js` và frontend đi kèm. Sau deploy kiểm tra `/api/health`; kết quả phải có `version: rental-v27-safe`.
-
-
-## V52 Security / Rental checkout update
-See `VERSION_V52.md` for scope and limitations, and `SECURITY_HARDENING_V52.md` for required Cloudflare edge configuration. This source keeps the current D1 and performs additive migrations only. Do not reset production database or expose secrets.
-
-
-## V52 security and rental checkout
-
-See `VERSION_V52.md`, `SECURITY_HARDENING_V52.md`, and `DEPLOY_V52_MOBILE.md` for current features, known gaps, and safe production rollout. This archive is based on the V51 package available in the conversation, not a verified export of the current GitHub main branch. Compare/merge matching paths; keep the existing D1 database ID and secrets. Do not reset production D1.
-
-
-See `V54_FIXES_AND_RUNTIME_SETUP.md` for runtime SePay/Turnstile setup, why stale frontend files hide sale-mode and wallet forms, and production-safe verification steps.
+V55 chưa được triển khai hoặc kiểm thử end-to-end với tài khoản production. Không thể đảm bảo chống mọi hình thức tấn công chỉ bằng code Worker; cần cấu hình Cloudflare WAF/Rate Limiting cho lớp edge.
