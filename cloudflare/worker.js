@@ -236,7 +236,7 @@ async function saveBuyerCode(e,email,purpose){
   if(!sent?.ok){await e.DB.prepare('DELETE FROM buyer_email_codes WHERE id=?').bind(id).run();return {ok:false}}
   return {ok:true,expiresAt:expires};
 }
-function maskEmail(email){const [name,domain]=String(email||'').split('@');if(!domain)return '';return `${(name||'').slice(0,1)}${'*'.repeat(Math.min(5,Math.max(2,(name||'').length-1))}@${domain}`}
+function maskEmail(email){const [name,domain]=String(email||'').split('@');if(!domain)return '';return `${(name||'').slice(0,1)}${'*'.repeat(Math.min(5,Math.max(2,(name||'').length-1)))}@${domain}`;}
 async function telegramSend(e,text){const token=String(e.TELEGRAM_BOT_TOKEN||''),chat=String(e.TELEGRAM_CHAT_ID||'');if(!token||!chat)return {ok:false,skipped:true};try{const r=await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:chat,text:String(text||'').slice(0,3900),disable_web_page_preview:true})});return {ok:r.ok}}catch{return {ok:false}}}
 async function supportNotify(e,report){await telegramSend(e,`🚨 TeoStudio · Báo lỗi mới\nMã: ${report.id}\nLoại: ${report.category}\nTrang: ${report.page}\nIP: ${report.client_ip||'không xác định'}\nTài khoản: ${report.display_name||'Khách'} (${maskEmail(report.email)||'ẩn danh'})\nMô tả: ${report.message}`)}
 function safeBuilderLayout(input){
