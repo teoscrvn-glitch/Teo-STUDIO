@@ -48,17 +48,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v56.4-canonical-runtime-fix';
-function runtimeConfigStatus(e){
-  const has=k=>String(e?.[k]??'').trim().length>0;
-  const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
-  const ai=check(['AI_API_URL','AI_API_KEY','AI_MODEL']);
-  let aiEndpointValid=false;try{const u=new URL(String(e?.AI_API_URL||''));aiEndpointValid=u.protocol==='https:'&&!!u.hostname&&!u.username&&!u.password}catch{}
-  ai.endpointValid=aiEndpointValid;ai.ready=ai.configured&&aiEndpointValid;
-  const emailMissing=[];if(!has('OXMAIL_SMTP_PASS'))emailMissing.push('OXMAIL_SMTP_PASS');if(Number(e?.OXMAIL_SMTP_PORT||465)!==465)emailMissing.push('OXMAIL_SMTP_PORT (must be 465)');const smtpHost=String(e?.OXMAIL_SMTP_HOST||'mail.teostudio.top');if(!/^[a-z0-9.-]+$/i.test(smtpHost)||smtpHost.startsWith('.')||smtpHost.endsWith('.'))emailMissing.push('OXMAIL_SMTP_HOST');const smtpUser=String(e?.OXMAIL_SMTP_USER||'teostudio@teostudio.top'),smtpFrom=String(e?.EMAIL_FROM||smtpUser);if(!EMAIL_RE.test(smtpUser))emailMissing.push('OXMAIL_SMTP_USER');if(!EMAIL_RE.test(smtpFrom))emailMissing.push('EMAIL_FROM');const email={configured:emailMissing.length===0,missing:emailMissing,hostUsesDefault:!has('OXMAIL_SMTP_HOST'),userUsesDefault:!has('OXMAIL_SMTP_USER'),fromUsesDefault:!has('EMAIL_FROM')};
-  return {database:{configured:!!e?.DB},ai,email,telegram:check(['TELEGRAM_BOT_TOKEN','TELEGRAM_CHAT_ID']),turnstile:check(['TURNSTILE_SITE_KEY','TURNSTILE_SECRET']),sepay:check(['SEPAY_API_KEY','SEPAY_BANK_CODE','SEPAY_ACCOUNT_NUMBER'])};
-}
-const C={"content-type":"application/json;charset=utf-8","access-control-allow-origin":"https://teostudio.top","access-control-allow-methods":"GET,POST,PUT,DELETE,OPTIONS","access-control-allow-headers":"Content-Type,Authorization,X-Requested-With,X-Tenant-Slug","vary":"Origin","cache-control":"no-store","x-content-type-options":"nosniff","x-frame-options":"SAMEORIGIN","referrer-policy":"strict-origin-when-cross-origin","permissions-policy":"camera=(),microphone=(),geolocation=()","x-permitted-cross-domain-policies":"none","cross-origin-opener-policy":"same-origin","strict-transport-security":"max-age=31536000","content-security-policy":"default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://challenges.cloudflare.com; frame-src 'self' https://challenges.cloudflare.com; worker-src 'self' blob: https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"};
+const C={"content-type":"application/json;charset=utf-8","access-control-allow-origin":"https://teostudio.top","access-control-allow-methods":"GET,POST,PUT,DELETE,OPTIONS","access-control-allow-headers":"Content-Type,Authorization,X-Requested-With","vary":"Origin","cache-control":"no-store","x-content-type-options":"nosniff","x-frame-options":"SAMEORIGIN","referrer-policy":"strict-origin-when-cross-origin","permissions-policy":"camera=(),microphone=(),geolocation=()","x-permitted-cross-domain-policies":"none","cross-origin-opener-policy":"same-origin","strict-transport-security":"max-age=31536000","content-security-policy":"default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://challenges.cloudflare.com; frame-src 'self' https://challenges.cloudflare.com; worker-src 'self' blob: https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"};
 const J=(x,s=200,extra={})=>new Response(JSON.stringify(x),{status:s,headers:{...C,...extra}});
 const clean=(x,n=5000)=>String(x??'').trim().slice(0,n);
 // Accept navigable web URLs only. Reject javascript:, data:, credentials-in-URL and malformed URLs.
@@ -69,7 +59,6 @@ async function safeChannelFetch(input,init={}){let u=new URL(input);for(let i=0;
 async function readTextLimited(resp,maxBytes=1200000){const len=Number(resp.headers.get('content-length')||0);if(len>maxBytes){try{await resp.body?.cancel()}catch{}throw new Error('CHANNEL_RESPONSE_TOO_LARGE')}if(!resp.body)return '';const reader=resp.body.getReader(),chunks=[];let size=0;try{while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>maxBytes){try{await reader.cancel()}catch{}throw new Error('CHANNEL_RESPONSE_TOO_LARGE')}chunks.push(value)}}finally{try{reader.releaseLock()}catch{}}const all=new Uint8Array(size);let offset=0;for(const chunk of chunks){all.set(chunk,offset);offset+=chunk.byteLength}return new TextDecoder().decode(all)}
 // Image fields may use compressed data:image/... payloads generated by the UI; never allow data:text/html.
 function safeImageValue(value,max=1500000){const raw=clean(value,max);if(!raw)return '';if(/^data:image\/(?:png|jpeg|jpg|webp|gif|avif);base64,[a-z0-9+/=\r\n]+$/i.test(raw))return raw;if(/^(?!\/\/)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9_./?&=%#-]+$/.test(raw)&&!raw.includes('\\'))return raw;return safeHttpUrl(raw,max)}
-function safeCommentImage(value){const raw=String(value||'');if(raw.length>450000||!/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(raw))return '';try{const payload=raw.slice(raw.indexOf(',')+1);const bin=atob(payload.slice(0,80));if(raw.startsWith('data:image/jpeg;')&&!(bin.charCodeAt(0)===0xff&&bin.charCodeAt(1)===0xd8&&bin.charCodeAt(2)===0xff))return '';if(raw.startsWith('data:image/png;')&&!(bin.charCodeAt(0)===0x89&&bin.slice(1,4)==='PNG'))return '';if(raw.startsWith('data:image/webp;')&&!(bin.slice(0,4)==='RIFF'&&bin.slice(8,12)==='WEBP'))return '';return raw}catch{return ''}}
 const tokenFrom=r=>(r.headers.get('authorization')||'').replace(/^Bearer\s+/i,'').trim();
 const RL=new Map();
 // Best-effort per-isolate protection. Configure Cloudflare WAF/Rate Limiting for edge-wide DDoS protection.
@@ -93,17 +82,6 @@ function pruneMaps(now=Date.now()){
 function banIp(ip,ms=BAN_MS){if(ip&&ip!=='unknown')IP_BANS.set(ip,Date.now()+ms)}
 function bannedResponse(until){const retry=Math.max(1,Math.ceil((until-Date.now())/1000));return new Response(JSON.stringify({ok:false,error:'IP_TEMPORARILY_BLOCKED',message:'IP tạm thời bị hạn chế do có quá nhiều request hoặc spam bình luận.',retryAfter:retry}),{status:403,headers:{...C,'retry-after':String(retry),'cache-control':'no-store'}})}
 function activeBan(r){const ip=clientIp(r);if(!ip)return null;const until=IP_BANS.get(ip)||0;if(until>Date.now())return bannedResponse(until);if(until)IP_BANS.delete(ip);return null}
-const SECURITY_BLOCK_CACHE=new Map();
-async function securityBlocked(e,kind,value){
-  const v=kind==='email'?String(value||'').trim().toLowerCase():String(value||'').trim();
-  if(!v)return false;const now=Date.now(),cacheKey=kind+':'+v,cached=SECURITY_BLOCK_CACHE.get(cacheKey);
-  if(cached&&cached.expiresAt>now)return cached.blocked;
-  let blocked=false;try{await ensureV55Schema(e);blocked=!!(await e.DB.prepare('SELECT id FROM security_blocks WHERE kind=? AND value_normalized=? LIMIT 1').bind(kind,v).first())}catch{}
-  if(SECURITY_BLOCK_CACHE.size>10000){for(const [k,x] of SECURITY_BLOCK_CACHE)if(x.expiresAt<=now)SECURITY_BLOCK_CACHE.delete(k);if(SECURITY_BLOCK_CACHE.size>10000)SECURITY_BLOCK_CACHE.clear()}
-  SECURITY_BLOCK_CACHE.set(cacheKey,{blocked,expiresAt:now+5000});return blocked;
-}
-function blockedNotFound(r){const accept=String(r.headers.get('accept')||'').toLowerCase();if(accept.includes('text/html'))return new Response('<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Không tìm thấy trang</title><body style="font-family:system-ui;background:#0a0d16;color:#e5e7eb;padding:12vh 8vw"><h1>404 · Không tìm thấy trang</h1><p>Trang bạn yêu cầu không tồn tại hoặc không thể truy cập.</p></body></html>',{status:404,headers:{...C,'content-type':'text/html;charset=UTF-8','cache-control':'no-store'}});return J({ok:false,error:'NOT_FOUND'},404)}
-function normalizeIpInput(value){const v=String(value||'').trim();if(!v||v.length>80||/[\s/,]/.test(v))return '';if(v.includes(':'))return /^[0-9a-f:.]+$/i.test(v)?v.toLowerCase():'';const parts=v.split('.');if(parts.length!==4||parts.some(x=>!/^\d{1,3}$/.test(x)||Number(x)>255))return '';return parts.map(x=>String(Number(x))).join('.')}
 function rateLimit(r,key,limit=20,windowMs=60000){const now=Date.now(),ip=clientIp(r);if(!ip)return 0;const k=key+':'+ip;const a=RL.get(k)||[];const fresh=a.filter(t=>now-t<windowMs);if(fresh.length>=limit){RL.set(k,fresh);pruneMaps(now);return Math.max(1,Math.ceil((windowMs-(now-fresh[0]))/1000))}fresh.push(now);RL.set(k,fresh);pruneMaps(now);return 0}
 function limited(r,key,limit,windowMs){const retry=rateLimit(r,key,limit,windowMs);return retry?new Response(JSON.stringify({ok:false,error:'RATE_LIMITED',retryAfter:retry}),{status:429,headers:{...C,'retry-after':String(retry),'cache-control':'no-store'}}):null}
 function documentNavigation(r){return (r.method==='GET'||r.method==='HEAD')&&String(r.headers.get('accept')||'').toLowerCase().includes('text/html')&&!new URL(r.url).pathname.startsWith('/api/')}
@@ -112,7 +90,6 @@ function apiRateResponse(r){const retry=rateLimit(r,'api-burst',50,10000);if(!re
 function commentRateResponse(r){const retry=rateLimit(r,'comment-post',3,60000);if(!retry)return null;return new Response(JSON.stringify({ok:false,error:'COMMENT_RATE_LIMITED',retryAfter:retry,message:'Bạn đã đăng quá nhiều bình luận trong thời gian ngắn.'}),{status:429,headers:{...C,'retry-after':String(retry),'cache-control':'no-store'}})}
 let schemaReady=null;
 let adminSessionSchemaReady=null;
-let v55SchemaReady=null;
 async function ensureAdminSessionSchema(e){
   if(adminSessionSchemaReady)return adminSessionSchemaReady;
   adminSessionSchemaReady=(async()=>{
@@ -180,200 +157,6 @@ async function ensureSchema(e){
 }
 
 async function isAdmin(r,e){const t=tokenFrom(r);if(!t)return false;await ensureSchema(e);const x=await e.DB.prepare('SELECT token FROM admin_sessions WHERE token=? AND expires_at>?').bind(t,Date.now()).first();return !!x}
-async function ensureV55Schema(e){
-  if(v55SchemaReady)return v55SchemaReady;
-  v55SchemaReady=(async()=>{
-    await ensureSchema(e);await ensureTenantSchema(e);
-    await e.DB.prepare(`CREATE TABLE IF NOT EXISTS buyer_accounts (
-      id TEXT PRIMARY KEY,email TEXT NOT NULL,email_normalized TEXT NOT NULL UNIQUE,
-      display_name TEXT NOT NULL,avatar TEXT NOT NULL DEFAULT '',password_hash TEXT NOT NULL,
-      email_verified INTEGER NOT NULL DEFAULT 0,locked INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT(datetime('now')),updated_at TEXT NOT NULL DEFAULT(datetime('now'))
-    )`).run();
-    await e.DB.prepare(`CREATE TABLE IF NOT EXISTS buyer_sessions(token TEXT PRIMARY KEY,buyer_id TEXT NOT NULL,expires_at INTEGER NOT NULL,created_at TEXT NOT NULL DEFAULT(datetime('now')))` ).run();
-    await e.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_buyer_sessions_expiry ON buyer_sessions(expires_at)`).run();
-    await e.DB.prepare(`CREATE TABLE IF NOT EXISTS buyer_email_codes(id TEXT PRIMARY KEY,email_normalized TEXT NOT NULL,purpose TEXT NOT NULL,code_hash TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,expires_at INTEGER NOT NULL,used_at TEXT DEFAULT NULL,created_at TEXT NOT NULL DEFAULT(datetime('now')))` ).run();
-    await e.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_buyer_codes_lookup ON buyer_email_codes(email_normalized,purpose,created_at)`).run();
-    await e.DB.prepare(`CREATE TABLE IF NOT EXISTS buyer_wallet_topups(id TEXT PRIMARY KEY,buyer_id TEXT NOT NULL,payment_code TEXT NOT NULL UNIQUE,amount_vnd INTEGER NOT NULL,status TEXT NOT NULL DEFAULT 'pending',transaction_id TEXT UNIQUE,expires_at INTEGER NOT NULL,paid_at TEXT DEFAULT NULL,created_at TEXT NOT NULL DEFAULT(datetime('now')))` ).run();
-    await e.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_buyer_topups_lookup ON buyer_wallet_topups(buyer_id,created_at)`).run();
-    await e.DB.prepare(`CREATE TABLE IF NOT EXISTS buyer_wallet_ledger(id TEXT PRIMARY KEY,buyer_id TEXT NOT NULL,amount_vnd INTEGER NOT NULL,kind TEXT NOT NULL,ref_type TEXT DEFAULT NULL,ref_id TEXT DEFAULT NULL,note TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL DEFAULT(datetime('now')))` ).run();
-    await e.DB.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_buyer_wallet_once ON buyer_wallet_ledger(buyer_id,kind,ref_type,ref_id) WHERE ref_type IS NOT NULL AND ref_id IS NOT NULL`).run();
-    await e.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_buyer_wallet_history ON buyer_wallet_ledger(buyer_id,created_at)`).run();
-    await e.DB.prepare(`CREATE TABLE IF NOT EXISTS buyer_purchases(id TEXT PRIMARY KEY,buyer_id TEXT NOT NULL,scope TEXT NOT NULL,tenant_id TEXT DEFAULT NULL,product_id TEXT NOT NULL,title TEXT NOT NULL,amount_vnd INTEGER NOT NULL,seller_amount_vnd INTEGER NOT NULL DEFAULT 0,commission_vnd INTEGER NOT NULL DEFAULT 0,status TEXT NOT NULL DEFAULT 'paid',created_at TEXT NOT NULL DEFAULT(datetime('now')))` ).run();
-    await addColumnSafe(e,'buyer_purchases','request_key','TEXT DEFAULT NULL');
-    await e.DB.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_buyer_purchase_idempotency ON buyer_purchases(buyer_id,request_key) WHERE request_key IS NOT NULL AND request_key<>''`).run();
-    await e.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_buyer_purchases_buyer ON buyer_purchases(buyer_id,created_at)`).run();
-    await e.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_buyer_purchases_tenant ON buyer_purchases(tenant_id,created_at)`).run();
-    await e.DB.prepare(`CREATE TABLE IF NOT EXISTS master_wallet_ledger(id TEXT PRIMARY KEY,amount_vnd INTEGER NOT NULL,kind TEXT NOT NULL,ref_type TEXT DEFAULT NULL,ref_id TEXT DEFAULT NULL,note TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL DEFAULT(datetime('now')))` ).run();
-    await e.DB.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_master_wallet_once ON master_wallet_ledger(kind,ref_type,ref_id) WHERE ref_type IS NOT NULL AND ref_id IS NOT NULL`).run();
-    await e.DB.prepare(`CREATE TABLE IF NOT EXISTS support_reports(id TEXT PRIMARY KEY,buyer_id TEXT DEFAULT NULL,email TEXT DEFAULT '',display_name TEXT DEFAULT '',page TEXT NOT NULL DEFAULT '',category TEXT NOT NULL DEFAULT 'other',message TEXT NOT NULL,user_agent TEXT NOT NULL DEFAULT '',client_ip TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'open',created_at TEXT NOT NULL DEFAULT(datetime('now')),updated_at TEXT NOT NULL DEFAULT(datetime('now')))` ).run();
-    await addColumnSafe(e,'support_reports','client_ip',"TEXT NOT NULL DEFAULT ''");
-    await e.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_support_reports_status ON support_reports(status,created_at)`).run();
-    await e.DB.prepare(`CREATE TABLE IF NOT EXISTS security_blocks(id TEXT PRIMARY KEY,kind TEXT NOT NULL CHECK(kind IN ('ip','email')),value_normalized TEXT NOT NULL,reason TEXT NOT NULL DEFAULT '',created_by TEXT NOT NULL DEFAULT 'admin',created_at TEXT NOT NULL DEFAULT(datetime('now')),UNIQUE(kind,value_normalized))`).run();
-    await e.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_security_blocks_lookup ON security_blocks(kind,value_normalized)`).run();
-    await e.DB.prepare(`CREATE TABLE IF NOT EXISTS comment_rate_events(id TEXT PRIMARY KEY,buyer_id TEXT NOT NULL,client_ip TEXT NOT NULL DEFAULT '',has_image INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT(datetime('now')))` ).run();
-    await e.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_comment_rate_user_time ON comment_rate_events(buyer_id,created_at)`).run();
-    await e.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_comment_rate_ip_time ON comment_rate_events(client_ip,created_at)`).run();
-    for(const [table,column,type] of [['comments','buyer_id','TEXT DEFAULT NULL'],['comments','email_normalized',"TEXT NOT NULL DEFAULT ''"],['comments','client_ip',"TEXT NOT NULL DEFAULT ''"],['tenant_comments','buyer_id','TEXT DEFAULT NULL'],['tenant_comments','email_normalized',"TEXT NOT NULL DEFAULT ''"],['tenant_comments','client_ip',"TEXT NOT NULL DEFAULT ''"]]) await addColumnSafe(e,table,column,type);
-    await e.DB.prepare(`CREATE TABLE IF NOT EXISTS tenant_site_layouts(tenant_id TEXT PRIMARY KEY,layout_json TEXT NOT NULL DEFAULT '[]',updated_at TEXT NOT NULL DEFAULT(datetime('now')))` ).run();
-    await tenantAddColumn(e,'tenant_accounts','studio_name','TEXT DEFAULT NULL');
-    await tenantAddColumn(e,'tenant_accounts','owner_user_id','TEXT DEFAULT NULL');
-  })().catch(err=>{v55SchemaReady=null;throw err});
-  return v55SchemaReady;
-}
-async function hashPasswordV55(password){
-  const salt=crypto.getRandomValues(new Uint8Array(16));
-  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(String(password)),'PBKDF2',false,['deriveBits']);
-  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt,iterations:120000},key,256);
-  const hex=a=>[...new Uint8Array(a)].map(v=>v.toString(16).padStart(2,'0')).join('');
-  return `pbkdf2$120000$${hex(salt)}$${hex(bits)}`;
-}
-async function verifyPasswordV55(password,stored){
-  const x=String(stored||'').split('$');if(x.length!==4||x[0]!=='pbkdf2')return false;
-  const fromHex=h=>Uint8Array.from((h.match(/.{2}/g)||[]).map(v=>parseInt(v,16)));
-  const iterations=Math.max(100000,Math.min(200000,Number(x[1])||120000));
-  try{const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(String(password)),'PBKDF2',false,['deriveBits']);const bits=await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:fromHex(x[2]),iterations},key,256);return safeEq([...new Uint8Array(bits)].map(v=>v.toString(16).padStart(2,'0')).join(''),x[3])}catch{return false}
-}
-async function buyerFromRequest(r,e){const tok=tokenFrom(r);if(!tok)return null;await ensureV55Schema(e);const row=await e.DB.prepare(`SELECT a.* FROM buyer_sessions s JOIN buyer_accounts a ON a.id=s.buyer_id WHERE s.token=? AND s.expires_at>? LIMIT 1`).bind(tok,Date.now()).first();if(!row||Number(row.locked)===1)return null;if(await securityBlocked(e,'email',row.email_normalized||row.email)){try{await e.DB.prepare('DELETE FROM buyer_sessions WHERE token=?').bind(tok).run()}catch{}return null}return row}
-async function buyerBalance(e,buyerId){await ensureV55Schema(e);const x=await e.DB.prepare('SELECT COALESCE(SUM(amount_vnd),0) AS balance FROM buyer_wallet_ledger WHERE buyer_id=?').bind(buyerId).first();return Math.max(0,Number(x?.balance)||0)}
-function buyerPublic(a){return a?{id:a.id,email:a.email,displayName:a.display_name,avatar:a.avatar||'',emailVerified:Number(a.email_verified)===1,createdAt:a.created_at}:null}
-async function saveBuyerCode(e,email,purpose){
-  const code=String(crypto.getRandomValues(new Uint32Array(1))[0]%1000000).padStart(6,'0');
-  const id=crypto.randomUUID(),expires=Date.now()+10*60*1000;
-  await e.DB.prepare("INSERT INTO buyer_email_codes(id,email_normalized,purpose,code_hash,expires_at) VALUES(?,?,?,?,?)").bind(id,email,purpose,await sha256(`${email}|${purpose}|${code}`),expires).run();
-  const to=validEmail(email);if(!to)return {ok:false};
-  const sent=await sendOxMail(e,{to,subject:purpose==='verify'?'Xác minh tài khoản TeoStudio':'Đặt lại mật khẩu TeoStudio',text:`Mã xác minh của bạn: ${code}\nMã có hiệu lực trong 10 phút. Nếu bạn không yêu cầu, hãy bỏ qua email này.`}).catch(()=>({ok:false}));
-  if(!sent?.ok){await e.DB.prepare('DELETE FROM buyer_email_codes WHERE id=?').bind(id).run();return {ok:false}}
-  return {ok:true,expiresAt:expires};
-}
-function maskEmail(email){const [name,domain]=String(email||'').split('@');if(!domain)return '';return `${(name||'').slice(0,1)}${'*'.repeat(Math.min(5,Math.max(2,(name||'').length-1)))}@${domain}`;}
-async function telegramSend(e,text){const token=String(e.TELEGRAM_BOT_TOKEN||''),chat=String(e.TELEGRAM_CHAT_ID||'');if(!token||!chat)return {ok:false,skipped:true};try{const r=await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:chat,text:String(text||'').slice(0,3900),disable_web_page_preview:true}),signal:AbortSignal.timeout(10000)});const data=await r.json().catch(()=>null);return {ok:r.ok&&data?.ok===true,status:r.status}}catch{return {ok:false}}}
-async function supportNotify(e,report){await telegramSend(e,`🚨 TeoStudio · Báo lỗi mới\nMã: ${report.id}\nLoại: ${report.category}\nTrang: ${report.page}\nIP: ${report.client_ip||'không xác định'}\nTài khoản: ${report.display_name||'Khách'} (${maskEmail(report.email)||'ẩn danh'})\nMô tả: ${report.message}`)}
-function safeBuilderLayout(input){
-  let blocks=Array.isArray(input)?input:[];if(blocks.length>40)throw new Error('TOO_MANY_BLOCKS');
-  const allowed=new Set(['hero','text','button','image','video','product-grid','notice','footer','divider']);
-  return blocks.map((b,i)=>{if(!b||typeof b!=='object'||!allowed.has(String(b.type)))throw new Error('INVALID_BLOCK_TYPE');const type=String(b.type);const item={id:clean(b.id||crypto.randomUUID(),80),type,title:clean(b.title||'',160),text:clean(b.text||'',1200),visible:b.visible!==false,style:{accent:/^#[0-9a-f]{6}$/i.test(String(b.style?.accent||''))?String(b.style.accent):'#8b5cf6',align:['left','center','right'].includes(b.style?.align)?b.style.align:'left',radius:Math.max(0,Math.min(32,Number(b.style?.radius)||16))}};if(type==='button'||type==='image'||type==='video') {const url=safeHttpUrl(b.url||'',4000);if(b.url&&!url)throw new Error('INVALID_BLOCK_URL');item.url=url;}return item})
-}
-async function accountApi(r,e,p){
-  await ensureV55Schema(e);const method=r.method,b=method==='POST'||method==='PUT'?await r.json().catch(()=>({})):{};
-  if(p==='/api/account/register'&&method==='POST'){
-    const rl=limited(r,'account-register',3,60000);if(rl)return rl;
-    const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi đăng ký.'},400);
-    const email=validEmail(b.email||'').toLowerCase(),name=clean(b.displayName||b.name||'',80),password=String(b.password||'');
-    if(email&&await securityBlocked(e,'email',email))return J({ok:false,error:'NOT_FOUND',message:'Không thể thực hiện yêu cầu.'},404);
-    if(!email||name.length<2||password.length<8)return J({ok:false,error:'INVALID_REGISTER_DATA',message:'Nhập email hợp lệ, tên ít nhất 2 ký tự và mật khẩu tối thiểu 8 ký tự.'},400);
-    const existing=await e.DB.prepare('SELECT id,email_verified FROM buyer_accounts WHERE email_normalized=?').bind(email).first();
-    if(existing&&Number(existing.email_verified)===1)return J({ok:false,error:'ACCOUNT_EXISTS',message:'Email đã có tài khoản. Hãy đăng nhập hoặc đặt lại mật khẩu.'},409);
-    if(existing)await e.DB.prepare('DELETE FROM buyer_email_codes WHERE email_normalized=? AND purpose=\'verify\'').bind(email).run();
-    const id=existing?.id||crypto.randomUUID(),hash=await hashPasswordV55(password);
-    if(existing)await e.DB.prepare("UPDATE buyer_accounts SET email=?,display_name=?,password_hash=?,email_verified=0,updated_at=datetime('now') WHERE id=?").bind(email,name,hash,id).run();
-    else await e.DB.prepare('INSERT INTO buyer_accounts(id,email,email_normalized,display_name,password_hash) VALUES(?,?,?,?,?)').bind(id,email,email,name,hash).run();
-    const sent=await saveBuyerCode(e,email,'verify');if(!sent.ok)return J({ok:false,error:'EMAIL_SEND_FAILED',message:'Chưa gửi được email xác minh. Kiểm tra cấu hình email hoặc thử lại.'},502);
-    return J({ok:true,requiresVerification:true,message:'Đã gửi mã xác minh vào email.'},201);
-  }
-  if(p==='/api/account/verify-email'&&method==='POST'){
-    const rl=limited(r,'account-verify-email',8,60000);if(rl)return rl;
-    const email=validEmail(b.email||'').toLowerCase(),code=clean(b.code||'',6);if(email&&await securityBlocked(e,'email',email))return J({ok:false,error:'NOT_FOUND'},404);if(!email||!/^[0-9]{6}$/.test(code))return J({ok:false,error:'INVALID_CODE'},400);
-    const row=await e.DB.prepare("SELECT * FROM buyer_email_codes WHERE email_normalized=? AND purpose='verify' AND used_at IS NULL AND expires_at>? ORDER BY created_at DESC LIMIT 1").bind(email,Date.now()).first();if(!row||Number(row.attempts)>=5)return J({ok:false,error:'CODE_EXPIRED_OR_INVALID'},400);
-    if(row.code_hash!==await sha256(`${email}|verify|${code}`)){await e.DB.prepare('UPDATE buyer_email_codes SET attempts=attempts+1 WHERE id=?').bind(row.id).run();return J({ok:false,error:'CODE_EXPIRED_OR_INVALID'},400)}
-    await e.DB.batch([e.DB.prepare("UPDATE buyer_accounts SET email_verified=1,updated_at=datetime('now') WHERE email_normalized=?").bind(email),e.DB.prepare("UPDATE buyer_email_codes SET used_at=datetime('now') WHERE id=? AND used_at IS NULL").bind(row.id)]);return J({ok:true,message:'Email đã xác minh. Bạn có thể đăng nhập.'});
-  }
-  if(p==='/api/account/login'&&method==='POST'){
-    const rl=limited(r,'account-login',8,60000);if(rl)return rl;const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi đăng nhập.'},400);
-    const email=validEmail(b.email||'').toLowerCase(),password=String(b.password||'');if(email&&await securityBlocked(e,'email',email))return J({ok:false,error:'NOT_FOUND',message:'Không thể thực hiện yêu cầu.'},404);const row=email?await e.DB.prepare('SELECT * FROM buyer_accounts WHERE email_normalized=? LIMIT 1').bind(email).first():null;
-    if(!row||Number(row.email_verified)!==1||!(await verifyPasswordV55(password,row.password_hash)))return J({ok:false,error:'INVALID_LOGIN',message:'Thông tin đăng nhập không đúng hoặc email chưa xác minh.'},401);if(Number(row.locked)===1)return J({ok:false,error:'ACCOUNT_LOCKED'},403);
-    const token=crypto.randomUUID()+crypto.randomUUID();await e.DB.prepare('INSERT INTO buyer_sessions(token,buyer_id,expires_at) VALUES(?,?,?)').bind(token,row.id,Date.now()+14*86400000).run();return J({ok:true,token,user:buyerPublic(row),expiresIn:14*86400000});
-  }
-  if(p==='/api/account/logout'&&method==='POST'){const tok=tokenFrom(r);if(tok)await e.DB.prepare('DELETE FROM buyer_sessions WHERE token=?').bind(tok).run();return J({ok:true})}
-  if(p==='/api/account/password/reset/start'&&method==='POST'){
-    const rl=limited(r,'account-reset-start',3,60000);if(rl)return rl;const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED'},400);const email=validEmail(b.email||'').toLowerCase();if(email){const row=await e.DB.prepare('SELECT id FROM buyer_accounts WHERE email_normalized=? AND email_verified=1').bind(email).first();if(row)await saveBuyerCode(e,email,'reset')}
-    return J({ok:true,message:'Nếu email có tài khoản hợp lệ, mã đặt lại mật khẩu sẽ được gửi.'});
-  }
-  if(p==='/api/account/password/reset/finish'&&method==='POST'){
-    const rl=limited(r,'account-reset-finish',5,60000);if(rl)return rl;
-    const email=validEmail(b.email||'').toLowerCase(),code=clean(b.code||'',6),password=String(b.password||'');if(email&&await securityBlocked(e,'email',email))return J({ok:false,error:'NOT_FOUND'},404);if(!email||!/^[0-9]{6}$/.test(code)||password.length<8)return J({ok:false,error:'INVALID_RESET_DATA'},400);
-    const row=await e.DB.prepare("SELECT * FROM buyer_email_codes WHERE email_normalized=? AND purpose='reset' AND used_at IS NULL AND expires_at>? ORDER BY created_at DESC LIMIT 1").bind(email,Date.now()).first();if(!row||Number(row.attempts)>=5||row.code_hash!==await sha256(`${email}|reset|${code}`)){if(row)await e.DB.prepare('UPDATE buyer_email_codes SET attempts=attempts+1 WHERE id=?').bind(row.id).run();return J({ok:false,error:'CODE_EXPIRED_OR_INVALID'},400)}
-    await e.DB.batch([e.DB.prepare("UPDATE buyer_accounts SET password_hash=?,updated_at=datetime('now') WHERE email_normalized=?").bind(await hashPasswordV55(password),email),e.DB.prepare("UPDATE buyer_email_codes SET used_at=datetime('now') WHERE id=?").bind(row.id),e.DB.prepare('DELETE FROM buyer_sessions WHERE buyer_id=(SELECT id FROM buyer_accounts WHERE email_normalized=?)').bind(email)]);return J({ok:true,message:'Đổi mật khẩu thành công. Đăng nhập lại nhé.'});
-  }
-  const buyer=await buyerFromRequest(r,e);
-  if(p==='/api/account/me'&&method==='GET'){if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);return J({ok:true,user:buyerPublic(buyer),balanceVnd:await buyerBalance(e,buyer.id),studios:await buyerStudios(e,buyer)})}
-  if(p==='/api/account/profile'&&method==='PUT'){if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);const name=clean(b.displayName||'',80),avatar=b.avatar?safeImageValue(b.avatar,800000):'';if(name.length<2)return J({ok:false,error:'INVALID_DISPLAY_NAME',message:'Tên hiển thị cần ít nhất 2 ký tự.'},400);if(b.avatar&&!avatar)return J({ok:false,error:'INVALID_AVATAR'},400);await e.DB.prepare("UPDATE buyer_accounts SET display_name=?,avatar=?,updated_at=datetime('now') WHERE id=?").bind(name,avatar,buyer.id).run();const fresh=await e.DB.prepare('SELECT * FROM buyer_accounts WHERE id=?').bind(buyer.id).first();return J({ok:true,user:buyerPublic(fresh)})}
-  if(p==='/api/account/studios'&&method==='GET'){if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);return J({ok:true,studios:await buyerStudios(e,buyer)})}
-  if(p==='/api/account/studios/create'&&method==='POST'){
-    const rl=limited(r,'account-studio-create',3,3600000);if(rl)return rl;if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);
-    const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi tạo studio.'},400);
-    const studioName=clean(b.studioName||'',80),slug=tenantSlug(b.slug||studioName),plan=String(b.planType||'free');
-    if(studioName.length<2||!/^[a-z0-9_-]{2,60}$/.test(slug))return J({ok:false,error:'INVALID_STUDIO_NAME',message:'Tên studio ít nhất 2 ký tự; đường dẫn chỉ dùng chữ không dấu, số, gạch ngang hoặc gạch dưới.'},400);
-    if(!['free','paid'].includes(plan))return J({ok:false,error:'INVALID_STUDIO_PLAN'},400);
-    const existing=await e.DB.prepare("SELECT id,plan_type,locked,pending_order_id FROM tenant_accounts WHERE lower(slug)=lower(?) AND (deleted_at IS NULL OR deleted_at='') LIMIT 1").bind(slug).first();if(existing)return J({ok:false,error:'STUDIO_SLUG_EXISTS',message:'Đường dẫn studio đã được dùng. Hãy đổi tên studio.'},409);
-    const owned=await e.DB.prepare("SELECT COUNT(*) AS n FROM tenant_accounts WHERE lower(email)=lower(?) AND (deleted_at IS NULL OR deleted_at='')").bind(buyer.email).first();if(Number(owned?.n||0)>=5)return J({ok:false,error:'STUDIO_LIMIT_REACHED',message:'Mỗi tài khoản hiện tạo tối đa 5 studio. Hãy nâng cấp/quản lý các studio hiện có.'},429);
-    await ensureTenantSchema(e);const keyCol=await tenantAccountKeyColumn(e);if(!keyCol)return J({ok:false,error:'TENANT_SCHEMA_KEY_MISSING'},500);
-    const id='t-'+slug+'-'+crypto.randomUUID().slice(0,8),now=isoSqlDate(),expires=now,passwordHash=await sha256(crypto.randomUUID()+crypto.randomUUID()),cols=(await e.DB.prepare('PRAGMA table_info(tenant_accounts)').all()).results||[],names=new Set(cols.map(v=>v.name));
-    let order=null;
-    if(plan==='paid'){
-      const orderId=crypto.randomUUID(),code='TEO'+crypto.randomUUID().replace(/-/g,'').slice(0,10).toUpperCase(),orderExpires=Date.now()+20*60*1000;
-      const data={slug,password_hash:passwordHash,created_at:now,starts_at:now,expires_at:expires,locked:1,email:buyer.email,plan_type:'paid',pending_order_id:orderId,deleted_at:null,studio_name:studioName,owner_user_id:buyer.id,email_verified_at:now,free_bypass_count:0,free_admin_unlocked:0};
-      data[keyCol]=id;if(names.has('id'))data.id=id;if(names.has('tenant_id'))data.tenant_id=id;const use=Object.entries(data).filter(([k])=>names.has(k));
-      try{await e.DB.batch([e.DB.prepare(`INSERT INTO tenant_accounts(${use.map(([k])=>k).join(',')}) VALUES(${use.map(()=>'?').join(',')})`).bind(...use.map(([,v])=>v)),e.DB.prepare("INSERT INTO tenant_rental_orders(id,tenant_id,payment_code,amount_vnd,days,operation,referrer_tenant_id,status,expires_at) VALUES(?,?,?,50000,30,'new',NULL,'pending',?)").bind(orderId,id,code,orderExpires), ...[['siteName',studioName],['studio',studioName],['heroTitle','Kho share file · '+studioName],['heroText','Chào mừng đến với '+studioName]].map(([k,v])=>e.DB.prepare('INSERT OR IGNORE INTO tenant_settings(tenant_id,key,value) VALUES(?,?,?)').bind(id,k,JSON.stringify(v)))])}catch(err){return J({ok:false,error:'STUDIO_CREATE_FAILED',message:'Không tạo được studio. Hãy thử lại hoặc liên hệ Admin.'},500)}
-      order={id:orderId,code,amount:50000,status:'pending',expiresAt:orderExpires,qrUrl:buildVietQr(e,50000,code),tenantId:slug,operation:'new'};
-    }else{
-      const data={slug,password_hash:passwordHash,created_at:now,starts_at:now,expires_at:expires,locked:0,email:buyer.email,plan_type:'free',pending_order_id:null,deleted_at:null,studio_name:studioName,owner_user_id:buyer.id,email_verified_at:now,free_bypass_count:0,free_admin_unlocked:0};
-      data[keyCol]=id;if(names.has('id'))data.id=id;if(names.has('tenant_id'))data.tenant_id=id;const use=Object.entries(data).filter(([k])=>names.has(k));
-      try{await e.DB.batch([e.DB.prepare(`INSERT INTO tenant_accounts(${use.map(([k])=>k).join(',')}) VALUES(${use.map(()=>'?').join(',')})`).bind(...use.map(([,v])=>v)), ...[['siteName',studioName],['studio',studioName],['heroTitle','Kho share file · '+studioName],['heroText','Chào mừng đến với '+studioName]].map(([k,v])=>e.DB.prepare('INSERT OR IGNORE INTO tenant_settings(tenant_id,key,value) VALUES(?,?,?)').bind(id,k,JSON.stringify(v)))])}catch(err){return J({ok:false,error:'STUDIO_CREATE_FAILED',message:'Không tạo được studio. Hãy thử lại hoặc liên hệ Admin.'},500)}
-      await createNotification(e,{recipientType:'tenant',recipientId:id,title:'Studio Free đã tạo',body:'Studio đã liên kết với tài khoản TeoStudio của bạn. Gói Free vẫn cần hoàn thành xác minh truy cập Admin theo chính sách hiện tại.',kind:'welcome'});
-    }
-    await tenantLog(e,id,'buyer:'+buyer.id,'studio_created',`plan=${plan};slug=${slug}`);
-    return J({ok:true,planType:plan,studio:{id,slug,studioName,planType:plan,adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(slug)}`},order,message:plan==='paid'?'Đã tạo đơn thuê VIP. Chỉ chuyển khoản theo QR này; studio sẽ mở khi SePay xác nhận.':'Đã tạo studio Free và liên kết với tài khoản hiện tại.'},201);
-  }
-  if(p==='/api/account/studios/upgrade'&&method==='POST'){
-    const rl=limited(r,'account-studio-upgrade',3,3600000);if(rl)return rl;if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi nâng cấp.'},400);
-    const slug=tenantSlug(b.slug||''),raw=await e.DB.prepare("SELECT * FROM tenant_accounts WHERE lower(slug)=lower(?) AND lower(email)=lower(?) AND (deleted_at IS NULL OR deleted_at='') LIMIT 1").bind(slug,buyer.email).first();if(!raw)return J({ok:false,error:'STUDIO_NOT_OWNED',message:'Không tìm thấy studio thuộc tài khoản này.'},404);if(String(raw.plan_type||'paid')==='paid'&&!Number(raw.locked))return J({ok:false,error:'ALREADY_PAID',message:'Studio đã ở gói trả phí.'},409);if(Number(raw.locked)===1&&raw.pending_order_id){const old=await e.DB.prepare("SELECT * FROM tenant_rental_orders WHERE id=? AND status='pending' AND expires_at>? LIMIT 1").bind(String(raw.pending_order_id),Date.now()).first();if(old)return J({ok:true,order:{id:old.id,code:old.payment_code,amount:Number(old.amount_vnd),status:'pending',expiresAt:old.expires_at,qrUrl:buildVietQr(e,old.amount_vnd,old.payment_code),tenantId:slug,operation:'new'},message:'Đã có đơn nâng cấp đang chờ. Dùng QR cũ, không chuyển lần hai.'})}
-    await ensureTenantSchema(e);const pending=await e.DB.prepare("SELECT * FROM tenant_rental_orders WHERE tenant_id=? AND operation='renew' AND status='pending' AND expires_at>? ORDER BY created_at DESC LIMIT 1").bind(String(raw.id||raw.tenant_id||raw.slug),Date.now()).first();if(pending)return J({ok:true,order:{id:pending.id,code:pending.payment_code,amount:Number(pending.amount_vnd),status:'pending',expiresAt:pending.expires_at,qrUrl:buildVietQr(e,pending.amount_vnd,pending.payment_code),tenantId:slug,operation:'renew'},message:'Đơn gia hạn đang chờ. Dùng QR cũ, không chuyển lần hai.'});
-    const orderId=crypto.randomUUID(),code='TEO'+crypto.randomUUID().replace(/-/g,'').slice(0,10).toUpperCase(),expires=Date.now()+20*60*1000,tid=String(raw.id||raw.tenant_id||raw.slug);try{await e.DB.prepare("INSERT INTO tenant_rental_orders(id,tenant_id,payment_code,amount_vnd,days,operation,referrer_tenant_id,status,expires_at) VALUES(?,?,?,50000,30,'renew',NULL,'pending',?)").bind(orderId,tid,code,expires).run()}catch{return J({ok:false,error:'UPGRADE_ORDER_FAILED'},500)}return J({ok:true,order:{id:orderId,code,amount:50000,status:'pending',expiresAt:expires,qrUrl:buildVietQr(e,50000,code),tenantId:slug,operation:'renew'},message:'Đã tạo QR nâng cấp. Studio chỉ chuyển sang VIP sau khi SePay xác nhận.'},201);
-  }
-  if(p==='/api/account/wallet'&&method==='GET'){if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);const bal=await buyerBalance(e,buyer.id);const rows=(await e.DB.prepare('SELECT id,amount_vnd,kind,ref_type,ref_id,note,created_at FROM buyer_wallet_ledger WHERE buyer_id=? ORDER BY created_at DESC LIMIT 100').bind(buyer.id).all()).results||[];const pending=(await e.DB.prepare("SELECT id,amount_vnd,status,created_at,expires_at FROM buyer_wallet_topups WHERE buyer_id=? ORDER BY created_at DESC LIMIT 30").bind(buyer.id).all()).results||[];return J({ok:true,balanceVnd:bal,ledger:rows,topups:pending})}
-  if(p==='/api/account/topups/create'&&method==='POST'){
-    const rl=limited(r,'wallet-topup-create',5,60000);if(rl)return rl;if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);if(Number(buyer.email_verified)!==1)return J({ok:false,error:'EMAIL_VERIFICATION_REQUIRED',message:'Hãy xác minh email trước khi nạp ví.'},403);const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi nạp.'},400);const amount=Math.floor(Number(b.amountVnd)||0);if(amount<10000||amount>5000000||amount%1000!==0)return J({ok:false,error:'INVALID_TOPUP_AMOUNT',message:'Số tiền nạp từ 10.000đ đến 5.000.000đ, bội số 1.000đ.'},400);const cfg=paymentConfig(e);if(!cfg.paymentsEnabled)return J({ok:false,error:'PAYMENT_NOT_CONFIGURED',missing:cfg.missing},503);const id=crypto.randomUUID(),code='TEO'+crypto.randomUUID().replace(/-/g,'').slice(0,10).toUpperCase(),expires=Date.now()+10*60*1000;await e.DB.prepare("INSERT INTO buyer_wallet_topups(id,buyer_id,payment_code,amount_vnd,status,expires_at) VALUES(?,?,?,?,'pending',?)").bind(id,buyer.id,code,amount,expires).run();return J({ok:true,topup:{id,code,amountVnd:amount,status:'pending',expiresAt:expires,qrUrl:buildVietQr(e,amount,code)}},201);
-  }
-  const topupStatus=p.match(/^\/api\/account\/topups\/([^/]+)$/);if(topupStatus&&method==='GET'){if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);const row=await e.DB.prepare('SELECT id,amount_vnd,status,expires_at,paid_at FROM buyer_wallet_topups WHERE id=? AND buyer_id=?').bind(clean(topupStatus[1],100),buyer.id).first();if(!row)return J({ok:false,error:'TOPUP_NOT_FOUND'},404);return J({ok:true,topup:{id:row.id,amountVnd:Number(row.amount_vnd),status:row.status,expiresAt:row.expires_at,paidAt:row.paid_at},balanceVnd:await buyerBalance(e,buyer.id)})}
-  if(p==='/api/account/orders'&&method==='GET'){
-    if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);const rows=(await e.DB.prepare('SELECT * FROM buyer_purchases WHERE buyer_id=? ORDER BY created_at DESC LIMIT 100').bind(buyer.id).all()).results||[];const orders=[];for(const row of rows){let downloadUrl='';try{if(row.scope==='main'){const x=await e.DB.prepare('SELECT * FROM products WHERE id=?').bind(row.product_id).first();downloadUrl=x?safeHttpUrl(x.original_link,10000)||safeHttpUrl(x.download_link,10000):''}else{const x=await e.DB.prepare('SELECT * FROM tenant_products WHERE tenant_id=? AND id=?').bind(row.tenant_id,row.product_id).first();const mode=String(x?.product_mode||'');downloadUrl=x?(mode==='both'?safeHttpUrl(x.original_link,10000):safeHttpUrl(x.download_link,10000)||safeHttpUrl(x.original_link,10000)):''}}catch{}orders.push({id:row.id,scope:row.scope,tenantId:row.tenant_id,productId:row.product_id,title:row.title,amountVnd:Number(row.amount_vnd),status:row.status,createdAt:row.created_at,downloadUrl})}return J({ok:true,orders});
-  }
-  if(p==='/api/account/purchase'&&method==='POST'){
-    const rl=limited(r,'wallet-purchase',5,60000);if(rl)return rl;if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED',message:'Đăng nhập tài khoản trước khi mua file.'},401);if(Number(buyer.email_verified)!==1)return J({ok:false,error:'EMAIL_VERIFICATION_REQUIRED',message:'Hãy xác minh email trước khi mua file.'},403);const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi mua file.'},400);if(b.termsAccepted!==true||b.finalConfirmed!==true)return J({ok:false,error:'TERMS_CONFIRMATION_REQUIRED'},400);
-    const scope=String(b.scope||'main'),productId=clean(b.productId||'',100),idempotencyKey=clean(b.idempotencyKey||'',80);if(!/^[A-Za-z0-9_-]{16,80}$/.test(idempotencyKey))return J({ok:false,error:'IDEMPOTENCY_KEY_REQUIRED',message:'Thiếu mã xác nhận giao dịch. Hãy mở lại bước mua.'},400);const prior=await e.DB.prepare("SELECT * FROM buyer_purchases WHERE buyer_id=? AND request_key=? AND status='paid' LIMIT 1").bind(buyer.id,idempotencyKey).first();if(prior){if(prior.scope!==String(b.scope||'main')||prior.product_id!==clean(b.productId||'',100))return J({ok:false,error:'IDEMPOTENCY_KEY_CONFLICT'},409);if(prior.scope==='tenant'){const repeatTenant=await tenantBySlug(e,clean(b.tenant||'',80));if(!repeatTenant||String(repeatTenant.id)!==String(prior.tenant_id||''))return J({ok:false,error:'IDEMPOTENCY_KEY_CONFLICT'},409)}let prevUrl='';if(prior.scope==='main'){const p0=await e.DB.prepare('SELECT * FROM products WHERE id=?').bind(prior.product_id).first();prevUrl=p0?safeHttpUrl(p0.original_link,10000)||safeHttpUrl(p0.download_link,10000):''}else{const p0=await e.DB.prepare('SELECT * FROM tenant_products WHERE tenant_id=? AND id=?').bind(prior.tenant_id,prior.product_id).first();const m0=String(p0?.product_mode||'');prevUrl=p0?(m0==='both'?safeHttpUrl(p0.original_link,10000):safeHttpUrl(p0.download_link,10000)||safeHttpUrl(p0.original_link,10000)):''}return J({ok:true,idempotent:true,purchase:{id:prior.id,title:prior.title,amountVnd:Number(prior.amount_vnd)},downloadUrl:prevUrl,balanceVnd:await buyerBalance(e,buyer.id)})}let title='',amount=0,tenantId='',downloadUrl='';
-    if(scope==='main') {const x=await e.DB.prepare('SELECT * FROM products WHERE id=? AND visible=1').bind(productId).first();if(!x)return J({ok:false,error:'PRODUCT_NOT_FOUND'},404);if(!['paid','both'].includes(String(x.sale_mode))||Number(x.price_vnd)<1000)return J({ok:false,error:'PRODUCT_NOT_FOR_SALE'},400);title=clean(x.title,200);amount=Math.floor(Number(x.price_vnd));downloadUrl=safeHttpUrl(x.original_link,10000)||safeHttpUrl(x.download_link,10000)}
-    else if(scope==='tenant') {const slug=clean(b.tenant||'',80),raw=await tenantBySlug(e,slug);const t=await normalizeTenantRow(e,raw);if(!t||tenantStatus(t)==='locked'||tenantStatus(t)==='deleted'||(tenantStatus(t)==='expired'&&String(t.plan_type||'paid')!=='free'))return J({ok:false,error:'TENANT_NOT_FOUND'},404);const k=tenantInSql(t);const x=await e.DB.prepare(`SELECT * FROM tenant_products WHERE ${k.clause} AND id=? AND visible=1`).bind(...k.vals,productId).first();if(!x)return J({ok:false,error:'PRODUCT_NOT_FOUND'},404);const mode=String(x.product_mode||'');if(!['paid','both'].includes(mode)||Number(x.price_vnd)<1000)return J({ok:false,error:'PRODUCT_NOT_FOR_SALE'},400);tenantId=String(t.id);title=clean(x.title,200);amount=Math.floor(Number(x.price_vnd));downloadUrl=mode==='both'?safeHttpUrl(x.original_link,10000):safeHttpUrl(x.download_link,10000)||safeHttpUrl(x.original_link,10000)}
-    else return J({ok:false,error:'INVALID_SCOPE'},400);
-    if(!downloadUrl)return J({ok:false,error:'DOWNLOAD_NOT_CONFIGURED',message:'Người bán chưa cấu hình link gốc.'},409);
-    const fee=tenantId?Math.floor(amount*0.05):0,seller=tenantId?amount-fee:0,id=crypto.randomUUID(),note=`Mua file: ${title}`;
-    const stmts=[
-      e.DB.prepare(`INSERT OR IGNORE INTO buyer_purchases(id,buyer_id,scope,tenant_id,product_id,title,amount_vnd,seller_amount_vnd,commission_vnd,request_key,status) SELECT ?,?,?,?,?,?,?,?,?,?, 'paid' WHERE (SELECT COALESCE(SUM(amount_vnd),0) FROM buyer_wallet_ledger WHERE buyer_id=?)>=?`).bind(id,buyer.id,scope,tenantId||null,productId,title,amount,seller,fee,idempotencyKey,buyer.id,amount),
-      e.DB.prepare(`INSERT INTO buyer_wallet_ledger(id,buyer_id,amount_vnd,kind,ref_type,ref_id,note) SELECT ?,?,-?,'purchase','purchase',?,? WHERE EXISTS(SELECT 1 FROM buyer_purchases WHERE id=? AND buyer_id=? AND status='paid')`).bind(crypto.randomUUID(),buyer.id,amount,id,note,id,buyer.id),
-      e.DB.prepare(`INSERT OR IGNORE INTO tenant_wallet_ledger(id,tenant_id,amount_vnd,kind,ref_type,ref_id,note) SELECT ?,?,?,'sale','buyer_purchase',?,? WHERE ?<>'' AND EXISTS(SELECT 1 FROM buyer_purchases WHERE id=? AND buyer_id=? AND status='paid')`).bind(crypto.randomUUID(),tenantId,seller,id,`Bán file ${title} · trừ phí nền tảng 5%`,tenantId,id,buyer.id),
-      e.DB.prepare(`INSERT OR IGNORE INTO master_wallet_ledger(id,amount_vnd,kind,ref_type,ref_id,note) SELECT ?,?,'platform_commission','buyer_purchase',?,? WHERE EXISTS(SELECT 1 FROM buyer_purchases WHERE id=? AND buyer_id=? AND status='paid')`).bind(crypto.randomUUID(),tenantId?fee:amount,id,tenantId?`Hoa hồng nền tảng 5% · ${title}`:`Doanh thu file chính · ${title}`,id,buyer.id)
-    ];
-    try{await e.DB.batch(stmts)}catch(err){return J({ok:false,error:'PURCHASE_PROCESSING_FAILED',message:'Giao dịch chưa hoàn tất. Số dư chưa được trừ nếu giao dịch bị rollback.'},500)}
-    const done=await e.DB.prepare('SELECT id FROM buyer_purchases WHERE id=? AND buyer_id=?').bind(id,buyer.id).first();if(!done){const byKey=await e.DB.prepare("SELECT * FROM buyer_purchases WHERE buyer_id=? AND request_key=? AND status='paid' LIMIT 1").bind(buyer.id,idempotencyKey).first();if(byKey)return J({ok:false,error:'PURCHASE_ALREADY_PROCESSING',message:'Yêu cầu này đã được xử lý. Hãy làm mới lịch sử mua trước khi thử lại.'},409);return J({ok:false,error:'INSUFFICIENT_BALANCE',message:'Số dư không đủ. Hãy nạp tiền rồi thử lại.'},402);}
-    if(tenantId){await createNotification(e,{recipientType:'tenant',recipientId:tenantId,title:'Có đơn bán file mới',body:`${title} · ${amount.toLocaleString('vi-VN')}đ · số dư nhận ${seller.toLocaleString('vi-VN')}đ`,kind:'sale'});await createNotification(e,{recipientType:'admin',recipientId:'master',title:'Có đơn mua file qua ví',body:`Studio ${tenantId} · ${title} · hoa hồng ${fee.toLocaleString('vi-VN')}đ`,kind:'sale'});}
-    await telegramSend(e,`🛒 TeoStudio · Mua file thành công\nĐơn: ${id}\nPhạm vi: ${scope}\nFile: ${title}\nGiá: ${amount.toLocaleString('vi-VN')}đ\nPhí nền tảng: ${fee.toLocaleString('vi-VN')}đ`);
-    return J({ok:true,purchase:{id,title,amountVnd:amount,sellerAmountVnd:seller,commissionVnd:fee,scope},balanceVnd:await buyerBalance(e,buyer.id),downloadUrl},201);
-  }
-  return J({ok:false,error:'ACCOUNT_ENDPOINT_NOT_FOUND'},404);
-}
-async function buyerStudios(e,buyer){
-  await ensureTenantSchema(e);const rows=(await e.DB.prepare("SELECT id,slug,plan_type,starts_at,expires_at,created_at,studio_name FROM tenant_accounts WHERE lower(email)=lower(?) AND (deleted_at IS NULL OR deleted_at='') ORDER BY created_at DESC LIMIT 20").bind(buyer.email).all()).results||[];
-  return rows.map(t=>({id:t.id,slug:t.slug,studioName:t.studio_name||t.slug,planType:String(t.plan_type||'free'),startsAt:t.starts_at,expiresAt:t.expires_at,adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(t.slug)}`}));
-}
-async function assistantChat(r,e){
-  const rl=limited(r,'assistant-chat',15,60000);if(rl)return rl;await ensureV55Schema(e);const b=await r.json().catch(()=>({})),message=clean(b.message||'',1800);if(!message)return J({ok:false,error:'MESSAGE_REQUIRED'},400);
-  const buyer=await buyerFromRequest(r,e);let context={site:'TeoStudio',path:clean(b.page||'',250),authenticated:!!buyer};if(buyer){context.account={displayName:buyer.display_name,email:maskEmail(buyer.email),emailVerified:Number(buyer.email_verified)===1,balanceVnd:await buyerBalance(e,buyer.id)};context.purchases=(await e.DB.prepare('SELECT title,amount_vnd,status,created_at,scope FROM buyer_purchases WHERE buyer_id=? ORDER BY created_at DESC LIMIT 5').bind(buyer.id).all()).results||[];context.studios=(await e.DB.prepare("SELECT studio_name,slug,plan_type,expires_at,locked FROM tenant_accounts WHERE lower(email)=lower(?) AND (deleted_at IS NULL OR deleted_at='') ORDER BY rowid DESC LIMIT 5").bind(buyer.email).all().catch(()=>({results:[]}))).results||[]}
-  const apiUrl=String(e.AI_API_URL||''),key=String(e.AI_API_KEY||''),model=String(e.AI_MODEL||'');
-  if(!apiUrl||!key||!model){const text=/mua|nạp|ví|số dư/i.test(message)?'Mình là trợ lý TeoStudio. Để mua file trả phí, bạn cần đăng nhập, xác minh chống bot và có đủ số dư. Nếu thiếu tiền, mở Tài khoản → Nạp tiền; mỗi mã QR chỉ dùng cho đơn tương ứng.':/lỗi|bug|error|không chạy|hỏng/i.test(message)?'Mình có thể giúp ghi nhận lỗi. Hãy bấm “Báo lỗi”, mô tả các bước gây lỗi và gửi mã đơn nếu có. Đừng gửi mật khẩu, Admin Key hoặc mã bí mật.':'Mình là trợ lý hỗ trợ TeoStudio. Hiện API AI chưa được cấu hình nên mình chỉ trả lời được một số câu hỏi cơ bản. Bạn vẫn có thể gửi báo cáo lỗi để Téo kiểm tra.';return J({ok:true,reply:text,mode:'fallback',aiConfigured:false})}
-  let url;try{url=new URL(apiUrl);if(url.protocol!=='https:')throw new Error('HTTPS_REQUIRED')}catch{return J({ok:false,error:'AI_ENDPOINT_INVALID'},503)}
-  try{const resp=await fetch(url.toString(),{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+key},body:JSON.stringify({model,temperature:0.2,max_tokens:700,messages:[{role:'system',content:'Bạn là trợ lý hỗ trợ TeoStudio. Chỉ hướng dẫn cách sử dụng website, đọc thông tin tài khoản được máy chủ cung cấp và hướng dẫn lập báo cáo lỗi. Không được yêu cầu mật khẩu, API key, mã OTP, thông tin ngân hàng hoặc bí mật. Không tuyên bố đã thực hiện thao tác quan trọng; không thể tự sửa số dư, thanh toán, gói thuê hay trạng thái đơn. Nếu có sự cố, hướng dẫn dùng nút Báo lỗi. Dữ liệu website có thể thiếu; hãy nói rõ khi không biết. Ngữ cảnh an toàn: '+JSON.stringify(context).slice(0,1200)},{role:'user',content:message}]}) ,signal:AbortSignal.timeout(15000)});if(!resp.ok)return J({ok:true,reply:'AI đang bận hoặc hết hạn mức miễn phí. Bạn có thể thử lại hoặc bấm Báo lỗi.',mode:'fallback'});const data=await resp.json(),reply=clean(data.choices?.[0]?.message?.content||'',3000);return J({ok:true,reply:reply||'Mình chưa tạo được câu trả lời. Hãy thử hỏi lại.',mode:'ai'})}catch{return J({ok:true,reply:'Không kết nối được API AI lúc này. Bạn có thể thử lại hoặc gửi báo cáo lỗi.',mode:'fallback'})}
-}
-async function submitSupportReport(r,e){const rl=limited(r,'support-report',3,60000);if(rl)return rl;await ensureV55Schema(e);const b=await r.json().catch(()=>({}));if(clean(b.website||'',100))return J({ok:true,message:'Đã nhận báo cáo.'});const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy hoàn thành xác minh chống bot trước khi gửi báo lỗi.'},400);const message=clean(b.message||'',1800);if(message.length<8)return J({ok:false,error:'REPORT_TOO_SHORT',message:'Mô tả lỗi ít nhất 8 ký tự.'},400);const buyer=await buyerFromRequest(r,e),email=buyer?.email||validEmail(b.email||'');if(email&&await securityBlocked(e,'email',email))return J({ok:false,error:'NOT_FOUND'},404);const id=crypto.randomUUID(),report={id,buyer_id:buyer?.id||null,email,display_name:buyer?.display_name||clean(b.name||'',80),page:clean(b.page||'',250),category:clean(b.category||'other',40),message,user_agent:clean(r.headers.get('user-agent')||'',400),client_ip:clientIp(r)||''};await e.DB.prepare('INSERT INTO support_reports(id,buyer_id,email,display_name,page,category,message,user_agent,client_ip) VALUES(?,?,?,?,?,?,?,?,?)').bind(report.id,report.buyer_id,report.email,report.display_name,report.page,report.category,report.message,report.user_agent,report.client_ip).run();await supportNotify(e,report);return J({ok:true,id,message:'Đã gửi báo cáo lỗi. Mã tiếp nhận: '+id},201)}
 async function settings(e){const a=(await e.DB.prepare('SELECT key,value FROM settings').all()).results||[];const s={};for(const x of a){if(['adminPasswordHash'].includes(x.key))continue;try{s[x.key]=JSON.parse(x.value)}catch{s[x.key]=x.value}}for(const k of ['groupLink','adminContact','rentZalo','socialTikTokUrl','socialYoutubeUrl'])if(s[k])s[k]=safeHttpUrl(s[k],4000)||'#';for(const k of ['avatar','donateQr'])if(s[k])s[k]=safeImageValue(s[k],1500000)||'';return s}
 async function tags(e){return (await e.DB.prepare('SELECT id,name,parent_id,created_at FROM tags ORDER BY CASE WHEN parent_id IS NULL OR parent_id=\'\' THEN 0 ELSE 1 END,name COLLATE NOCASE').all()).results||[]}
 function safeProductRow(row){if(!row)return row;return {...row,sale_mode:['free','both','paid'].includes(String(row.sale_mode||''))?String(row.sale_mode):'free',free_link_mode:String(row.free_link_mode||'direct')==='unlock'?'unlock':'direct',price_vnd:Math.max(0,Number(row.price_vnd)||0),download_link:safeHttpUrl(row.download_link,10000),original_link:safeHttpUrl(row.original_link,10000),thumb:row.thumb?safeImageValue(row.thumb,1500000):''}}
@@ -502,9 +285,6 @@ async function ensureTenantSchema(e){
       id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, text TEXT NOT NULL,
       image TEXT DEFAULT '', created_at TEXT NOT NULL DEFAULT(datetime('now')), visible INTEGER NOT NULL DEFAULT 1
     )`);
-    await tenantAddColumn(e,'tenant_comments','buyer_id','TEXT DEFAULT NULL');
-    await tenantAddColumn(e,'tenant_comments','email_normalized',"TEXT NOT NULL DEFAULT ''");
-    await tenantAddColumn(e,'tenant_comments','client_ip',"TEXT NOT NULL DEFAULT ''");
     await tenantExec(e,`CREATE TABLE IF NOT EXISTS tenant_settings (
       tenant_id TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL,
       PRIMARY KEY(tenant_id,key)
@@ -703,14 +483,7 @@ async function tenantByIdentifier(e,value){
 async function tenantFromSession(r,e){
   const tok=tokenFrom(r);if(!tok)return null;await ensureTenantSchema(e);
   const row=await e.DB.prepare('SELECT tenant_id FROM tenant_sessions WHERE token=? AND expires_at>?').bind(tok,Date.now()).first();
-  if(!row?.tenant_id){
-    // Unified buyer session can open a studio owned by the same verified email.
-    const buyer=await buyerFromRequest(r,e),slug=clean(r.headers.get('x-tenant-slug')||new URL(r.url).searchParams.get('tenant')||'',80);
-    if(!buyer||!slug)return null;
-    const owner=await e.DB.prepare("SELECT * FROM tenant_accounts WHERE lower(email)=lower(?) AND lower(slug)=lower(?) AND (deleted_at IS NULL OR deleted_at='') LIMIT 1").bind(buyer.email,slug).first();
-    if(!owner)return null;
-    return normalizeTenantRow(e,owner);
-  }
+  if(!row?.tenant_id)return null;
   const cols=(await e.DB.prepare('PRAGMA table_info(tenant_accounts)').all()).results||[];
   const names=new Set(cols.map(x=>x.name));
   const where=[],vals=[]; const sid=clean(row.tenant_id,100);
@@ -780,8 +553,7 @@ async function tenantBump(e,t,kind,pid='',request=null,source=''){
     const now=Date.now(),ip=clientIp(request)||'unknown',ua=clean(request.headers.get('user-agent')||'',180);
     const key=await sha256(`${ip}|${ua}|${tid}|${kind}|${pid}|${Math.floor(now/900000)}`);
     // Cleanup is amortized to avoid making every page view perform an extra D1 write.
-    if(now-lastViewDedupPruneAt>600000){lastViewDedupPruneAt=now;try{await e.DB.prepare('DELETE FROM tenant_view_dedup WHERE expires_at<=?').bind(now).run()}catch{}
-  try{await e.DB.prepare("DELETE FROM comment_rate_events WHERE created_at < datetime('now','-7 days')").run()}catch{}}
+    if(now-lastViewDedupPruneAt>600000){lastViewDedupPruneAt=now;try{await e.DB.prepare('DELETE FROM tenant_view_dedup WHERE expires_at<=?').bind(now).run()}catch{}}
     try{await e.DB.prepare('INSERT INTO tenant_view_dedup(event_key,expires_at) VALUES(?,?)').bind(key,now+20*60*1000).run()}catch{return false}
   }
   await e.DB.prepare(`INSERT INTO tenant_views(tenant_id,day,kind,product_id,views) VALUES(?,?,?,?,1) ON CONFLICT(tenant_id,day,kind,product_id) DO UPDATE SET views=views+1`).bind(tid,day,kind,pid).run();
@@ -816,7 +588,6 @@ async function purgeExpired(e){
   try{await e.DB.prepare("DELETE FROM rental_email_verifications WHERE expires_at<=? OR (used_at IS NOT NULL AND created_at < datetime('now', '-7 days'))").bind(now).run()}catch{}
   try{await e.DB.prepare("DELETE FROM free_bypass_attempts WHERE expires_at<=? OR (status='verified' AND verified_at < datetime('now','-30 days'))").bind(now).run()}catch{}
   try{await e.DB.prepare('DELETE FROM tenant_view_dedup WHERE expires_at<=?').bind(now).run()}catch{}
-  try{await e.DB.prepare("DELETE FROM comment_rate_events WHERE created_at < datetime('now','-7 days')").run()}catch{}
 }
 
 async function walletBalance(e,tenantId){
@@ -852,21 +623,8 @@ async function handleSePayWebhook(r,e){
   const match=content.match(/TEO[A-Z0-9]{10}/);
   if(!match)return J({success:true,ignored:true,reason:'NO_ORDER_CODE'});
   const code=match[0];
-  await ensureTenantSchema(e);await ensureV55Schema(e);
+  await ensureTenantSchema(e);
 
-  // Wallet top-ups: one SePay transfer credits one buyer ledger entry; retries are idempotent.
-  const topup=await e.DB.prepare("SELECT * FROM buyer_wallet_topups WHERE payment_code=? AND status='pending' AND expires_at>? LIMIT 1").bind(code,Date.now()).first();
-  if(topup){
-    if(amount<Number(topup.amount_vnd))return J({success:false,error:'AMOUNT_TOO_LOW'},400);
-    try{await e.DB.prepare('INSERT INTO sepay_webhook_events(transaction_id,order_code,amount_vnd) VALUES(?,?,?)').bind(txId,code,amount).run()}catch{return J({success:true,duplicate:true})}
-    const upd=await e.DB.prepare("UPDATE buyer_wallet_topups SET status='paid',transaction_id=?,paid_at=datetime('now') WHERE id=? AND status='pending' AND amount_vnd<=?").bind(txId,topup.id,amount).run();
-    if(!upd?.meta?.changes){try{await e.DB.prepare('DELETE FROM sepay_webhook_events WHERE transaction_id=?').bind(txId).run()}catch{};return J({success:true,ignored:true,reason:'TOPUP_ALREADY_PROCESSED'})}
-    try{await e.DB.prepare("INSERT OR IGNORE INTO buyer_wallet_ledger(id,buyer_id,amount_vnd,kind,ref_type,ref_id,note) VALUES(?,?,?,'topup','topup',?,?)").bind(crypto.randomUUID(),topup.buyer_id,Number(topup.amount_vnd),topup.id,`Nạp ví qua SePay · ${txId}`).run();const exists=await e.DB.prepare("SELECT id FROM buyer_wallet_ledger WHERE buyer_id=? AND kind='topup' AND ref_type='topup' AND ref_id=?").bind(topup.buyer_id,topup.id).first();if(!exists)throw new Error('TOPUP_LEDGER_FAILED')}
-    catch(err){try{await e.DB.prepare("UPDATE buyer_wallet_topups SET status='pending',transaction_id=NULL,paid_at=NULL WHERE id=? AND transaction_id=?").bind(topup.id,txId).run()}catch{};try{await e.DB.prepare('DELETE FROM sepay_webhook_events WHERE transaction_id=?').bind(txId).run()}catch{};return J({success:false,error:'TOPUP_LEDGER_FAILED'},500)}
-    await createNotification(e,{recipientType:'buyer',recipientId:topup.buyer_id,title:'Nạp ví thành công',body:`Ví đã được cộng ${Number(topup.amount_vnd).toLocaleString('vi-VN')}đ.`,kind:'payment'});
-    await telegramSend(e,`💰 TeoStudio · Nạp ví thành công\nMã đơn: ${topup.id}\nSố tiền nạp: ${Number(topup.amount_vnd).toLocaleString('vi-VN')}đ\nMã giao dịch SePay: ${txId}`);
-    return J({success:true,paid:true,order_id:topup.id,kind:'buyer_wallet_topup'});
-  }
   // Rental purchase/renewal orders are processed separately from seller file sales.
   const rental=await e.DB.prepare("SELECT * FROM tenant_rental_orders WHERE payment_code=? AND status='pending' AND expires_at>? LIMIT 1").bind(code,Date.now()).first();
   if(rental){
@@ -970,8 +728,8 @@ async function refreshTenantPlan(e,t){
 }
 async function startRentalEmailVerification(r,e){
   const rl=limited(r,'rental-email-verify',3,60000);if(rl)return rl;await ensureTenantSchema(e);
-  const b=await r.json().catch(()=>({})),email=validEmail(b.email||''),id=tenantSlug(b.id||''),operation=b.operation==='renew'?'renew':'new';if(operation==='new')return J({ok:false,error:'UNIFIED_ACCOUNT_REQUIRED',message:'Đăng ký studio mới cần đăng nhập tài khoản TeoStudio rồi vào Tài khoản → Tạo/thuê website.'},410);
   if(!e.OXMAIL_SMTP_PASS)return J({ok:false,error:'EMAIL_NOT_CONFIGURED',message:'Email xác minh chưa được cấu hình. Vui lòng liên hệ Admin.'},503);
+  const b=await r.json().catch(()=>({})),email=validEmail(b.email||''),id=tenantSlug(b.id||''),operation=b.operation==='renew'?'renew':'new';
   const proof=await verifyTurnstile(e,b.turnstileToken,r);if(!proof.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy hoàn thành xác minh chống bot trước khi gửi email.'},400);
   if(!email)return J({ok:false,error:'INVALID_EMAIL'},400);
   if(!/^[a-z0-9_-]{2,60}$/.test(id))return J({ok:false,error:'INVALID_TENANT_ID',message:'ID từ 2–60 ký tự, chỉ chữ, số, gạch ngang hoặc gạch dưới.'},400);
@@ -996,19 +754,29 @@ async function verifyRentalEmail(r,e){
   return J({ok:true,verificationToken:token,expiresAt:row.expires_at,message:'Email đã xác minh. Hoàn tất tạo tài khoản trong 10 phút.'});
 }
 async function createFreeRentalAccount(r,e){
-  const rl=limited(r,'rental-free-create',3,60000);if(rl)return rl;
-  return J({ok:false,error:'UNIFIED_ACCOUNT_REQUIRED',message:'Tạo studio Free cần tài khoản TeoStudio. Hãy đăng nhập rồi vào Tài khoản → Tạo/thuê website.'},410);
+  const rl=limited(r,'rental-free-create',3,60000);if(rl)return rl;await ensureTenantSchema(e);const b=await r.json().catch(()=>({}));const captcha=await verifyTurnstile(e,b.turnstileToken,r);if(!captcha.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy hoàn thành xác minh chống bot trước khi tạo tài khoản.'},400);
+  const idRaw=clean(b.id||'',60),slug=tenantSlug(idRaw),password=String(b.password||''),email=validEmail(b.email||''),proof=String(b.verificationToken||'');
+  if(!/^[a-z0-9_-]{2,60}$/.test(slug))return J({ok:false,error:'INVALID_TENANT_ID'},400);
+  if(password.length<8||password.length>128)return J({ok:false,error:'PASSWORD_POLICY',message:'Mật khẩu cần từ 8 đến 128 ký tự.'},400);
+  if(!email||!proof)return J({ok:false,error:'EMAIL_VERIFICATION_REQUIRED',message:'Hãy xác minh email trước khi tạo tài khoản.'},400);
+  const ver=await e.DB.prepare('SELECT * FROM rental_email_verifications WHERE lower(email)=lower(?) AND token_hash=? AND verified_at IS NOT NULL AND used_at IS NULL AND expires_at>? ORDER BY created_at DESC LIMIT 1').bind(email,await sha256(proof),Date.now()).first();
+  if(!ver)return J({ok:false,error:'EMAIL_VERIFICATION_INVALID',message:'Mã xác minh không hợp lệ hoặc đã hết hạn. Hãy xác minh lại email.'},400);
+  const prior=await e.DB.prepare('SELECT id FROM tenant_accounts WHERE lower(slug)=lower(?) LIMIT 1').bind(slug).first();if(prior)return J({ok:false,error:'TENANT_EXISTS',message:'ID đã được sử dụng; hãy chọn ID khác.'},409);
+  const key=await tenantAccountKeyColumn(e);if(!key)return J({ok:false,error:'TENANT_SCHEMA_KEY_MISSING'},500);
+  const tenantId='t-'+slug+'-'+crypto.randomUUID().slice(0,8),now=Date.now(),nowText=isoSqlDate(now),hash=await sha256(password),cols=(await e.DB.prepare('PRAGMA table_info(tenant_accounts)').all()).results||[],names=new Set(cols.map(x=>x.name)),data={slug,password_hash:hash,created_at:nowText,starts_at:nowText,expires_at:nowText,locked:0,email,plan_type:'free',email_verified_at:nowText,free_bypass_count:0,free_admin_unlocked:0,pending_order_id:null,deleted_at:null};
+  data[key]=tenantId;if(names.has('id'))data.id=tenantId;if(names.has('tenant_id'))data.tenant_id=tenantId;const use=Object.entries(data).filter(([k])=>names.has(k));
+  try{await e.DB.prepare(`INSERT INTO tenant_accounts(${use.map(([k])=>k).join(',')}) VALUES(${use.map(()=>'?').join(',')})`).bind(...use.map(([,v])=>v)).run();await e.DB.prepare("UPDATE rental_email_verifications SET used_at=datetime('now') WHERE id=? AND used_at IS NULL").bind(ver.id).run();}
+  catch(err){return J({ok:false,error:'FREE_ACCOUNT_CREATE_FAILED',message:'Không tạo được tài khoản. Kiểm tra ID hoặc thử lại.'},500)}
+  const account=await normalizeTenantRow(e,await tenantByIdentifier(e,tenantId));try{await tenantLog(e,tenantId,'system','free_signup','email_verified=true')}catch{};
+  const adminUrl=`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(slug)}`,shareUrl=`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(slug)}`;
+  await createNotification(e,{recipientType:'tenant',recipientId:tenantId,title:'Tài khoản Free đã tạo',body:'Để sử dụng Admin Free, hãy hoàn thành 2 bước vượt link đã được máy chủ xác minh. Mỗi bước cộng 2 ngày.',kind:'welcome'});
+  return J({ok:true,tenant:tenantInfo(account),adminUrl,shareUrl,requiresBypass:true,freeBypassConfigured:!!(e.FREE_BYPASS_TEMPLATE_1&&e.FREE_BYPASS_TEMPLATE_2&&e.FREE_BYPASS_VERIFY_URL&&e.FREE_BYPASS_API_KEY),message:'Tạo tài khoản Free thành công. Cần hoàn thành 2 bước vượt link được máy chủ xác minh để mở Admin Free và cộng 4 ngày.'},201);
 }
-
 async function startFreeBypass(r,e){
   const rl=limited(r,'free-bypass-start',6,60000);if(rl)return rl;await ensureTenantSchema(e);const b=await r.json().catch(()=>({})),identifier=clean(b.id||'',100),password=String(b.password||'');
   if(!(e.FREE_BYPASS_TEMPLATE_1&&e.FREE_BYPASS_TEMPLATE_2&&e.FREE_BYPASS_VERIFY_URL&&e.FREE_BYPASS_API_KEY))return J({ok:false,error:'FREE_BYPASS_NOT_CONFIGURED',message:'Admin chưa cấu hình API xác minh vượt link; không thể cộng ngày chỉ dựa vào chuyển hướng trình duyệt.'},503);
   let t=await tenantFromSession(r,e);if(t&&identifier&&String(t.slug||'').toLowerCase()!==String(identifier).toLowerCase())t=null;
-  if(!t){
-    const buyer=await buyerFromRequest(r,e);const ownerRaw=buyer?await tenantBySlug(e,identifier):null;
-    if(ownerRaw&&String(ownerRaw.email||'').toLowerCase()===String(buyer.email||'').toLowerCase())t=await normalizeTenantRow(e,ownerRaw);
-    else {const raw=await tenantByLogin(e,identifier,password);if(!raw||!(await tenantPasswordMatches(e,await normalizeTenantRow(e,raw),password)))return J({ok:false,error:'INVALID_LOGIN',message:'ID hoặc mật khẩu không đúng.'},401);t=await normalizeTenantRow(e,raw)}
-  }
+  if(!t){const raw=await tenantByLogin(e,identifier,password);if(!raw||!(await tenantPasswordMatches(e,await normalizeTenantRow(e,raw),password)))return J({ok:false,error:'INVALID_LOGIN',message:'ID hoặc mật khẩu không đúng.'},401);t=await normalizeTenantRow(e,raw)}
   t=await refreshTenantPlan(e,t);if(String(t.plan_type||'paid')!=='free')return J({ok:false,error:'FREE_PLAN_REQUIRED'},400);if(t.locked||t.deleted_at)return J({ok:false,error:'TENANT_LOCKED'},403);
   const count=Number(t.free_bypass_count||0);if(count>=2&&Number(t.free_admin_unlocked)===1)return J({ok:true,complete:true,count:2,adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`});
   const step=count+1;if(step>2)return J({ok:false,error:'BYPASS_STATE_INVALID'},409);const state=crypto.randomUUID()+crypto.randomUUID(),attemptId=crypto.randomUUID(),expires=Date.now()+20*60*1000;
@@ -1041,7 +809,6 @@ async function handleRentalOrderCreate(r,e){
   const cfg=paymentConfig(e);
   if(!cfg.paymentsEnabled)return J({ok:false,error:'PAYMENT_NOT_CONFIGURED',missing:cfg.missing,message:`Chưa bật thanh toán. Cần cấu hình: ${cfg.missing.join(', ')} trong Cloudflare Worker Secrets/Variables.`},503);
   const rawId=clean(b.id||b.tenant||'',60),slug=tenantSlug(rawId),password=String(b.password||''),email=validEmail(b.email||''),operation=b.operation==='renew'?'renew':'new';
-  if(operation==='new')return J({ok:false,error:'UNIFIED_ACCOUNT_REQUIRED',message:'Tạo studio mới cần tài khoản TeoStudio. Hãy đăng nhập rồi vào Tài khoản → Tạo/thuê website.'},410);
   if(!/^[a-z0-9_-]{2,60}$/.test(slug))return J({ok:false,error:'INVALID_TENANT_ID',message:'ID chỉ dùng chữ, số, dấu gạch ngang hoặc gạch dưới; dài 2–60 ký tự.'},400);
   if(password.length<8||password.length>128)return J({ok:false,error:'PASSWORD_POLICY',message:'Mật khẩu cần từ 8 đến 128 ký tự.'},400);
   if(!email)return J({ok:false,error:'EMAIL_REQUIRED',message:'Vui lòng nhập email hợp lệ.'},400);
@@ -1116,8 +883,7 @@ async function handleTenantPublic(r,e){
   const slug=clean(parts[2]||'',80),rawTenant=await tenantBySlug(e,slug);let t=await normalizeTenantRow(e,rawTenant);t=await refreshTenantPlan(e,t);
   if(!t||tenantStatus(t)==='deleted'||(tenantStatus(t)==='expired'&&String(t.plan_type||'paid')!=='free'))return J({ok:false,error:'TENANT_NOT_FOUND'},404);
   if(tenantStatus(t)==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);
-  if(r.method==='GET'&&parts.length===3){await tenantBump(e,t,'visit','',r,u.searchParams.get('source')||'');let layout=[];try{await ensureV55Schema(e);const ll=await e.DB.prepare('SELECT layout_json FROM tenant_site_layouts WHERE tenant_id=?').bind(String(t.id)).first();layout=JSON.parse(ll?.layout_json||'[]')}catch{}return J({ok:true,tenant:tenantInfo(t),settings:await tenantSettings(e,t),tags:await tenantTags(e,t),products:await tenantProducts(e,t),layout})}
-  if(parts[3]==='recent-sales'&&r.method==='GET'){await ensureV55Schema(e);const rows=(await e.DB.prepare("SELECT p.title,p.amount_vnd,p.created_at,a.display_name,a.email FROM buyer_purchases p LEFT JOIN buyer_accounts a ON a.id=p.buyer_id WHERE p.tenant_id=? AND p.scope='tenant' AND p.status='paid' ORDER BY p.created_at DESC LIMIT 12").bind(String(t.id)).all()).results||[];return J({ok:true,sales:rows.map(x=>({title:clean(x.title,100),amountVnd:Number(x.amount_vnd||0),createdAt:x.created_at,name:clean(x.display_name||'Khách',60),emailMasked:maskEmail(x.email)}))})}
+  if(r.method==='GET'&&parts.length===3){await tenantBump(e,t,'visit','',r,u.searchParams.get('source')||'');return J({ok:true,tenant:tenantInfo(t),settings:await tenantSettings(e,t),tags:await tenantTags(e,t),products:await tenantProducts(e,t)})}
   if(parts[3]==='product'&&parts[4]&&r.method==='GET'){
     const id=decodeURIComponent(parts[4]);
     const pk=tenantInSql(t);const p=await e.DB.prepare(`SELECT * FROM tenant_products WHERE ${pk.clause} AND id=? AND visible=1 ORDER BY updated_at DESC LIMIT 1`).bind(...pk.vals,id).first();
@@ -1140,7 +906,6 @@ async function handleTenantPublic(r,e){
     await tenantBump(e,t,'outbound',id,r,u.searchParams.get('source')||'');return J({ok:true});
   }
   if(parts[3]==='orders'&&parts[4]==='create'&&r.method==='POST'){
-    return J({ok:false,error:'WALLET_PURCHASE_REQUIRED',message:'Đăng nhập tài khoản và dùng số dư ví để mua file.'},410);
     const rl=limited(r,'tenant-file-order',4,60000);if(rl)return rl;
     const b=await r.json().catch(()=>({})),productId=clean(b.product_id,100);const k=tenantInSql(t);
     const proof=await verifyTurnstile(e,b.turnstileToken,r);if(!proof.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Xác minh chống bot chưa thành công. Hãy thử lại.'},400);
@@ -1159,19 +924,12 @@ async function handleTenantPublic(r,e){
     const order=await e.DB.prepare('SELECT id,tenant_id,product_id,payment_code,amount_vnd,status,expires_at,paid_at FROM tenant_payment_orders WHERE id=? AND tenant_id=?').bind(clean(parts[4],100),t.id).first();
     if(!order)return J({ok:false,error:'ORDER_NOT_FOUND'},404);
     if(order.status==='pending'&&Number(order.expires_at)<=Date.now()){await e.DB.prepare("UPDATE tenant_payment_orders SET status='expired' WHERE id=? AND status='pending'").bind(order.id).run();order.status='expired'}
-    return J({ok:true,order:{id:order.id,code:order.payment_code,amount:order.amount_vnd,status:order.status,expiresAt:order.expires_at,paidAt:order.paid_at,downloadUrl:null,legacy:true,message:'Đơn trực tiếp cũ không trả link gốc qua API công khai.'}})
+    let downloadUrl=null;if(order.status==='paid'){const pk=tenantInSql(t);const product=await e.DB.prepare(`SELECT download_link,original_link FROM tenant_products WHERE ${pk.clause} AND id=?`).bind(...pk.vals,order.product_id).first();downloadUrl=safeHttpUrl(product?.original_link,10000)||safeHttpUrl(product?.download_link,10000)||null}
+    return J({ok:true,order:{id:order.id,code:order.payment_code,amount:order.amount_vnd,status:order.status,expiresAt:order.expires_at,paidAt:order.paid_at,downloadUrl}})
   }
-  if(parts[3]==='comments'&&r.method==='GET'){const ck=tenantInSql(t);const rows=(await e.DB.prepare(`SELECT id,name,text,image,created_at FROM tenant_comments WHERE ${ck.clause} AND visible=1 ORDER BY created_at DESC LIMIT 50`).bind(...ck.vals).all()).results||[];return J({ok:true,comments:rows.map(x=>({...x,image:x.image?safeImageValue(x.image,450000):''}))});}
-  if(parts[3]==='comments'&&r.method==='POST'){
-    const rl=commentRateResponse(r);if(rl)return rl;const buyer=await buyerFromRequest(r,e);if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED',message:'Đăng nhập tài khoản TeoStudio để bình luận.'},401);if(Number(buyer.email_verified)!==1)return J({ok:false,error:'EMAIL_VERIFICATION_REQUIRED',message:'Hãy xác minh email trước khi bình luận.'},403);
-    try{const b=await r.json().catch(()=>({})),cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi bình luận.'},400);const text=clean(b.text,700),image=b.image?safeCommentImage(b.image):'';if(b.image&&!image)return J({ok:false,error:'INVALID_COMMENT_IMAGE',message:'Ảnh không hợp lệ hoặc quá lớn. Chỉ nhận ảnh JPEG/PNG/WebP đã nén.'},400);if(!text&&!image)return J({ok:false,error:'COMMENT_EMPTY'},400);
-      const id=crypto.randomUUID(),eventId=crypto.randomUUID(),ip=clientIp(r)||'unknown',email=String(buyer.email_normalized||buyer.email).toLowerCase(),visible=image?0:1,withImage=image?1:0;
-      await e.DB.batch([
-        e.DB.prepare(`INSERT INTO comment_rate_events(id,buyer_id,client_ip,has_image) SELECT ?,?,?,? WHERE (SELECT COUNT(*) FROM comment_rate_events WHERE buyer_id=? AND created_at>=datetime('now','-60 seconds'))<2 AND (SELECT COUNT(*) FROM comment_rate_events WHERE client_ip=? AND created_at>=datetime('now','-60 seconds'))<5 AND (SELECT COUNT(*) FROM comment_rate_events WHERE buyer_id=? AND created_at>=datetime('now','+7 hours','start of day','-7 hours'))<10 AND (?=0 OR (SELECT COUNT(*) FROM comment_rate_events WHERE buyer_id=? AND has_image=1 AND created_at>=datetime('now','+7 hours','start of day','-7 hours'))<5)`).bind(eventId,buyer.id,ip,withImage,buyer.id,ip,buyer.id,withImage,buyer.id),
-        e.DB.prepare(`INSERT INTO tenant_comments(id,tenant_id,name,text,image,visible,buyer_id,email_normalized,client_ip) SELECT ?,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM comment_rate_events WHERE id=?)`).bind(id,t.id,clean(buyer.display_name,80),text,image,visible,buyer.id,email,ip,eventId)
-      ]);
-      const ev=await e.DB.prepare('SELECT id FROM comment_rate_events WHERE id=?').bind(eventId).first();if(!ev)return J({ok:false,error:'COMMENT_RATE_LIMITED',message:'Giới hạn 2 bình luận/phút, 10 bình luận/ngày và tối đa 5 ảnh/ngày.'},429);const saved=await e.DB.prepare('SELECT id FROM tenant_comments WHERE id=?').bind(id).first();if(!saved)return J({ok:false,error:'COMMENT_SAVE_FAILED'},500);return J({ok:true,id,requiresModeration:!!image,message:image?'Đã nhận bình luận; ảnh đang chờ chủ studio/Admin duyệt trước khi công khai.':'Đã đăng bình luận.'},201)
-    }catch{return J({ok:false,error:'TENANT_COMMENT_DB_ERROR',message:'Chưa lưu được bình luận. Hãy thử lại sau.'},500)}
+  if(parts[3]==='comments'&&r.method==='GET'){const ck=tenantInSql(t);const rows=(await e.DB.prepare(`SELECT id,name,text,image,created_at FROM tenant_comments WHERE ${ck.clause} AND visible=1 ORDER BY created_at DESC LIMIT 5`).bind(...ck.vals).all()).results||[];return J({ok:true,comments:rows.map(x=>({...x,image:x.image?safeImageValue(x.image,600000):''}))});}
+  if(parts[3]==='comments'&&r.method==='POST'){const rl=commentRateResponse(r);if(rl)return rl;
+    try{const b=await r.json().catch(()=>({})),text=clean(b.text,700),name=clean(b.name,40)||'Ẩn danh',image=b.image?safeImageValue(b.image,600000):'';if(b.image&&!image)return J({ok:false,error:'INVALID_COMMENT_IMAGE'},400);if(!text&&!image)return J({ok:false,error:'COMMENT_EMPTY'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO tenant_comments(id,tenant_id,name,text,image) VALUES(?,?,?,?,?)').bind(id,t.id,name,text,image).run();return J({ok:true,id},201)}catch(x){return J({ok:false,error:'TENANT_COMMENT_DB_ERROR',detail:String(x?.message||x)},500)}
   }
   return J({ok:false,error:'NOT_FOUND'},404)
 }
@@ -1195,13 +953,6 @@ async function handleTenantAdmin(r,e){
     if(b.all===true)await e.DB.prepare("UPDATE web_notifications SET read_at=datetime('now') WHERE recipient_type='tenant' AND recipient_id=? AND read_at IS NULL").bind(String(t.id)).run();
     else if(b.id)await e.DB.prepare("UPDATE web_notifications SET read_at=datetime('now') WHERE id=? AND recipient_type='tenant' AND recipient_id=? AND read_at IS NULL").bind(clean(b.id,100),String(t.id)).run();
     return J({ok:true});
-  }
-  if(p==='/api/tenant/builder'&&r.method==='GET'){
-    await ensureV55Schema(e);const row=await e.DB.prepare('SELECT layout_json,updated_at FROM tenant_site_layouts WHERE tenant_id=?').bind(String(t.id)).first();let blocks=[];try{blocks=JSON.parse(row?.layout_json||'[]')}catch{}return J({ok:true,layout:blocks,updatedAt:row?.updated_at||null,tenant:{id:t.id,slug:t.slug,planType:t.plan_type}});
-  }
-  if(p==='/api/tenant/builder'&&r.method==='PUT'){
-    await ensureV55Schema(e);if(String(t.plan_type||'free')==='free')return J({ok:false,error:'VIP_REQUIRED',message:'Trình thiết kế website nâng cao dành cho gói trả phí.'},403);const b=await r.json().catch(()=>({}));let layout;try{layout=safeBuilderLayout(b.layout)}catch(err){return J({ok:false,error:String(err.message||err)},400)}
-    await e.DB.prepare("INSERT INTO tenant_site_layouts(tenant_id,layout_json,updated_at) VALUES(?,?,datetime('now')) ON CONFLICT(tenant_id) DO UPDATE SET layout_json=excluded.layout_json,updated_at=datetime('now')").bind(String(t.id),JSON.stringify(layout)).run();await tenantLog(e,t.id,'owner','builder_saved',`${layout.length} blocks`);return J({ok:true,layout,updatedAt:isoSqlDate()});
   }
   if(p==='/api/tenant/me')return J({ok:true,tenant:tenantInfo(t),settings:await tenantSettings(e,t)});
   if(p==='/api/tenant/products'&&r.method==='GET')return J({ok:true,products:await tenantProducts(e,t,true)});
@@ -1459,7 +1210,7 @@ async function bumpView(e,kind,productId='',source=''){
 }
 async function comments(e){return ((await e.DB.prepare('SELECT id,name,text,image,created_at FROM comments WHERE visible=1 ORDER BY created_at DESC LIMIT 50').all()).results||[]).map(x=>({...x,image:x.image?safeImageValue(x.image,1000000):''}))}
 async function stats(e,days=30){const n=Math.max(1,Math.min(Number(days)||30,365));const today=dayVN(),month=today.slice(0,7),from=today;const rows=(await e.DB.prepare(`SELECT day,kind,product_id,views FROM view_daily WHERE day>=date(?, '-'||?||' days') ORDER BY day ASC`).bind(today,n-1).all()).results||[];const prods=await e.DB.prepare('SELECT id,title,views,sale_mode,price_vnd FROM products ORDER BY views DESC,updated_at DESC').all();let daily={orders:0,revenueVnd:0,views:0},monthly={orders:0,revenueVnd:0,byDay:[]};try{daily=await e.DB.prepare("SELECT COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenueVnd FROM product_payment_orders WHERE status='paid' AND date(paid_at,'+7 hours')=?").bind(today).first()||daily;monthly=await e.DB.prepare("SELECT COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenueVnd FROM product_payment_orders WHERE status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<date(?,'+1 month')").bind(month+'-01',month+'-01').first()||monthly;monthly.byDay=(await e.DB.prepare("SELECT date(paid_at,'+7 hours') AS day,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenueVnd FROM product_payment_orders WHERE status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<date(?,'+1 month') GROUP BY date(paid_at,'+7 hours') ORDER BY day").bind(month+'-01',month+'-01').all()).results||[]}catch{}let referrers=[],paidViewsByDay=[];try{referrers=(await e.DB.prepare(`SELECT domain,SUM(views) AS views FROM view_referrers_daily WHERE day>=date(?, '-'||?||' days') GROUP BY domain ORDER BY views DESC LIMIT 50`).bind(today,n-1).all()).results||[]}catch{}try{paidViewsByDay=(await e.DB.prepare(`SELECT v.day,v.product_id,p.title,SUM(v.views) AS views FROM view_daily v JOIN products p ON p.id=v.product_id WHERE v.day>=date(?, '-'||?||' days') AND p.sale_mode IN ('paid','both') AND v.kind IN ('product','outbound') GROUP BY v.day,v.product_id,p.title ORDER BY v.day DESC,views DESC`).bind(today,Math.max(n-1,29)).all()).results||[]}catch{}return {days:n,rows,products:prods.results||[],referrers,paidViewsByDay,today:rows.filter(x=>x.day===today).reduce((a,x)=>a+Number(x.views||0),0),sales:{today:{orders:Number(daily.orders||0),revenueVnd:Number(daily.revenueVnd||0)},month:{orders:Number(monthly.orders||0),revenueVnd:Number(monthly.revenueVnd||0),byDay:monthly.byDay||[]}}} }
-export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}},async fetch(r,e){const u=new URL(r.url),p=u.pathname.replace(/\/$/,'');const host=u.hostname.toLowerCase();const wrongHost=host.endsWith('.workers.dev')||host==='www.teostudio.top';if(wrongHost&&p!=='/api/webhook/sepay'){const canonical=PUBLIC_ORIGIN+(p||'/')+u.search;if(!p.startsWith('/api/')&&['GET','HEAD'].includes(r.method))return Response.redirect(canonical,302);if(p.startsWith('/api/'))return J({ok:false,error:'CANONICAL_HOST_REQUIRED',message:'Bạn đang mở địa chỉ thử nghiệm hoặc tên miền phụ. Hãy mở https://teostudio.top để đăng nhập và sử dụng các chức năng.'},421);return J({ok:false,error:'CANONICAL_HOST_REQUIRED',message:'Hãy mở https://teostudio.top.'},421)}if(r.method==='OPTIONS')return new Response(null,{headers:C});try{
+export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}},async fetch(r,e){if(r.method==='OPTIONS')return new Response(null,{headers:C});const u=new URL(r.url),p=u.pathname.replace(/\/$/,'');try{
   if(u.pathname.length>2048||u.search.length>4096)return J({ok:false,error:'URI_TOO_LARGE'},414);
   // Reject cross-site browser writes to cookie/session-backed APIs. SePay server webhook is exempt.
   if(p.startsWith('/api/')&&!['GET','HEAD','OPTIONS'].includes(r.method)&&p!='/api/webhook/sepay'){
@@ -1468,13 +1219,18 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
     if(origin){let good=false;try{good=allowedOrigins.has(new URL(origin).origin)}catch{}if(!good)return J({ok:false,error:'CROSS_SITE_REQUEST_BLOCKED'},403)}
     else if(site==='cross-site')return J({ok:false,error:'CROSS_SITE_REQUEST_BLOCKED'},403);
   }
-  // Check temporary in-memory bans and persistent admin blocklist before serving pages, APIs, or assets.
+  // Check temporary IP bans before serving HTML, APIs, or assets.
   const ban=activeBan(r);if(ban)return ban;
-  const requesterIp=clientIp(r);if(requesterIp&&await securityBlocked(e,'ip',requesterIp))return blockedNotFound(r);
   // Count only actual HTML navigations, not CSS/JS/images; this avoids blocking normal page loads.
   if(documentNavigation(r)){const navLimited=documentRateResponse(r);if(navLimited)return navLimited;}
   // Broad API burst guard is intentionally higher than the navigation threshold because one page load calls multiple APIs.
   if(p.startsWith('/api/')&&r.method!=='OPTIONS'){const apiLimited=apiRateResponse(r);if(apiLimited)return apiLimited;}
+  // Canonical host: stop direct page access through the public workers.dev URL.
+  // APIs are intentionally handled below so existing same-origin deployments can migrate cleanly.
+  if((u.hostname.endsWith('.workers.dev')||u.hostname==='www.teostudio.top') && !p.startsWith('/api/')){
+    const target=PUBLIC_ORIGIN+(p||'/')+u.search;
+    return Response.redirect(target,301);
+  }
   const hardHeaders={'x-content-type-options':'nosniff','x-frame-options':'SAMEORIGIN','referrer-policy':'strict-origin-when-cross-origin','permissions-policy':'camera=(),microphone=(),geolocation=()','x-permitted-cross-domain-policies':'none','cross-origin-opener-policy':'same-origin','strict-transport-security':'max-age=31536000','content-security-policy':"default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://challenges.cloudflare.com; frame-src 'self' https://challenges.cloudflare.com; worker-src 'self' blob: https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"};
   if(p.startsWith('/api/') && r.method!=='GET' && r.method!=='HEAD'){
     const len=Number(r.headers.get('content-length')||0);if(len>2_000_000)return J({ok:false,error:'REQUEST_TOO_LARGE'},413,hardHeaders);
@@ -1501,43 +1257,13 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   if(p==='/api/rental/free/bypass/complete'&&r.method==='POST')return await completeFreeBypass(r,e);
   if(p==='/api/rental/orders/create'&&r.method==='POST')return await handleRentalOrderCreate(r,e);
   const rentalOrderMatch=p.match(/^\/api\/rental\/orders\/([^/]+)$/);if(rentalOrderMatch&&r.method==='GET')return await handleRentalOrderStatus(r,e,rentalOrderMatch[1]);
-  if(p==='/api/health'){const cs=runtimeConfigStatus(e);return J({ok:true,service:'teo-studio-api',version:BUILD_VERSION,frontendVersion:BUILD_VERSION,auth:'admin-key-session',payment:paymentConfig(e),config:{d1:cs.database.configured,aiConfigured:cs.ai.ready,emailConfigured:cs.email.configured,telegramConfigured:cs.telegram.configured,turnstileConfigured:cs.turnstile.configured,sepayConfigured:cs.sepay.configured}})}
-  if(p.startsWith('/api/account/'))return await accountApi(r,e,p);
-  if(p==='/api/assistant/chat'&&r.method==='POST')return await assistantChat(r,e);
-  if(p==='/api/support/report'&&r.method==='POST')return await submitSupportReport(r,e);
-  if(p==='/api/support/config'&&r.method==='GET'){const cs=runtimeConfigStatus(e);return J({turnstileEnabled:true,turnstileConfigured:cs.turnstile.configured,turnstileSiteKey:clean(e.TURNSTILE_SITE_KEY||'',200),aiConfigured:cs.ai.ready})}
-  if(p==='/api/admin/analytics'&&r.method==='GET'){
-    if(!await isAdmin(r,e))return J({ok:false,error:'ADMIN_REQUIRED'},401);await ensureV55Schema(e);
-    const rawMonth=clean(u.searchParams.get('month')||dayVN().slice(0,7),7),m=/^\d{4}-(0[1-9]|1[0-2])$/.test(rawMonth)?rawMonth:dayVN().slice(0,7),start=m+'-01',end=new Date(Date.UTC(Number(m.slice(0,4)),Number(m.slice(5,7)),1)).toISOString().slice(0,10);
-    const sale=await e.DB.prepare("SELECT COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS gross,COALESCE(SUM(commission_vnd),0) AS commission,COALESCE(SUM(CASE WHEN scope='main' THEN amount_vnd ELSE commission_vnd END),0) AS platform,COALESCE(SUM(seller_amount_vnd),0) AS sellerNet FROM buyer_purchases WHERE status='paid' AND date(created_at,'+7 hours')>=? AND date(created_at,'+7 hours')<?").bind(start,end).first();
-    const legacyMain=await e.DB.prepare("SELECT COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS gross FROM product_payment_orders WHERE status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<?").bind(start,end).first().catch(()=>({orders:0,gross:0}));
-    const legacyTenant=await e.DB.prepare("SELECT COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS gross FROM tenant_payment_orders WHERE status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<?").bind(start,end).first().catch(()=>({orders:0,gross:0}));
-    const legacyTenantByDay=(await e.DB.prepare("SELECT date(paid_at,'+7 hours') AS day,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS gross FROM tenant_payment_orders WHERE status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<? GROUP BY date(paid_at,'+7 hours')").bind(start,end).all().catch(()=>({results:[]}))).results||[];
-    const legacySellers=(await e.DB.prepare("SELECT o.tenant_id,COUNT(*) AS orders,COALESCE(SUM(o.amount_vnd),0) AS gross FROM tenant_payment_orders o WHERE o.status='paid' AND date(o.paid_at,'+7 hours')>=? AND date(o.paid_at,'+7 hours')<? GROUP BY o.tenant_id").bind(start,end).all().catch(()=>({results:[]}))).results||[];
-    const topups=await e.DB.prepare("SELECT COUNT(*) AS count,COALESCE(SUM(amount_vnd),0) AS amount FROM buyer_wallet_topups WHERE status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<?").bind(start,end).first();
-    const rentalIncome=await e.DB.prepare("SELECT COUNT(*) AS count,COALESCE(SUM(amount_vnd),0) AS amount FROM tenant_rental_orders WHERE status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<?").bind(start,end).first().catch(()=>({count:0,amount:0}));
-    const rentalByDay=(await e.DB.prepare("SELECT date(paid_at,'+7 hours') AS day,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS amount FROM tenant_rental_orders WHERE status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<? GROUP BY date(paid_at,'+7 hours')").bind(start,end).all().catch(()=>({results:[]}))).results||[];
-    const rentalReferral=await e.DB.prepare("SELECT COALESCE(SUM(amount_vnd),0) AS amount FROM tenant_wallet_ledger WHERE kind='referral_commission' AND ref_type='rental_order' AND date(created_at,'+7 hours')>=? AND date(created_at,'+7 hours')<?").bind(start,end).first().catch(()=>({amount:0}));
-    const purchasesByDay=(await e.DB.prepare("SELECT date(created_at,'+7 hours') AS day,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS gross,COALESCE(SUM(commission_vnd),0) AS commission FROM buyer_purchases WHERE status='paid' AND date(created_at,'+7 hours')>=? AND date(created_at,'+7 hours')<? GROUP BY date(created_at,'+7 hours') ORDER BY day").bind(start,end).all()).results||[];
-    const views=(await e.DB.prepare('SELECT day,kind,SUM(views) AS views FROM view_daily WHERE day>=? AND day<? GROUP BY day,kind ORDER BY day').bind(start,end).all()).results||[];
-    const sellers=(await e.DB.prepare("SELECT tenant_id,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS gross,COALESCE(SUM(seller_amount_vnd),0) AS sellerNet,COALESCE(SUM(commission_vnd),0) AS commission FROM buyer_purchases WHERE scope='tenant' AND status='paid' AND date(created_at,'+7 hours')>=? AND date(created_at,'+7 hours')<? GROUP BY tenant_id ORDER BY gross DESC LIMIT 50").bind(start,end).all()).results||[];
-    const sellerMap=new Map(sellers.map(v=>[String(v.tenant_id),{...v,orders:Number(v.orders||0),gross:Number(v.gross||0),sellerNet:Number(v.sellerNet||0),commission:Number(v.commission||0)}]));for(const v of legacySellers){const k=String(v.tenant_id),row=sellerMap.get(k)||{tenant_id:k,orders:0,gross:0,sellerNet:0,commission:0};row.orders+=Number(v.orders||0);row.gross+=Number(v.gross||0);row.sellerNet+=Number(v.gross||0);sellerMap.set(k,row)}const allSellers=[...sellerMap.values()].sort((a,b)=>b.gross-a.gross).slice(0,50);
-    const days=new Date(Date.UTC(Number(m.slice(0,4)),Number(m.slice(5,7)),0)).getUTCDate(),dayMap=new Map(purchasesByDay.map(x=>[x.day,{...x,fileSalesVnd:Number(x.gross||0),rentalVnd:0}]));for(const v of legacyTenantByDay){const row=dayMap.get(v.day)||{day:v.day,orders:0,gross:0,commission:0,fileSalesVnd:0,rentalVnd:0};row.orders=Number(row.orders||0)+Number(v.orders||0);row.gross=Number(row.gross||0)+Number(v.gross||0);row.fileSalesVnd=Number(row.fileSalesVnd||0)+Number(v.gross||0);dayMap.set(v.day,row)}const legacyMainByDay=(await e.DB.prepare("SELECT date(paid_at,'+7 hours') AS day,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS gross FROM product_payment_orders WHERE status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<? GROUP BY date(paid_at,'+7 hours')").bind(start,end).all().catch(()=>({results:[]}))).results||[];for(const v of legacyMainByDay){const row=dayMap.get(v.day)||{day:v.day,orders:0,gross:0,commission:0,fileSalesVnd:0,rentalVnd:0};row.orders=Number(row.orders||0)+Number(v.orders||0);row.gross=Number(row.gross||0)+Number(v.gross||0);row.fileSalesVnd=Number(row.fileSalesVnd||0)+Number(v.gross||0);dayMap.set(v.day,row)}for(const v of rentalByDay){const row=dayMap.get(v.day)||{day:v.day,orders:0,gross:0,commission:0,fileSalesVnd:0,rentalVnd:0};row.orders=Number(row.orders||0)+Number(v.orders||0);row.gross=Number(row.gross||0)+Number(v.amount||0);row.rentalVnd=Number(row.rentalVnd||0)+Number(v.amount||0);dayMap.set(v.day,row)}const byDay=[];for(let n=1;n<=days;n++){const d=`${m}-${String(n).padStart(2,'0')}`,v=dayMap.get(d)||{};byDay.push({day:d,orders:Number(v.orders||0),grossVnd:Number(v.gross||0),fileSalesVnd:Number(v.fileSalesVnd||0),rentalVnd:Number(v.rentalVnd||0),commissionVnd:Number(v.commission||0)})}
-    const allFileOrders=Number(sale?.orders||0)+Number(legacyMain?.orders||0)+Number(legacyTenant?.orders||0),allOrders=allFileOrders+Number(rentalIncome?.count||0),fileGross=Number(sale?.gross||0)+Number(legacyMain?.gross||0)+Number(legacyTenant?.gross||0),rentalGross=Number(rentalIncome?.amount||0),gross=fileGross+rentalGross,platformVnd=Number(sale?.platform||0)+Number(legacyMain?.gross||0)+rentalGross-Number(rentalReferral?.amount||0),sellerNetVnd=Number(sale?.sellerNet||0)+Number(legacyTenant?.gross||0);
-    return J({ok:true,month:m,summary:{orders:allOrders,fileOrders:allFileOrders,grossVnd:gross,fileSalesVnd:fileGross,rentalRevenueVnd:rentalGross,rentalOrders:Number(rentalIncome?.count||0),platformRevenueVnd:Math.max(0,platformVnd),commissionVnd:Number(sale?.commission||0),sellerNetVnd:Math.max(0,sellerNetVnd),topupsVnd:Number(topups?.amount||0),topupCount:Number(topups?.count||0)},byDay,views,sellers:allSellers,recent:(await e.DB.prepare("SELECT id,title,scope,tenant_id,amount_vnd,commission_vnd,status,created_at FROM buyer_purchases WHERE date(created_at,'+7 hours')>=? AND date(created_at,'+7 hours')<? ORDER BY created_at DESC LIMIT 100").bind(start,end).all()).results||[]});
-  }
-  if(p==='/api/admin/support/reports'&&(r.method==='GET'||r.method==='PUT')){
-    if(!await isAdmin(r,e))return J({ok:false,error:'ADMIN_REQUIRED'},401);await ensureV55Schema(e);
-    if(r.method==='GET'){const rows=(await e.DB.prepare('SELECT id,email,display_name,page,category,message,client_ip,status,created_at,updated_at FROM support_reports ORDER BY CASE status WHEN \'open\' THEN 0 WHEN \'reviewing\' THEN 1 ELSE 2 END,created_at DESC LIMIT 200').all()).results||[];return J({ok:true,reports:rows})}
-    const b=await r.json().catch(()=>({})),id=clean(b.id||'',100),status=['open','reviewing','resolved','rejected'].includes(String(b.status))?String(b.status):'';if(!id||!status)return J({ok:false,error:'INVALID_REPORT_UPDATE'},400);const up=await e.DB.prepare("UPDATE support_reports SET status=?,updated_at=datetime('now') WHERE id=?").bind(status,id).run();return J({ok:true,updated:Number(up.meta?.changes||0)});
-  }
+  if(p==='/api/health')return J({ok:true,service:'teo-studio-api',version:'v54-rental-catalog-payout' ,frontendVersion:'v54-rental-catalog-payout',auth:'admin-key-session',payment:paymentConfig(e)});
   if(p==='/api/admin/login'&&r.method==='POST'){const rl=limited(r,'admin-login',8,60000);if(rl)return rl;await ensureAdminSessionSchema(e);const b=await r.json().catch(()=>({}));const supplied=clean(b.adminKey??b.password??'',500);const expected=clean(e.ADMIN_KEY??'',500);if(!expected)return J({ok:false,error:'ADMIN_KEY_MISSING'},500);if(!supplied||!safeEq(supplied,expected))return J({ok:false,error:'INVALID_ADMIN_KEY'},401);const token=crypto.randomUUID()+crypto.randomUUID();await e.DB.prepare('INSERT INTO admin_sessions(token,expires_at) VALUES(?,?)').bind(token,Date.now()+7*24*60*60*1000).run();return J({ok:true,token,expiresIn:7*24*60*60*1000})}
   await ensureSchema(e);
   if(p==='/api/products'&&r.method==='GET')return J({ok:true,products:await products(e)});
   if(p.match(/^\/api\/products\/[^/]+$/)&&r.method==='GET'){const id=decodeURIComponent(p.split('/').pop());const product=await productById(e,id);return product?J({ok:true,product}):J({ok:false,error:'NOT_FOUND'},404)}
   const publicProductOrderCreate=p.match(/^\/api\/products\/([^/]+)\/orders\/create$/);
   if(publicProductOrderCreate&&r.method==='POST'){
-    return J({ok:false,error:'WALLET_PURCHASE_REQUIRED',message:'Đăng nhập và nạp ví để mua file. QR cũ theo từng đơn đã được thay bằng thanh toán qua ví.'},410);
     const rl=limited(r,'main-product-order',4,60000);if(rl)return rl;const id=decodeURIComponent(publicProductOrderCreate[1]);
     const raw=await e.DB.prepare('SELECT * FROM products WHERE id=? AND visible=1 LIMIT 1').bind(id).first();if(!raw)return J({ok:false,error:'NOT_FOUND'},404);const prod=safeProductRow(raw);
     if(!['paid','both'].includes(prod.sale_mode)||Number(prod.price_vnd)<1000)return J({ok:false,error:'PRODUCT_NOT_FOR_SALE'},400);
@@ -1548,7 +1274,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
     return J({ok:true,order:{id:oid,productId:id,code,amount:Number(prod.price_vnd),status:'pending',expiresAt:expires,qrUrl:buildVietQr(e,prod.price_vnd,code)}},201);
   }
   const publicProductOrderStatus=p.match(/^\/api\/products\/([^/]+)\/orders\/([^/]+)$/);
-  if(publicProductOrderStatus&&r.method==='GET'){const productId=decodeURIComponent(publicProductOrderStatus[1]),orderId=clean(decodeURIComponent(publicProductOrderStatus[2]),100);const order=await e.DB.prepare('SELECT * FROM product_payment_orders WHERE id=? AND product_id=?').bind(orderId,productId).first();if(!order)return J({ok:false,error:'ORDER_NOT_FOUND'},404);if(order.status==='pending'&&Number(order.expires_at)<=Date.now()){await e.DB.prepare("UPDATE product_payment_orders SET status='expired' WHERE id=? AND status='pending'").bind(order.id).run();order.status='expired'}return J({ok:true,order:{id:order.id,status:order.status,amount:Number(order.amount_vnd),expiresAt:order.expires_at,paidAt:order.paid_at,downloadUrl:null,legacy:true,message:'Link gốc không còn trả qua trạng thái đơn công khai. Đăng nhập tài khoản để xem đơn đã mua.'}})}
+  if(publicProductOrderStatus&&r.method==='GET'){const productId=decodeURIComponent(publicProductOrderStatus[1]),orderId=clean(decodeURIComponent(publicProductOrderStatus[2]),100);const order=await e.DB.prepare('SELECT * FROM product_payment_orders WHERE id=? AND product_id=?').bind(orderId,productId).first();if(!order)return J({ok:false,error:'ORDER_NOT_FOUND'},404);if(order.status==='pending'&&Number(order.expires_at)<=Date.now()){await e.DB.prepare("UPDATE product_payment_orders SET status='expired' WHERE id=? AND status='pending'").bind(order.id).run();order.status='expired'}let downloadUrl=null;if(order.status==='paid'){const full=await e.DB.prepare('SELECT * FROM products WHERE id=? AND visible=1').bind(productId).first();if(full)downloadUrl=safeHttpUrl(full.original_link,10000)|| (String(full.sale_mode)==='paid'?safeHttpUrl(full.download_link,10000):'')}return J({ok:true,order:{id:order.id,status:order.status,amount:Number(order.amount_vnd),expiresAt:order.expires_at,paidAt:order.paid_at,downloadUrl}})}
   if(p==='/api/tags'&&r.method==='GET')return J({ok:true,tags:await tags(e)});
   if(p==='/api/settings'&&r.method==='GET')return J({ok:true,settings:await settings(e)});
   if(p==='/api/channel/preview'&&r.method==='GET') {const rl=limited(r,'channel-preview',8,60000);if(rl)return rl;}
@@ -1609,20 +1335,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
     }catch(x){return J({ok:false,error:'CHANNEL_LOOKUP_FAILED',detail:String(x?.message||x)},502)}
   }
   if(p==='/api/comments'&&r.method==='GET')return J({ok:true,comments:await comments(e)});
-  if(p==='/api/comments'&&r.method==='POST'){
-    const rl=commentRateResponse(r);if(rl)return rl;const buyer=await buyerFromRequest(r,e);if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED',message:'Đăng nhập tài khoản TeoStudio để bình luận.'},401);if(Number(buyer.email_verified)!==1)return J({ok:false,error:'EMAIL_VERIFICATION_REQUIRED',message:'Hãy xác minh email trước khi bình luận.'},403);
-    const b=await r.json().catch(()=>({})),cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi bình luận.'},400);
-    const text=clean(b.text,700),image=b.image?safeCommentImage(b.image):'';if(b.image&&!image)return J({ok:false,error:'INVALID_COMMENT_IMAGE',message:'Ảnh không hợp lệ hoặc quá lớn. Chỉ nhận ảnh JPEG/PNG/WebP đã nén, tối đa khoảng 330 KB.'},400);if(!text&&!image)return J({ok:false,error:'COMMENT_EMPTY'},400);
-    const id=crypto.randomUUID(),eventId=crypto.randomUUID(),ip=clientIp(r)||'unknown',email=String(buyer.email_normalized||buyer.email).toLowerCase(),visible=image?0:1,withImage=image?1:0;
-    try{await e.DB.batch([
-      e.DB.prepare(`INSERT INTO comment_rate_events(id,buyer_id,client_ip,has_image) SELECT ?,?,?,? WHERE (SELECT COUNT(*) FROM comment_rate_events WHERE buyer_id=? AND created_at>=datetime('now','-60 seconds'))<2 AND (SELECT COUNT(*) FROM comment_rate_events WHERE client_ip=? AND created_at>=datetime('now','-60 seconds'))<5 AND (SELECT COUNT(*) FROM comment_rate_events WHERE buyer_id=? AND created_at>=datetime('now','+7 hours','start of day','-7 hours'))<10 AND (?=0 OR (SELECT COUNT(*) FROM comment_rate_events WHERE buyer_id=? AND has_image=1 AND created_at>=datetime('now','+7 hours','start of day','-7 hours'))<5)`).bind(eventId,buyer.id,ip,withImage,buyer.id,ip,buyer.id,withImage,buyer.id),
-      e.DB.prepare(`INSERT INTO comments(id,name,text,image,visible,buyer_id,email_normalized,client_ip) SELECT ?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM comment_rate_events WHERE id=?)`).bind(id,clean(buyer.display_name,80),text,image,visible,buyer.id,email,ip,eventId)
-    ]);
-    const ev=await e.DB.prepare('SELECT id FROM comment_rate_events WHERE id=?').bind(eventId).first();if(!ev)return J({ok:false,error:'COMMENT_RATE_LIMITED',message:image?'Mỗi tài khoản được đăng tối đa 5 ảnh/ngày, 2 bình luận/phút và 10 bình luận/ngày.':'Bạn đã bình luận quá nhiều. Hãy thử lại sau.'},429);
-    const exists=await e.DB.prepare('SELECT id FROM comments WHERE id=?').bind(id).first();if(!exists)return J({ok:false,error:'COMMENT_SAVE_FAILED'},500);
-    return J({ok:true,id,requiresModeration:!!image,message:image?'Đã nhận bình luận; ảnh đang chờ Admin kiểm duyệt trước khi công khai.':'Đã đăng bình luận.'},201)
-    }catch{return J({ok:false,error:'COMMENT_SAVE_FAILED',message:'Chưa lưu được bình luận. Hãy thử lại sau.'},500)}
-  }
+  if(p==='/api/comments'&&r.method==='POST'){const rl=commentRateResponse(r);if(rl)return rl;const b=await r.json().catch(()=>({}));const name=clean(b.name,40)||'Ẩn danh';const text=clean(b.text,700);const image=b.image?safeImageValue(b.image,1000000):'';if(b.image&&!image)return J({ok:false,error:'INVALID_COMMENT_IMAGE'},400);if(!text&&!image)return J({ok:false,error:'COMMENT_EMPTY'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO comments(id,name,text,image) VALUES(?,?,?,?)').bind(id,name,text,image).run();return J({ok:true,id},201)}
   if(p==='/api/track/site'&&r.method==='POST'){await bumpView(e,'site','',u.searchParams.get('source')||'');return J({ok:true})}
   let tv=p.match(/^\/api\/track\/product\/([^/]+)$/);if(tv&&r.method==='POST'){const id=decodeURIComponent(tv[1]);const product=await productById(e,id);if(!product)return J({ok:false,error:'NOT_FOUND'},404);await bumpView(e,'product',id,u.searchParams.get('source')||'');return J({ok:true,views:Number(product.views||0)+1})}
   let to=p.match(/^\/api\/track\/outbound\/([^/]+)$/);if(to&&r.method==='POST'){const id=decodeURIComponent(to[1]);const product=await productById(e,id);if(!product)return J({ok:false,error:'NOT_FOUND'},404);await bumpView(e,'outbound',id,u.searchParams.get('source')||'');return J({ok:true})}
@@ -1737,14 +1450,6 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   }
   if(p==='/api/admin/logout'&&r.method==='POST'){const t=tokenFrom(r);if(t)await e.DB.prepare('DELETE FROM admin_sessions WHERE token=?').bind(t).run();return J({ok:true})}
   if(!(await isAdmin(r,e)))return J({ok:false,error:'ADMIN_REQUIRED'},401);
-  if(p==='/api/admin/config-status'&&r.method==='GET'){const status=runtimeConfigStatus(e);return J({ok:true,version:BUILD_VERSION,checkedAt:new Date().toISOString(),config:status})}
-  if(p==='/api/admin/ai/test'&&r.method==='POST'){const rl=limited(r,'admin-ai-test',2,60000);if(rl)return rl;const status=runtimeConfigStatus(e).ai;if(!status.configured||!status.endpointValid)return J({ok:false,error:'AI_NOT_READY',message:'Thiếu cấu hình AI hoặc AI_API_URL không phải HTTPS hợp lệ.',missing:status.missing},503);try{const u=new URL(String(e.AI_API_URL));const resp=await fetch(u.toString(),{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+String(e.AI_API_KEY)},body:JSON.stringify({model:String(e.AI_MODEL),temperature:0,max_tokens:8,messages:[{role:'system',content:'Reply with exactly OK.'},{role:'user',content:'health-check'}]}),signal:AbortSignal.timeout(12000)});if(!resp.ok){try{await resp.body?.cancel()}catch{}return J({ok:false,error:'AI_PROVIDER_HTTP_ERROR',status:resp.status,message:'Nhà cung cấp AI từ chối yêu cầu. Kiểm tra URL, model, API key và hạn mức; response body không được ghi ra log.'},502)}const data=await resp.json().catch(()=>null);if(!data?.choices?.[0]?.message?.content)return J({ok:false,error:'AI_RESPONSE_FORMAT',message:'API phản hồi nhưng không đúng định dạng Chat Completions dự kiến.'},502);return J({ok:true,message:'Kết nối AI thành công.',version:BUILD_VERSION})}catch(err){return J({ok:false,error:err?.name==='TimeoutError'?'AI_PROVIDER_TIMEOUT':'AI_PROVIDER_UNREACHABLE',message:'Không kết nối được AI hoặc đã hết thời gian chờ. Kiểm tra endpoint và nhà cung cấp.'},502)}}
-  if(p==='/api/admin/telegram/test'&&r.method==='POST'){const rl=limited(r,'admin-telegram-test',2,60000);if(rl)return rl;const status=runtimeConfigStatus(e).telegram;if(!status.configured)return J({ok:false,error:'TELEGRAM_NOT_CONFIGURED',message:'Thiếu TELEGRAM_BOT_TOKEN hoặc TELEGRAM_CHAT_ID.',missing:status.missing},503);const sent=await telegramSend(e,'✅ Kiểm tra kết nối TeoStudio Telegram thành công. Version '+BUILD_VERSION);if(!sent.ok)return J({ok:false,error:'TELEGRAM_SEND_FAILED',message:'Telegram không nhận được tin nhắn. Kiểm tra bot token, chat ID và quyền gửi tin.'},502);return J({ok:true,message:'Đã gửi tin kiểm tra tới Telegram.'})}
-  if(p==='/api/admin/security/blocks'&&r.method==='GET'){await ensureV55Schema(e);const rows=(await e.DB.prepare('SELECT id,kind,value_normalized,reason,created_by,created_at FROM security_blocks ORDER BY created_at DESC LIMIT 500').all()).results||[];return J({ok:true,blocks:rows})}
-  if(p==='/api/admin/security/blocks'&&r.method==='POST'){
-    const rl=limited(r,'admin-security-block-create',15,60000);if(rl)return rl;await ensureV55Schema(e);const b=await r.json().catch(()=>({}));const kind=String(b.kind||'').toLowerCase();let value='';if(kind==='ip')value=normalizeIpInput(b.value||'');else if(kind==='email')value=validEmail(b.value||'').toLowerCase();else return J({ok:false,error:'INVALID_BLOCK_KIND',message:'Chọn loại IP hoặc email.'},400);if(!value)return J({ok:false,error:'INVALID_BLOCK_VALUE',message:kind==='ip'?'Địa chỉ IP không hợp lệ.':'Email không hợp lệ.'},400);const id=crypto.randomUUID();try{await e.DB.prepare('INSERT INTO security_blocks(id,kind,value_normalized,reason,created_by) VALUES(?,?,?,?,?)').bind(id,kind,value,clean(b.reason||'',300),'admin').run()}catch(err){if(await e.DB.prepare('SELECT id FROM security_blocks WHERE kind=? AND value_normalized=?').bind(kind,value).first())return J({ok:false,error:'BLOCK_ALREADY_EXISTS',message:'Mục này đã bị chặn rồi.'},409);return J({ok:false,error:'BLOCK_SAVE_FAILED'},500)}SECURITY_BLOCK_CACHE.delete(kind+':'+value);return J({ok:true,id,kind,value,permanent:true,message:'Đã chặn vĩnh viễn. Gỡ chặn bằng nút Xóa trong danh sách.'},201)
-  }
-  const blockedEntry=p.match(/^\/api\/admin\/security\/blocks\/([^/]+)$/);if(blockedEntry&&r.method==='DELETE'){await ensureV55Schema(e);const id=clean(decodeURIComponent(blockedEntry[1]),100),row=await e.DB.prepare('SELECT kind,value_normalized FROM security_blocks WHERE id=?').bind(id).first();if(!row)return J({ok:false,error:'BLOCK_NOT_FOUND'},404);await e.DB.prepare('DELETE FROM security_blocks WHERE id=?').bind(id).run();SECURITY_BLOCK_CACHE.delete(row.kind+':'+row.value_normalized);return J({ok:true,removed:true})}
   if(p==='/api/admin/email/test'&&r.method==='POST'){
     const rl=limited(r,'admin-email-test',3,60000);if(rl)return rl;
     const b=await r.json().catch(()=>({})),to=validEmail(b.to||e.EMAIL_ADMIN_TO||'teostudio@teostudio.top');
