@@ -1,26 +1,24 @@
-# TeoStudio V55
+# TeoStudio V56 — Security & moderation package
 
-**Bản mã nguồn nâng cấp — chưa deploy production.** Package này được xây dựng từ file V54 được cung cấp trong cuộc trò chuyện, không phải bản export trực tiếp từ GitHub main hay bản sao lưu trực tiếp của production.
+**Source package only; not deployed to production.** Built from the V54 ZIP and the V55 work package available in this conversation, not from a live export of GitHub main or Cloudflare production. Compare/merge before deploy.
 
-## Tài liệu
-- `VERSION_V55.md` — phạm vi tính năng, cơ chế dữ liệu và giới hạn.
-- `TEST_REPORT_V55.md` — kiểm tra đã chạy và kiểm thử còn cần thực hiện.
-- `DEPLOY_V55_MOBILE.md` — hướng dẫn triển khai từ điện thoại và checklist bảo mật.
-- `SECURITY_HARDENING_V52.md`, `SEPAY_SETUP_V45.md`, `OXMAIL_SETUP_V49.md` — tài liệu nền cũ, dùng khi cần đối chiếu.
+## Release documents
+- `VERSION_V56.md` — scope and known limits.
+- `TEST_REPORT_V56.md` — checks and non-tested items.
+- `DEPLOY_V56_MOBILE.md` — runtime secrets, deployment and mobile regression tests.
+- `SECURITY_PLAYBOOK_TEOSTUDIO.md` — reusable security/AI review guidance and source links.
+- Previous V45–V55 setup docs are retained for migration context.
 
-## Những phần mới trong V55
-1. Tài khoản người mua dùng chung với tài khoản studio; xác minh email, đăng nhập, đặt lại mật khẩu, hồ sơ và lịch sử mua.
-2. Ví nội bộ: nạp theo VietQR/SePay, mua file bằng số dư, sổ cái người mua/người bán/nền tảng; seller nhận 95%, platform ghi 5% với đơn bán từ studio.
-3. Thống kê admin theo tháng lấy từ D1: doanh thu, hoa hồng, doanh thu người bán, nạp ví, lượt xem, đơn hàng và bảng từng ngày.
-4. Trình chỉnh sửa giao diện studio theo khối, preset, ẩn/hiện, sao chép, xóa, sắp xếp bằng nút lên/xuống, tùy chỉnh cơ bản và preview.
-5. Bong bóng AI hỗ trợ người dùng, báo lỗi lưu vào D1, tuỳ chọn gửi Telegram; AI API chỉ bật khi cấu hình endpoint/key/model runtime.
-6. Thêm các biện pháp chống bypass: không trả link gốc file trả phí qua endpoint công khai, kiểm tra quyền và giá ở Worker, Turnstile server-side và idempotency giao dịch.
+## V56 changes
+1. Fixed old detail/download pages that used stale JS URLs and called undefined inline initialization functions.
+2. New file purchases use the shared-account wallet flow; the old per-file QR creation endpoint is intentionally disabled. Existing order records remain in D1.
+3. Comments require an account and verified email, derive the display name from the profile, require server-verified Turnstile and apply D1-backed spam limits. Uploaded images remain hidden pending moderation.
+4. Admin has a D1-backed permanent IP/email block list and support reports expose client IP only in admin tooling; public sale feed remains privacy-masked.
+5. Versioned asset URLs are refreshed to `v=56`.
 
-## Triển khai an toàn
-- Sao lưu D1 trước.
-- Đối chiếu/merge với repository hiện tại; không ghi đè mù các chỉnh sửa mới hơn.
-- Giữ nguyên D1 ID/binding `DB`, secrets và webhook SePay.
-- Không reset database.
-- Kiểm thử staging hoặc giao dịch nhỏ có đối soát trước khi mở rộng.
-
-V55 chưa được triển khai hoặc kiểm thử end-to-end với tài khoản production. Không thể đảm bảo chống mọi hình thức tấn công chỉ bằng code Worker; cần cấu hình Cloudflare WAF/Rate Limiting cho lớp edge.
+## Important limitations
+- No code has been deployed to production in this task.
+- Image review is manual, not AI-based NSFW classification.
+- Runtime secrets for SMTP, AI and Telegram need to be configured in Cloudflare; without them email/remote AI/Telegram may not work.
+- Cloudflare WAF and edge rate-limit rules must be configured separately; Worker throttles alone are not full DDoS protection.
+- No single measure guarantees protection from every bypass or abuse.
