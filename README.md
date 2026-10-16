@@ -1,24 +1,18 @@
-# TeoStudio V56 — Security & moderation package
+# TeoStudio V56.3 — Stability & Runtime Diagnostics
 
-**Source package only; not deployed to production.** Built from the V54 ZIP and the V55 work package available in this conversation, not from a live export of GitHub main or Cloudflare production. Compare/merge before deploy.
+This archive is a source package based on V56.2, prepared to help stabilize the Cloudflare Worker and diagnose runtime configuration. It has not been deployed to production from this environment.
 
-## Release documents
-- `VERSION_V56.md` — scope and known limits.
-- `TEST_REPORT_V56.md` — checks and non-tested items.
-- `DEPLOY_V56_MOBILE.md` — runtime secrets, deployment and mobile regression tests.
-- `SECURITY_PLAYBOOK_TEOSTUDIO.md` — reusable security/AI review guidance and source links.
-- Previous V45–V55 setup docs are retained for migration context.
+## Start here
+1. Read `DEPLOY_V56_3_MOBILE.md`.
+2. Compare the archive against your current GitHub repo before copying files.
+3. Back up the current D1 database and repository. Never reset or recreate the production database.
+4. Run `node --check cloudflare/worker.js` and inspect `git diff` before committing.
+5. After successful deploy, verify `/api/health` reports `v56.3-stability-ai-config` and use Admin → Runtime Check to test configured services.
 
-## V56 changes
-1. Fixed old detail/download pages that used stale JS URLs and called undefined inline initialization functions.
-2. New file purchases use the shared-account wallet flow; the old per-file QR creation endpoint is intentionally disabled. Existing order records remain in D1.
-3. Comments require an account and verified email, derive the display name from the profile, require server-verified Turnstile and apply D1-backed spam limits. Uploaded images remain hidden pending moderation.
-4. Admin has a D1-backed permanent IP/email block list and support reports expose client IP only in admin tooling; public sale feed remains privacy-masked.
-5. Versioned asset URLs are refreshed to `v=56`.
+## Relevant docs
+- `VERSION_V56_3.md` — this release's changes and variable names.
+- `TEST_REPORT_V56_3.md` — what was checked and what still requires real accounts.
+- `SECURITY_PLAYBOOK_TEOSTUDIO.md` — reusable security review checklist.
 
-## Important limitations
-- No code has been deployed to production in this task.
-- Image review is manual, not AI-based NSFW classification.
-- Runtime secrets for SMTP, AI and Telegram need to be configured in Cloudflare; without them email/remote AI/Telegram may not work.
-- Cloudflare WAF and edge rate-limit rules must be configured separately; Worker throttles alone are not full DDoS protection.
-- No single measure guarantees protection from every bypass or abuse.
+## Secret handling
+Never commit `AI_API_KEY`, `OXMAIL_SMTP_PASS`, `TELEGRAM_BOT_TOKEN`, `ADMIN_KEY`, or `SEPAY_API_KEY`, and never paste their values into a chat or screenshot.
