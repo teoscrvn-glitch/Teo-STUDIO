@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>TeoStudio V48 — Email/DNS, payments and feature notes | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="TeoStudio V48 — Email/DNS, payments and feature notes" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/EMAIL_DNS_AND_FEATURES_V48.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/EMAIL_DNS_AND_FEATURES_V48.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="TeoStudio V48 — Email/DNS, payments and feature notes" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"TeoStudio V48 — Email/DNS, payments and feature notes","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/EMAIL_DNS_AND_FEATURES_V48.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="teostudio-v48--emaildns-payments-and-feature-notes">TeoStudio V48 — Email/DNS, payments and feature notes</h1>
+
+<h2 id="email-dns-fix-the-5-records-shown-as-not-pointed">Email DNS: fix the 5 records shown as not pointed</h2>
+<p>The screenshot shows five DNS records for the OxMail email service are not resolving correctly. Do not guess MX/TXT/CNAME values. In the INET domain panel, open the OxMail package / DNS setup details and copy the exact records supplied for this domain. At the DNS provider for <code class="language-plaintext highlighter-rouge">teostudio.top</code>, create or correct each record exactly as provided: record type, host/name, value/target, priority, and TTL. Remove only conflicting duplicates after confirming the provider’s instructions. Then wait for DNS propagation and use the provider’s check button again. Keep website records for Cloudflare/Worker unchanged unless the mail provider explicitly says otherwise.</p>
+
+<p>The screenshots do not expose all five record values, so this archive cannot safely fill them in automatically. DNS records are provider-specific.</p>
+
+<h2 id="payment--sepay">Payment / SePay</h2>
+<p>The current tenant product purchase flow uses SePay/VietQR and requires Worker secrets/configuration already documented in <code class="language-plaintext highlighter-rouge">SEPAY_SETUP_V46.md</code>. Keep the current SePay configuration; do not paste API keys into frontend files. Test with Sandbox first. The webhook must match exact amount and idempotently credit the wallet before production use.</p>
+
+<h2 id="v48-uischema-changes">V48 UI/schema changes</h2>
+<ul>
+  <li>Additive D1 migration adds <code class="language-plaintext highlighter-rouge">product_mode</code>, <code class="language-plaintext highlighter-rouge">original_link</code>, and withdrawal terms acceptance timestamp. Existing data is preserved.</li>
+  <li>Tenant file form now exposes Free, Free via unlock link, Paid, and Free or Paid modes. The existing SePay purchase flow supports paid products; a real link-unlock provider/API still needs to be configured before the unlock mode is advertised publicly.</li>
+  <li>Withdrawal form requires terms acceptance; server checks <code class="language-plaintext highlighter-rouge">termsAccepted</code>.</li>
+  <li>Admin withdrawal list has Priority / Normal / All filters.</li>
+</ul>
+
+<h2 id="email-otp-and-notifications-are-not-activated-by-dns-alone">Email OTP and notifications are not activated by DNS alone</h2>
+<p>MX records allow receiving mail; SPF/DKIM/DMARC authenticate sending/receiving policy. Automated OTP and transaction emails additionally require a configured sending provider/API and Worker secret(s), a verified sender domain, and server-side OTP storage/expiry/rate limits. Do not tell users OTP is working until those pieces are connected and tested. This build does not invent a provider API key or sender address.</p>
+
+<h2 id="deployment-safety">Deployment safety</h2>
+<p>Deploy to a staging Worker + staging D1 first. The schema migration is additive; do not run destructive SQL or reset the production database. Confirm purchase, exact-amount webhook, replay, failed-credit recovery, withdrawal consent, priority fee, normal fee, and admin state transitions before production rollout.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

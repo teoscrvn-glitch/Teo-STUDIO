@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Test Report — TeoStudio V56.4 | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Test Report — TeoStudio V56.4" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/TEST_REPORT_V56_4.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/TEST_REPORT_V56_4.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Test Report — TeoStudio V56.4" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Test Report — TeoStudio V56.4","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/TEST_REPORT_V56_4.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="test-report--teostudio-v564">Test Report — TeoStudio V56.4</h1>
+
+<h2 id="passed-locally">Passed locally</h2>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">node --check cloudflare/worker.js</code>.</li>
+  <li><code class="language-plaintext highlighter-rouge">node --check</code> for every <code class="language-plaintext highlighter-rouge">frontend/assets/js/*.js</code>.</li>
+  <li>Inline JavaScript in HTML checked separately where executable.</li>
+  <li>Wrangler TOML parsed with Python <code class="language-plaintext highlighter-rouge">tomllib</code>.</li>
+  <li>Static checks confirm <code class="language-plaintext highlighter-rouge">run_worker_first = true</code>, the new build version, and canonical-host code paths.</li>
+  <li>ZIP structure verified: <code class="language-plaintext highlighter-rouge">cloudflare/worker.js</code> and <code class="language-plaintext highlighter-rouge">frontend/index.html</code> are rooted directly in the archive.</li>
+</ul>
+
+<h2 id="not-verified-from-this-environment">Not verified from this environment</h2>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">wrangler deploy --dry-run</code> / actual Cloudflare deployment.</li>
+  <li>Runtime secrets and Variables, D1 live access, production host routing.</li>
+  <li>Real Turnstile token acceptance, email delivery, AI provider responses, Telegram alerts, SePay webhook and financial transactions.</li>
+</ul>
+
+<h2 id="acceptance-checklist-after-deploy">Acceptance checklist after deploy</h2>
+<ol>
+  <li>Open <code class="language-plaintext highlighter-rouge">https://teostudio.top/api/health</code> and confirm the V56.4 fingerprint.</li>
+  <li>Opening a normal page on <code class="language-plaintext highlighter-rouge">*.workers.dev</code> redirects to the canonical domain.</li>
+  <li>Turnstile appears and validates on the canonical domain.</li>
+  <li>Admin login works with the current <code class="language-plaintext highlighter-rouge">ADMIN_KEY</code>.</li>
+  <li>Admin runtime diagnostics show D1/Turnstile/SePay configured and show any missing AI/email/Telegram variables without exposing secret values.</li>
+  <li>Test AI, email, and Telegram only after configuring provider credentials.</li>
+  <li>Test low-value top-up/webhook and wallet purchase with the existing D1 backed up; do not create duplicate payments while an order is pending.</li>
+</ol>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

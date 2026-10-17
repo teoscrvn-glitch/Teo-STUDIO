@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>TeoStudio V56 — Security, moderation, account flows | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="TeoStudio V56 — Security, moderation, account flows" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V56.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V56.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="TeoStudio V56 — Security, moderation, account flows" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"TeoStudio V56 — Security, moderation, account flows","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V56.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="teostudio-v56--security-moderation-account-flows">TeoStudio V56 — Security, moderation, account flows</h1>
+
+<h2 id="scope">Scope</h2>
+<p>V56 is a source package based on the V54 ZIP shared in this conversation and the V55 work package. It has <strong>not</strong> been deployed to production. It is not a live export from the GitHub main branch or Cloudflare production.</p>
+
+<h2 id="changes-in-this-package">Changes in this package</h2>
+
+<ol>
+  <li><strong>Legacy QR path is no longer used by the purchase UI.</strong> Paid file purchases go through the shared-account wallet flow. Old QR/order records are preserved in D1; do not reset or delete them. The legacy create endpoint returns <code class="language-plaintext highlighter-rouge">WALLET_PURCHASE_REQUIRED</code> (410).</li>
+  <li><strong>Fix old detail/download page startup.</strong> <code class="language-plaintext highlighter-rouge">detail.html</code> and <code class="language-plaintext highlighter-rouge">download.html</code> had stale script cache versions and inline calls to <code class="language-plaintext highlighter-rouge">renderDetailPage()</code> / <code class="language-plaintext highlighter-rouge">renderDownloadPage()</code> that are not defined in this frontend. They now load <code class="language-plaintext highlighter-rouge">config.js</code> and the versioned <code class="language-plaintext highlighter-rouge">main.js</code>; the existing <code class="language-plaintext highlighter-rouge">DOMContentLoaded</code> entry point initializes the pages.</li>
+  <li><strong>Comments require a shared user account and verified email.</strong> Display name comes from the account profile, not from a user-supplied field. Turnstile is required and verified server-side. One image is accepted per comment; images are stored hidden for moderation before public display.</li>
+  <li><strong>Persistent anti-spam controls for comments.</strong> D1 rate counters limit each account to 2 comments/minute and 10/day; up to 5 image comments/day per account, with an additional IP limit of 5 comments/minute. These controls supplement, not replace, Cloudflare edge rate limiting.</li>
+  <li><strong>Permanent admin blocklist.</strong> <code class="language-plaintext highlighter-rouge">/api/admin/security/blocks</code> is authenticated by the master Admin session, persists normalized IP/email blocks in D1, displays a 404-style result for blocked IPs, and blocks account operations for blocked emails. Admin can remove a block explicitly.</li>
+  <li><strong>Support report triage.</strong> Admin report rows include the client IP for admin-only review, with buttons to prefill the permanent block form. Telegram report text includes the recorded IP when configured. Public sale widgets continue to use masked email, not raw email.</li>
+  <li><strong>Asset cache busting.</strong> Updated frontend pages reference the current <code class="language-plaintext highlighter-rouge">v=56</code> JS/CSS versions; the details page no longer invokes the old QR creation fallback.</li>
+  <li><strong>AI assistant stays read-only.</strong> It can explain account/status data provided to it and guide a report. It cannot change wallet balances, payment states, tenant privileges, blocks, or withdrawals by itself. An AI API needs runtime variables before it uses a remote model.</li>
+</ol>
+
+<h2 id="known-limits">Known limits</h2>
+<ul>
+  <li>Image moderation is <strong>manual via the existing admin comment moderation panel</strong>; this is not an automatic sexual-content classifier. An image remains hidden until a moderator makes it visible.</li>
+  <li>Blocking an email prevents that account from account-backed actions; it cannot identify every visit by that person. A persistent IP block makes requests from that IP receive a 404-style response. VPNs, carrier NAT, changing IPs and multiple accounts can limit identity-based blocking.</li>
+  <li>Worker in-memory throttles are per-isolate and are not a global DDoS control. Configure Cloudflare WAF / Rate Limiting separately.</li>
+  <li>V56 does not migrate old QR orders into wallet purchases, does not auto-pay seller withdrawals, and does not guarantee that SMTP, SePay, Turnstile, Telegram, or AI providers work until configured and tested in runtime.</li>
+  <li>No single security measure guarantees protection against every bypass or abuse method.</li>
+</ul>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

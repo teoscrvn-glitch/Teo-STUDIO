@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>TeoStudio V52 — Security hardening + rental checkout foundations | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="TeoStudio V52 — Security hardening + rental checkout foundations" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V52.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V52.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="TeoStudio V52 — Security hardening + rental checkout foundations" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"TeoStudio V52 — Security hardening + rental checkout foundations","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V52.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="teostudio-v52--security-hardening--rental-checkout-foundations">TeoStudio V52 — Security hardening + rental checkout foundations</h1>
+
+<h2 id="included-in-this-source-package">Included in this source package</h2>
+<ul>
+  <li>Additive D1 migrations for rental checkout, paid tenant file orders, referral ledger references and view de-duplication. No DROP TABLE, rebuild or database reset is performed by migration code. Existing scheduled expiry cleanup still removes tenant content after the configured six-day grace window; manual admin archive preserves finance/files.</li>
+  <li>SePay webhook handles both tenant rental/renewal orders and paid files on tenant Share pages; idempotency checks use SePay transaction id and wallet ledger unique references.</li>
+  <li>Rental checkout UI creates a 50,000 VND / 30-day pending order, QR and exact <code class="language-plaintext highlighter-rouge">TEO…</code> payment content. Account activation and links are returned only after a matching paid webhook. Renewal adds time to the later of now or the existing expiry.</li>
+  <li>Paid tenant sales dashboard: paid orders, gross sales, day list and view-based conversion. Tenant referral ID is retained for renter checkout and file purchases; successful eligible conversions receive 10% wallet commission.</li>
+  <li>Tenant file modes: free direct, unlock/bypass link, paid only, and both (bypass plus buy). Paid original URL is not exposed before the paid status response.</li>
+  <li>Rental promotion section on main page, referral link UI in Tenant Admin, separate Free/Paid filtering in master Admin, withdrawal IDs/history and support link.</li>
+  <li>Same-origin protections for browser write APIs, restrictive CORS, CSP/HSTS and output security headers, input size/URI checks, HTTP(S)-only navigation URL validation (including legacy rows on read), restricted social-preview redirect hosts and capped external response bodies, memory-conscious per-isolate rate limits/temporary abuse blocking, fail-closed server-verified Turnstile hostname validation for payment order creation, and 15-minute hashed view-dedup for tenant content statistics.</li>
+  <li>Tenant product form dynamically distinguishes direct free link, bypass link, paid-only original link, and “free bypass or buy” with a separate paid original URL. It validates URL schemes and requires distinct links for the combined mode.</li>
+  <li>Manual master deletion of a tenant is a soft archive: locks and signs out the account, preserving finance/file history for audit. The existing scheduled expiry cleanup still removes expired tenant content after the six-day grace window; this is separate from manual archiving.</li>
+</ul>
+
+<h2 id="production-configuration-still-required">Production configuration still required</h2>
+<p>In Worker Settings → Variables and Secrets preserve existing values and add/check only what is missing:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">SEPAY_API_KEY</code> (Secret): must match SePay webhook API Key.</li>
+  <li><code class="language-plaintext highlighter-rouge">SEPAY_BANK_CODE</code> (Variable): official VietQR bank identifier for the existing receiving account.</li>
+  <li><code class="language-plaintext highlighter-rouge">SEPAY_ACCOUNT_NUMBER</code> (Secret or Variable; recommend Secret): existing receiving account number.</li>
+  <li>Optional <code class="language-plaintext highlighter-rouge">SEPAY_ACCOUNT_NAME</code> for QR display.</li>
+  <li><code class="language-plaintext highlighter-rouge">TURNSTILE_SITE_KEY</code> and <code class="language-plaintext highlighter-rouge">TURNSTILE_SECRET</code> must be a matching Turnstile widget pair if Turnstile is enabled.</li>
+</ul>
+
+<h2 id="not-yet-fully-implemented--do-not-advertise-as-working">Not yet fully implemented / do not advertise as working</h2>
+<ul>
+  <li>Free tenant self-signup with two external link-bypass steps and a 4-day cumulative extension is intentionally not activated without the exact provider and a server-verifiable callback/API. Do not grant free days based only on a browser redirect; users can forge it.</li>
+  <li>Master catalog file checkout is not wired into its own payment-order flow in this patch; paid checkout is for tenant Share File products and the paid rental/renewal flow.</li>
+  <li>Full payment tests against the live SePay account, live bank receipt, correct Worker domain route, TURNSTILE validation, and tenant end-to-end fulfillment remain production verification steps.</li>
+  <li>The package was built from the V51 source archive available in this chat, not from a freshly checked-out snapshot of the current GitHub main branch. Do not treat it as an automatic merge with current production. Compare changed files and preserve later production changes before replacing files.</li>
+</ul>
+
+<h2 id="test-before-live-money">Test before live money</h2>
+<ol>
+  <li>Back up repository and export D1. Do not execute schema reset/ DROP SQL.</li>
+  <li>Keep the existing D1 binding and all Worker secrets.</li>
+  <li>Verify <code class="language-plaintext highlighter-rouge">/api/health</code> shows <code class="language-plaintext highlighter-rouge">version: v52-security-rental</code>; <code class="language-plaintext highlighter-rouge">/api/rental/config</code> should report <code class="language-plaintext highlighter-rouge">paymentsEnabled: true</code> and no missing vars. Do not paste secret values into any screenshot/chat.</li>
+  <li>Try SePay webhook “Gửi thử” only after confirming <code class="language-plaintext highlighter-rouge">Authorization: Apikey …</code> uses the same exact secret; a generic fake event with no pending order code may safely be ignored, but must not unlock anything.</li>
+  <li>Test paid rental and tenant file purchase with a small real transaction only after all routes/configs are verified. Confirm order changes to <code class="language-plaintext highlighter-rouge">paid</code>, active tenant/download link is returned, and repeating the same transaction does not double-credit.</li>
+  <li>Test withdrawal reserve, approval, paid mark and reject/refund with a test account and audit each ledger row before opening widely.</li>
+</ol>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

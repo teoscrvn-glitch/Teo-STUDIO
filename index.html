@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>TeoStudio V54 | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="TeoStudio V54" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="TeoStudio V54" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebSite","headline":"TeoStudio V54","name":"Teo-STUDIO","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="teostudio-v54">TeoStudio V54</h1>
+
+<p>This source update is based on the supplied <code class="language-plaintext highlighter-rouge">TeoStudio-V52-Security-Rental.zip</code>. See <code class="language-plaintext highlighter-rouge">VERSION_V54.md</code> for changes, setup requirements, and limitations; see <code class="language-plaintext highlighter-rouge">TEST_REPORT_V54.md</code> for local checks.</p>
+
+<p>Important: this archive is not a live production backup and has not been deployed. Preserve the existing Cloudflare D1 binding/database ID and secrets, compare against the current GitHub branch, and back up D1 before rollout.</p>
+
+<h1 id="téo-studio--security--rental-checkout-v52">Téo Studio — Security &amp; Rental Checkout V52</h1>
+
+<p>Gói nguồn V52: bổ sung nền tảng thanh toán SePay/VietQR, theo dõi doanh thu tenant và hardening bảo mật.</p>
+
+<p><strong>Đây là gói nguồn để đối chiếu/triển khai có kiểm soát, không phải xác nhận đã deploy production.</strong></p>
+
+<h2 id="sửa-chính">Sửa chính</h2>
+<ul>
+  <li>Tương thích tenant_accounts cũ dùng <code class="language-plaintext highlighter-rouge">id</code>, <code class="language-plaintext highlighter-rouge">tenant_id</code> hoặc <code class="language-plaintext highlighter-rouge">slug</code>.</li>
+  <li>Lookup tenant master/admin/share không còn phụ thuộc duy nhất vào một cột khóa.</li>
+  <li>Chuẩn hóa tenant trước khi Share File đọc settings/files/tags/comments.</li>
+  <li>Sửa thao tác gia hạn/đổi mật khẩu/khóa/xóa tenant để dùng đúng canonical tenant id.</li>
+  <li>Re-auth Admin: sai mật khẩu xác minh không làm mất session ngay.</li>
+  <li>Health API đổi version thành <code class="language-plaintext highlighter-rouge">rental-v27-safe</code> để kiểm tra đúng bản Worker đang chạy.</li>
+  <li>Ảnh nền avatar hiển thị thành một dải nhỏ phía sau avatar; avatar nằm đè khoảng giữa ảnh nền và bên ngoài.</li>
+  <li>Giữ nguyên D1 hiện tại, không reset database.</li>
+  <li>Giữ khu vực dịch vụ TikTok / YouTube / Zalo ở cuối Share File.</li>
+</ul>
+
+<h2 id="deploy">Deploy</h2>
+<p>Upload/deploy <code class="language-plaintext highlighter-rouge">cloudflare/worker.js</code> và frontend đi kèm. Sau deploy kiểm tra <code class="language-plaintext highlighter-rouge">/api/health</code>; kết quả phải có <code class="language-plaintext highlighter-rouge">version: rental-v27-safe</code>.</p>
+
+<h2 id="v52-security--rental-checkout-update">V52 Security / Rental checkout update</h2>
+<p>See <code class="language-plaintext highlighter-rouge">VERSION_V52.md</code> for scope and limitations, and <code class="language-plaintext highlighter-rouge">SECURITY_HARDENING_V52.md</code> for required Cloudflare edge configuration. This source keeps the current D1 and performs additive migrations only. Do not reset production database or expose secrets.</p>
+
+<h2 id="v52-security-and-rental-checkout">V52 security and rental checkout</h2>
+
+<p>See <code class="language-plaintext highlighter-rouge">VERSION_V52.md</code>, <code class="language-plaintext highlighter-rouge">SECURITY_HARDENING_V52.md</code>, and <code class="language-plaintext highlighter-rouge">DEPLOY_V52_MOBILE.md</code> for current features, known gaps, and safe production rollout. This archive is based on the V51 package available in the conversation, not a verified export of the current GitHub main branch. Compare/merge matching paths; keep the existing D1 database ID and secrets. Do not reset production D1.</p>
+
+<p>See <code class="language-plaintext highlighter-rouge">V54_FIXES_AND_RUNTIME_SETUP.md</code> for runtime SePay/Turnstile setup, why stale frontend files hide sale-mode and wallet forms, and production-safe verification steps.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Deploy TeoStudio V56.4 on Android / Termux | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Deploy TeoStudio V56.4 on Android / Termux" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/DEPLOY_V56_4_MOBILE.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/DEPLOY_V56_4_MOBILE.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Deploy TeoStudio V56.4 on Android / Termux" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Deploy TeoStudio V56.4 on Android / Termux","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/DEPLOY_V56_4_MOBILE.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="deploy-teostudio-v564-on-android--termux">Deploy TeoStudio V56.4 on Android / Termux</h1>
+
+<h2 id="before-copying-files">Before copying files</h2>
+<ol>
+  <li>Back up the current repo and D1 database. Do not delete <code class="language-plaintext highlighter-rouge">.git</code>, recreate D1, change the database ID, or remove existing secrets.</li>
+  <li>Download and extract this ZIP. <code class="language-plaintext highlighter-rouge">cloudflare/</code> and <code class="language-plaintext highlighter-rouge">frontend/</code> are at the archive root.</li>
+  <li>Merge/overwrite the matching files into your existing <code class="language-plaintext highlighter-rouge">Teo-STUDIO</code> repo. Make sure <code class="language-plaintext highlighter-rouge">cloudflare/wrangler.toml</code> contains <code class="language-plaintext highlighter-rouge">run_worker_first = true</code> and <code class="language-plaintext highlighter-rouge">cloudflare/worker.js</code> contains <code class="language-plaintext highlighter-rouge">v56.4-canonical-runtime-fix</code>.</li>
+</ol>
+
+<h2 id="validate-locally">Validate locally</h2>
+<p>From the repo root in Termux: `</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd</span> ~/Teo-STUDIO
+./scripts/check-build.sh
+git status <span class="nt">--short</span>
+git diff <span class="nt">--stat</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">git diff --stat</code> must show changes. If it is empty, the files were not copied into the repo being pushed or the wrong folder is open.</p>
+
+<h2 id="commit-and-deploy">Commit and deploy</h2>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git add cloudflare frontend scripts
+git add README.md VERSION_V56_4.md DEPLOY_V56_4_MOBILE.md
+git commit <span class="nt">-m</span> <span class="s2">"V56.4 canonical host and runtime fix"</span>
+git push origin main
+</code></pre></div></div>
+
+<p>Wait for Cloudflare Build to succeed and confirm it built the new commit SHA. Do not push/deploy until local checks pass.</p>
+
+<h2 id="production-smoke-test">Production smoke test</h2>
+<p>Use <strong>https://teostudio.top</strong>. Opening a page on the <code class="language-plaintext highlighter-rouge">*.workers.dev</code> alias should now redirect to the canonical domain. Then open <code class="language-plaintext highlighter-rouge">https://teostudio.top/api/health</code>; it must return <code class="language-plaintext highlighter-rouge">version: v56.4-canonical-runtime-fix</code>.</p>
+
+<p>Check the API’s boolean <code class="language-plaintext highlighter-rouge">config</code> fields and Admin → Runtime Check. If <code class="language-plaintext highlighter-rouge">turnstileConfigured</code> is false, add <code class="language-plaintext highlighter-rouge">TURNSTILE_SITE_KEY</code> (Variable) and <code class="language-plaintext highlighter-rouge">TURNSTILE_SECRET</code> (Secret) to the Worker’s <strong>Runtime → Production</strong> settings; adding them to Build variables alone is insufficient. Ensure the Turnstile widget allowed hostnames include <code class="language-plaintext highlighter-rouge">teostudio.top</code>.</p>
+
+<p>Real AI responses need <code class="language-plaintext highlighter-rouge">AI_API_URL</code>, <code class="language-plaintext highlighter-rouge">AI_API_KEY</code> (Secret), and <code class="language-plaintext highlighter-rouge">AI_MODEL</code>. Email verify/reset need <code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_PASS</code> (Secret) and correct mailbox settings. Telegram needs <code class="language-plaintext highlighter-rouge">TELEGRAM_BOT_TOKEN</code> (Secret) and <code class="language-plaintext highlighter-rouge">TELEGRAM_CHAT_ID</code>. Test each service from the Admin runtime page after deployment.</p>
+
+<p>If Admin still fails, check that the <code class="language-plaintext highlighter-rouge">ADMIN_KEY</code> Secret remains present and that the browser is at <code class="language-plaintext highlighter-rouge">https://teostudio.top/admin.html</code>. Do not paste any secret into chat.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

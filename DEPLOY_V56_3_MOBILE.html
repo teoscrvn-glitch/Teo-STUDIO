@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Deploy TeoStudio V56.3 on mobile (Termux + GitHub + Cloudflare) | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Deploy TeoStudio V56.3 on mobile (Termux + GitHub + Cloudflare)" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/DEPLOY_V56_3_MOBILE.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/DEPLOY_V56_3_MOBILE.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Deploy TeoStudio V56.3 on mobile (Termux + GitHub + Cloudflare)" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Deploy TeoStudio V56.3 on mobile (Termux + GitHub + Cloudflare)","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/DEPLOY_V56_3_MOBILE.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="deploy-teostudio-v563-on-mobile-termux--github--cloudflare">Deploy TeoStudio V56.3 on mobile (Termux + GitHub + Cloudflare)</h1>
+
+<h2 id="before-replacing-anything">Before replacing anything</h2>
+<ol>
+  <li>Export/backup the existing D1 database.</li>
+  <li>Keep a copy of the current GitHub repo/production ZIP.</li>
+  <li>Do not delete/recreate D1. Keep binding <code class="language-plaintext highlighter-rouge">DB</code>, database ID, and existing production secrets.</li>
+</ol>
+
+<h2 id="replace-the-correct-source-files">Replace the correct source files</h2>
+<p>This ZIP has <code class="language-plaintext highlighter-rouge">cloudflare/worker.js</code> and <code class="language-plaintext highlighter-rouge">frontend/</code> directly at the archive root (no <code class="language-plaintext highlighter-rouge">v56fix/</code> wrapper). Merge these files into the matching repo paths. Avoid replacing <code class="language-plaintext highlighter-rouge">cloudflare/wrangler.toml</code> unless you have compared the database ID and assets path.</p>
+
+<p>From the repository root, run:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git status <span class="nt">--short</span>
+node <span class="nt">--check</span> cloudflare/worker.js
+git diff <span class="nt">--stat</span>
+git diff <span class="nt">--</span> cloudflare/worker.js
+</code></pre></div></div>
+
+<p>The diff must show V56.3 changes. If <code class="language-plaintext highlighter-rouge">git diff</code> is empty, you’re either in the wrong repo/path or have not overwritten the file.</p>
+
+<p>If the repo’s Cloudflare build root is <code class="language-plaintext highlighter-rouge">cloudflare</code>, run Wrangler from that directory and check the configured build command. If Cloudflare builds from the repository root, use the existing production build settings; do not make a blind root-directory change.</p>
+
+<p>Then commit and push:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git add cloudflare/worker.js frontend
+git commit <span class="nt">-m</span> <span class="s2">"V56.3 stabilize runtime config diagnostics"</span>
+git push origin main
+</code></pre></div></div>
+
+<p>Wait for Cloudflare to build the pushed commit. Verify the commit/hash in Build History. If it still fails, capture the whole first error block including file and line.</p>
+
+<h2 id="after-successful-deploy">After successful deploy</h2>
+<p>Open <code class="language-plaintext highlighter-rouge">https://teostudio.top/api/health</code>. It should identify <code class="language-plaintext highlighter-rouge">v56.3-stability-ai-config</code>. Then sign into Admin and use Runtime Check. Configure only missing variables shown there. Never paste secret values into chat or commit them.</p>
+
+<h2 id="required-production-variables">Required Production variables</h2>
+<ul>
+  <li>Existing <code class="language-plaintext highlighter-rouge">ADMIN_KEY</code>, <code class="language-plaintext highlighter-rouge">SEPAY_API_KEY</code>, <code class="language-plaintext highlighter-rouge">SEPAY_BANK_CODE</code>, <code class="language-plaintext highlighter-rouge">SEPAY_ACCOUNT_NUMBER</code>.</li>
+  <li>Existing matching <code class="language-plaintext highlighter-rouge">TURNSTILE_SITE_KEY</code> + <code class="language-plaintext highlighter-rouge">TURNSTILE_SECRET</code>.</li>
+  <li><code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_PASS</code> secret for email verification/reset; default SMTP host/user/port are in <code class="language-plaintext highlighter-rouge">VERSION_V56_3.md</code>.</li>
+  <li><code class="language-plaintext highlighter-rouge">AI_API_URL</code>, <code class="language-plaintext highlighter-rouge">AI_API_KEY</code> secret, <code class="language-plaintext highlighter-rouge">AI_MODEL</code> for real AI replies.</li>
+  <li><code class="language-plaintext highlighter-rouge">TELEGRAM_BOT_TOKEN</code> secret + <code class="language-plaintext highlighter-rouge">TELEGRAM_CHAT_ID</code> for Telegram notifications.</li>
+</ul>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>TeoStudio V56.4 — Canonical Host &amp; Runtime Fix | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="TeoStudio V56.4 — Canonical Host &amp; Runtime Fix" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V56_4.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V56_4.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="TeoStudio V56.4 — Canonical Host &amp; Runtime Fix" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"TeoStudio V56.4 — Canonical Host &amp; Runtime Fix","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V56_4.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="teostudio-v564--canonical-host--runtime-fix">TeoStudio V56.4 — Canonical Host &amp; Runtime Fix</h1>
+
+<h2 id="root-cause-addressed">Root cause addressed</h2>
+<p>V56.3 had canonical-host redirection in the Worker, but Cloudflare Workers Static Assets default to asset-first routing (<code class="language-plaintext highlighter-rouge">run_worker_first = false</code>). Thus, a page URL matching a static file could be served without running the Worker redirect. On <code class="language-plaintext highlighter-rouge">*.workers.dev</code>, the browser then called APIs with the preview origin; write requests were rejected by the allowed-origin check, resulting in Turnstile config, AI, and Admin errors.</p>
+
+<h2 id="changes">Changes</h2>
+<ul>
+  <li>Set <code class="language-plaintext highlighter-rouge">assets.run_worker_first = true</code> so the Worker runs before static assets. Cloudflare documents this setting as the way to invoke the Worker script before returning static assets.</li>
+  <li>Redirect page GET/HEAD requests on <code class="language-plaintext highlighter-rouge">*.workers.dev</code> and <code class="language-plaintext highlighter-rouge">www.teostudio.top</code> to <code class="language-plaintext highlighter-rouge">https://teostudio.top</code>.</li>
+  <li>Return HTTP 421 <code class="language-plaintext highlighter-rouge">CANONICAL_HOST_REQUIRED</code> for API calls made directly on non-canonical hosts; do not relax CORS or permit preview-host login.</li>
+  <li>Preserve the SePay webhook path for compatibility; keep the configured live endpoint at <code class="language-plaintext highlighter-rouge">https://teostudio.top/api/webhook/sepay</code>.</li>
+  <li>Improve Admin login and AI UI messages for host/API failures.</li>
+  <li>Update frontend cache-busting and version fingerprint to <code class="language-plaintext highlighter-rouge">v56.4-canonical-runtime-fix</code>.</li>
+</ul>
+
+<h2 id="runtime-services-still-require-setup">Runtime services still require setup</h2>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">TURNSTILE_SITE_KEY</code> (Variable) and <code class="language-plaintext highlighter-rouge">TURNSTILE_SECRET</code> (Secret) in Runtime Production; widget allowlist has <code class="language-plaintext highlighter-rouge">teostudio.top</code>.</li>
+  <li><code class="language-plaintext highlighter-rouge">AI_API_URL</code>, <code class="language-plaintext highlighter-rouge">AI_API_KEY</code> (Secret), <code class="language-plaintext highlighter-rouge">AI_MODEL</code> to enable actual model replies. Without these, Teo AI uses its documented fallback responses.</li>
+  <li><code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_PASS</code> (Secret) plus valid SMTP mailbox settings for registration/verification/reset emails.</li>
+  <li><code class="language-plaintext highlighter-rouge">TELEGRAM_BOT_TOKEN</code> (Secret) + <code class="language-plaintext highlighter-rouge">TELEGRAM_CHAT_ID</code> for Telegram notifications.</li>
+  <li>Preserve <code class="language-plaintext highlighter-rouge">DB</code>, <code class="language-plaintext highlighter-rouge">ADMIN_KEY</code>, <code class="language-plaintext highlighter-rouge">SEPAY_API_KEY</code>, <code class="language-plaintext highlighter-rouge">SEPAY_BANK_CODE</code>, and <code class="language-plaintext highlighter-rouge">SEPAY_ACCOUNT_NUMBER</code>.</li>
+</ul>
+
+<h2 id="verification-limits">Verification limits</h2>
+<p>Local syntax/static checks do not prove live Worker deployment, D1 connectivity, SePay webhook processing, SMTP delivery, Turnstile hostname acceptance, or AI provider connectivity.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

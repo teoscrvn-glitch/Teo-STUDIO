@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Deploy V54 from Android — careful production checklist | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Deploy V54 from Android — careful production checklist" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/DEPLOY_V52_MOBILE.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/DEPLOY_V52_MOBILE.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Deploy V54 from Android — careful production checklist" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Deploy V54 from Android — careful production checklist","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/DEPLOY_V52_MOBILE.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="deploy-v54-from-android--careful-production-checklist">Deploy V54 from Android — careful production checklist</h1>
+
+<blockquote>
+  <p>Package source is based on the V52 ZIP supplied for this repair; it is not an exported snapshot of current GitHub main. Compare any newer production changes first. Do not upload a ZIP as a file and expect Cloudflare to extract it.</p>
+</blockquote>
+
+<ol>
+  <li>Download and extract <code class="language-plaintext highlighter-rouge">TeoStudio-V54-Rental-Catalog.zip</code> on Android. It is arranged as repository-root contents: <code class="language-plaintext highlighter-rouge">cloudflare/</code>, <code class="language-plaintext highlighter-rouge">frontend/</code>, and the docs at the top level.</li>
+  <li>Open GitHub <code class="language-plaintext highlighter-rouge">teoscrvn-glitch/Teo-STUDIO</code>. The Worker Builds settings use root directory <code class="language-plaintext highlighter-rouge">cloudflare</code> and command <code class="language-plaintext highlighter-rouge">npx wrangler deploy</code>, so the target path is exactly <code class="language-plaintext highlighter-rouge">cloudflare/worker.js</code>, with <code class="language-plaintext highlighter-rouge">cloudflare/wrangler.toml</code> alongside it. Do not place an extra <code class="language-plaintext highlighter-rouge">teo_v43/</code> directory above <code class="language-plaintext highlighter-rouge">cloudflare/</code>.</li>
+  <li>Replace/merge matching files at the same repo paths. At minimum the Worker + <code class="language-plaintext highlighter-rouge">wrangler.toml</code>, frontend tenant/product/rental/admin files, CSS and docs. Keep user-specific pages/settings and any production-only changes after comparing. Do not upload <code class="language-plaintext highlighter-rouge">.zip</code> in place of extracting it.</li>
+  <li>Commit to a branch/commit and inspect the new Cloudflare build log. Confirm the commit hash being built is the new commit; never click “Retry build” on an older failing commit expecting new code to appear.</li>
+  <li>Confirm <code class="language-plaintext highlighter-rouge">/api/health</code> says <code class="language-plaintext highlighter-rouge">version: v54-rental-catalog-payout</code>; then check <code class="language-plaintext highlighter-rouge">/api/rental/config</code>. This only verifies deployment/config, not real payment settlement.</li>
+  <li>In Worker Settings → Variables and Secrets, preserve all existing secrets and existing D1 binding/database ID. Configure only missing payment values using the existing SePay receiving account: <code class="language-plaintext highlighter-rouge">SEPAY_BANK_CODE</code>, <code class="language-plaintext highlighter-rouge">SEPAY_ACCOUNT_NUMBER</code>, and matching <code class="language-plaintext highlighter-rouge">SEPAY_API_KEY</code>. Never paste secret values into GitHub or chat. Do not change the receiving bank account as part of this deployment.</li>
+  <li>Confirm the public Turnstile site key and private secret are a matching pair and approved for <code class="language-plaintext highlighter-rouge">teostudio.top</code>. Keep <code class="language-plaintext highlighter-rouge">TURNSTILE_SECRET</code> as a Secret, not a public variable.</li>
+  <li>Test the SePay webhook “Gửi thử” after deployment. If it returns 401, check that SePay API Key equals <code class="language-plaintext highlighter-rouge">SEPAY_API_KEY</code> exactly and that the current deployed code is the one being tested. A green webhook toggle is not proof of payment end-to-end.</li>
+  <li>Test rental and a tenant file sale with a small real transaction only after the above checks. Confirm one paid order, one ledger credit and no second credit on webhook retry. Test withdrawal reserve/reject refund/paid state using a test tenant.</li>
+  <li>Verify the public product page does not return the paid link before webhook confirmation. Do not enable the Free bypass scheme until its provider callback/API can be verified server-side.</li>
+</ol>
+
+<h2 id="v54-additions-and-remaining-verification">V54 additions and remaining verification</h2>
+
+<ul>
+  <li>This source adds Free email signup and a two-step bypass flow, main-catalog product checkout, manual Free/Paid tenant creation, and additional statistics. These are source-code flows only; they are not live-payment verified.</li>
+  <li>Configure <code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_PASS</code> for email codes. Configure both <code class="language-plaintext highlighter-rouge">TURNSTILE_SITE_KEY</code> and <code class="language-plaintext highlighter-rouge">TURNSTILE_SECRET</code>; the Worker fails closed when either is missing.</li>
+  <li>Free bypass requires <code class="language-plaintext highlighter-rouge">FREE_BYPASS_TEMPLATE_1</code>, <code class="language-plaintext highlighter-rouge">FREE_BYPASS_TEMPLATE_2</code>, <code class="language-plaintext highlighter-rouge">FREE_BYPASS_VERIFY_URL</code>, and <code class="language-plaintext highlighter-rouge">FREE_BYPASS_API_KEY</code>. The provider verification URL must return JSON with <code class="language-plaintext highlighter-rouge">success:true</code>, <code class="language-plaintext highlighter-rouge">completed:true</code>, and the exact submitted <code class="language-plaintext highlighter-rouge">state</code> only after real server-side confirmation. If the provider does not support this contract, keep the bypass unconfigured.</li>
+  <li>Local syntax checks do not verify real SePay settlement, email delivery, provider callbacks, production domain routing, current GitHub branch merge, edge WAF/rate limits, or D1 backup. Main-site owner withdrawals are not implemented as a separate ledger in this release.</li>
+</ul>
+
+<h2 id="runtime-vs-builds-settings--v54-correction">Runtime vs Builds settings — V54 correction</h2>
+
+<p>The Cloudflare Builds screen is not the runtime Worker environment. After the build, open Workers &amp; Pages → <code class="language-plaintext highlighter-rouge">teo-studio</code> → Settings → Variables and Secrets and ensure runtime has <code class="language-plaintext highlighter-rouge">SEPAY_API_KEY</code> (Secret), <code class="language-plaintext highlighter-rouge">SEPAY_BANK_CODE</code>, <code class="language-plaintext highlighter-rouge">SEPAY_ACCOUNT_NUMBER</code>, <code class="language-plaintext highlighter-rouge">TURNSTILE_SITE_KEY</code>, and <code class="language-plaintext highlighter-rouge">TURNSTILE_SECRET</code> (Secret). <code class="language-plaintext highlighter-rouge">SEPAY_ACCOUNT_NAME</code> is optional. Keep receiving-account values unchanged. See <code class="language-plaintext highlighter-rouge">V54_FIXES_AND_RUNTIME_SETUP.md</code>.</p>
+
+<p>Deploy both <code class="language-plaintext highlighter-rouge">cloudflare/</code> and <code class="language-plaintext highlighter-rouge">frontend/</code> contents from the ZIP, since <code class="language-plaintext highlighter-rouge">wrangler.toml</code> binds the frontend assets from <code class="language-plaintext highlighter-rouge">../frontend</code>. Check <code class="language-plaintext highlighter-rouge">/api/health</code> for <code class="language-plaintext highlighter-rouge">v54-rental-catalog-payout</code> and the frontend HTML meta marker for the same version.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

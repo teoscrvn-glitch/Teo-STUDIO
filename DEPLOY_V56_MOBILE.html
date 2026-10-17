@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>TeoStudio V56 — Deploy checklist for mobile | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="TeoStudio V56 — Deploy checklist for mobile" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/DEPLOY_V56_MOBILE.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/DEPLOY_V56_MOBILE.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="TeoStudio V56 — Deploy checklist for mobile" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"TeoStudio V56 — Deploy checklist for mobile","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/DEPLOY_V56_MOBILE.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="teostudio-v56--deploy-checklist-for-mobile">TeoStudio V56 — Deploy checklist for mobile</h1>
+
+<blockquote>
+  <p><strong>Important:</strong> this is a prepared source archive. It has not been deployed to <code class="language-plaintext highlighter-rouge">teostudio.top</code>, and this package was created from the V54 ZIP in the conversation plus the V55 work package, not from a live export of the GitHub default branch. Compare/merge carefully.</p>
+</blockquote>
+
+<h2 id="0-before-deploying">0. Before deploying</h2>
+
+<ol>
+  <li>Download this ZIP and keep a copy of the currently working production source.</li>
+  <li>Cloudflare Dashboard → D1 → <code class="language-plaintext highlighter-rouge">teo-studio</code>: export/backup or use the available recovery/Time Travel feature before any migration.</li>
+  <li>Keep the same D1 database ID and Worker binding <code class="language-plaintext highlighter-rouge">DB</code>. Do not delete/reset any tables.</li>
+  <li>Compare your GitHub <code class="language-plaintext highlighter-rouge">teoscrvn-glitch/Teo-STUDIO</code> branch to the archive. Build from a new commit; do not overwrite newer changes blindly.</li>
+  <li>Expect <strong>wallet-only new file purchases</strong> in V56. The old per-file QR creation API is disabled. Old order records remain in D1, but you should not test by paying old QR orders repeatedly.</li>
+</ol>
+
+<h2 id="1-runtime-production-variablessecrets">1. Runtime Production variables/secrets</h2>
+
+<p>Go to <strong>Workers &amp; Pages → <code class="language-plaintext highlighter-rouge">teo-studio</code> → Settings → Variables and Secrets → Production</strong>. Keep all existing values and set/check the following names exactly. Variables under Build settings are not a substitute for Runtime bindings.</p>
+
+<h3 id="required-core">Required core</h3>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">ADMIN_KEY</code> — Secret, keep existing value.</li>
+  <li><code class="language-plaintext highlighter-rouge">SEPAY_API_KEY</code> — Secret, keep existing value that matches SePay’s configured API Key authentication.</li>
+  <li><code class="language-plaintext highlighter-rouge">SEPAY_BANK_CODE</code> — Variable, keep the bank code used by the current MB account.</li>
+  <li><code class="language-plaintext highlighter-rouge">SEPAY_ACCOUNT_NUMBER</code> — Variable, keep the existing receiving account number.</li>
+  <li><code class="language-plaintext highlighter-rouge">TURNSTILE_SITE_KEY</code> — Variable, matching the production Turnstile widget site key.</li>
+  <li><code class="language-plaintext highlighter-rouge">TURNSTILE_SECRET</code> — Secret, the matching secret key for that same widget.</li>
+  <li>D1 binding <code class="language-plaintext highlighter-rouge">DB</code> → existing <code class="language-plaintext highlighter-rouge">teo-studio</code> database.</li>
+</ul>
+
+<h3 id="required-for-email-registration-and-password-reset">Required for email registration and password reset</h3>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_PASS</code> — Secret; mailbox password, not the email address.</li>
+  <li><code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_HOST</code> — Variable, <code class="language-plaintext highlighter-rouge">mail.teostudio.top</code> by default.</li>
+  <li><code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_PORT</code> — Variable, <code class="language-plaintext highlighter-rouge">465</code>.</li>
+  <li><code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_USER</code> — Variable, <code class="language-plaintext highlighter-rouge">teostudio@teostudio.top</code> by default.</li>
+  <li><code class="language-plaintext highlighter-rouge">EMAIL_FROM</code> — Variable, <code class="language-plaintext highlighter-rouge">teostudio@teostudio.top</code> (if not set, Worker default is used).</li>
+  <li><code class="language-plaintext highlighter-rouge">EMAIL_ADMIN_TO</code> — Variable, admin notification recipient (optional; default used if unset).</li>
+</ul>
+
+<p>If <code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_PASS</code> is absent or invalid, email verification and password-reset flows will not work. Configure it in Cloudflare Runtime as a Secret, not in frontend code or <code class="language-plaintext highlighter-rouge">wrangler.toml</code>. Then test by using the admin email-test feature/endpoint and registering a test account.</p>
+
+<h3 id="optional-ai-provider">Optional AI provider</h3>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">AI_API_URL</code> — Variable, an <strong>HTTPS</strong> endpoint compatible with OpenAI Chat Completions.</li>
+  <li><code class="language-plaintext highlighter-rouge">AI_API_KEY</code> — Secret.</li>
+  <li><code class="language-plaintext highlighter-rouge">AI_MODEL</code> — Variable, exact model identifier from the provider.</li>
+</ul>
+
+<p>Without all three, the Teo AI bubble remains available in fallback mode for a few basic help responses, but it does not call a full remote AI model. A provider’s free tier may have quotas or change; check the provider’s current terms and rate limits. Never put the API key in HTML/JavaScript or a public repository.</p>
+
+<h3 id="optional-telegram-error-notification">Optional Telegram error notification</h3>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">TELEGRAM_BOT_TOKEN</code> — Secret from BotFather.</li>
+  <li><code class="language-plaintext highlighter-rouge">TELEGRAM_CHAT_ID</code> — Variable or Secret, the bot’s destination chat/group ID. Add the bot to the group and grant it permission to send messages.</li>
+</ul>
+
+<p>Without these settings, reports should still save to D1 but will not be delivered to Telegram. Test with a non-sensitive report.</p>
+
+<h2 id="2-build-and-deploy">2. Build and deploy</h2>
+
+<ol>
+  <li>In GitHub, merge <code class="language-plaintext highlighter-rouge">cloudflare/</code> and <code class="language-plaintext highlighter-rouge">frontend/</code> into the repository root structure expected by the existing Cloudflare build. Do not create an extra nested folder around them.</li>
+  <li>Preserve <code class="language-plaintext highlighter-rouge">cloudflare/wrangler.toml</code>’s current database name/ID and <code class="language-plaintext highlighter-rouge">DB</code> binding. Check the Worker build output before production.</li>
+  <li>Deploy from a new commit using the existing Cloudflare build workflow.</li>
+  <li>Open <code class="language-plaintext highlighter-rouge">https://teostudio.top/api/health</code>; it should identify <code class="language-plaintext highlighter-rouge">v56-security-moderation-account-comments</code>. If the version stays old, you have not deployed this Worker build.</li>
+  <li>Hard-refresh or open a private tab. Updated pages use <code class="language-plaintext highlighter-rouge">v=56</code> asset query parameters to avoid stale cached JavaScript.</li>
+</ol>
+
+<h2 id="3-regression-tests-use-staging-first">3. Regression tests (use staging first)</h2>
+
+<ul>
+  <li>Open homepage, detail page and download page. Detail/download must not call the old QR flow.</li>
+  <li>Registration: email code arrives, verification succeeds, login works, reset code arrives, reset works. If email not configured, fix SMTP instead of bypassing verification.</li>
+  <li>Wallet: logged-in and verified buyer creates a top-up QR. Credit the wallet only after SePay webhook matches a pending code and exact amount; compare bank ledger and D1. Avoid repeated real transfers.</li>
+  <li>Buy file: require login, verified email, Turnstile, terms checkbox and final confirmation. Confirm buyer debit, 95% seller ledger and 5% commission, link delivered only to the authorized buyer, and duplicate request does not debit twice.</li>
+  <li>Bypass attempts: call public paid-file API directly, alter a product/order ID, send an old per-file QR request, reuse a Turnstile token and send a cross-site write. Public APIs must not reveal a paid source link; invalid writes must fail.</li>
+  <li>Comments: anonymous/unverified posts rejected; display name comes from account; CAPTCHA required; one valid image is saved hidden; image only appears publicly after moderation; flood 6 photos and verify limits.</li>
+  <li>Admin security: add a test email and test IP to the D1 blocklist via Admin → “Chặn IP/email”. Email is denied account actions; IP gets generic 404. Verify an authorized admin can remove the test block. Never block your own current IP without a recovery path.</li>
+  <li>Error reporting: send a test report and verify Admin list; if Telegram configured, verify alert arrives. Confirm IP is visible only in Admin/Telegram and email is masked in public surfaces.</li>
+  <li>Statistics: choose current month and compare orders/ledger rows against D1/SePay. Top-ups must not be misreported as file revenue.</li>
+  <li>AI: test both configured provider and fallback mode. The model must not be able to edit balances, mark an order paid, approve withdrawals or change permissions.</li>
+</ul>
+
+<h2 id="4-edge-level-controls-do-separately">4. Edge-level controls (do separately)</h2>
+
+<p>Worker-local throttles are not global DDoS protection. In Cloudflare Zone <code class="language-plaintext highlighter-rouge">teostudio.top</code> → <strong>Security → Security rules → Rate limiting rules</strong>, start with monitored/managed-challenge limits for login, registration, password reset, comments, <code class="language-plaintext highlighter-rouge">/api/support/report</code>, wallet top-ups and purchases. Tune to observed legitimate traffic. Do not broadly challenge/block the SePay webhook without considering provider retries; it still requires valid API Key authentication in the Worker. Enable Managed WAF/Bot controls if available and test mobile, Turnstile and webhook flows after changes.</p>
+
+<p>References:</p>
+<ul>
+  <li>https://developers.cloudflare.com/turnstile/get-started/server-side-validation/</li>
+  <li>https://developers.cloudflare.com/waf/rate-limiting-rules/create-zone-dashboard/</li>
+  <li>https://www.anthropic.com/research/trustworthy-agents</li>
+  <li>See <code class="language-plaintext highlighter-rouge">SECURITY_PLAYBOOK_TEOSTUDIO.md</code> for the reusable security knowledge and regression checklist.</li>
+</ul>
+
+<h2 id="rollback">Rollback</h2>
+
+<p>If any core flow breaks, roll back the Worker/frontend to the preserved V54/V55 commit and keep the same D1 database. Do not run a reset script, drop tables or restore an old empty database over production. Check payment status with SePay/bank records before retrying any money movement.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>
