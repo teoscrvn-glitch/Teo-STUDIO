@@ -1,37 +1,39 @@
-# TeoStudio V54
+# TeoStudio V57.1 — Stable Release Candidate
 
-This source update is based on the supplied `TeoStudio-V52-Security-Rental.zip`. See `VERSION_V54.md` for changes, setup requirements, and limitations; see `TEST_REPORT_V54.md` for local checks.
+Bản phát hành hợp nhất dựa trên mã nguồn V56.4, ưu tiên giữ lại luồng SePay/rental hiện có trong Worker, sửa cơ chế kiểm tra cấu hình và hoàn thiện luồng tài khoản/ví/Builder/AI/report.
 
-Important: this archive is not a live production backup and has not been deployed. Preserve the existing Cloudflare D1 binding/database ID and secrets, compare against the current GitHub branch, and back up D1 before rollout.
+## Trạng thái trung thực
 
-# Téo Studio — Security & Rental Checkout V52
+- Đã chạy kiểm tra cú pháp JavaScript Worker và frontend, kiểm tra script nội tuyến HTML, kiểm tra các dấu mốc cấu hình và quét chuỗi giống secret trong source.
+- Đã thêm API chẩn đoán `/api/health` trả phiên bản và trạng thái cấu hình/bảng thiếu theo tên biến, không trả giá trị bí mật.
+- Chưa deploy từ môi trường này lên tài khoản Cloudflare của bạn; chưa xác minh live D1, email thật, AI thật, Telegram thật, Turnstile thật hay webhook SePay thật.
+- Đây là bản release candidate để kiểm tra trên production/staging sau khi sao lưu, không phải cam kết không còn bug.
 
-Gói nguồn V52: bổ sung nền tảng thanh toán SePay/VietQR, theo dõi doanh thu tenant và hardening bảo mật.
+## Chức năng đang có trong code
 
-**Đây là gói nguồn để đối chiếu/triển khai có kiểm soát, không phải xác nhận đã deploy production.**
+- Tài khoản người mua: đăng ký, xác minh email, đăng nhập, reset mật khẩu, profile, lịch sử mua và số dư.
+- Nạp ví qua QR VietQR; chỉ webhook SePay hợp lệ mới ghi ledger top-up.
+- Mua file qua số dư nội bộ, xác nhận điều khoản hai bước, Turnstile, idempotency và 5% phí nền tảng với file tenant.
+- Tài khoản có thể tạo/thuê studio; link Admin và trang Share; giữ hỗ trợ các tài khoản tenant cũ.
+- Share Studio Builder dạng block, lưu layout qua API và xem trước.
+- Báo cáo thống kê, báo lỗi, thông báo và kiểm duyệt bình luận/ảnh.
+- Chặn IP/email bền vững trong D1, giới hạn request và bảo vệ truy cập file trả phí.
+- Bong bóng Teo AI có fallback an toàn; kết nối model thật chỉ hoạt động khi cấu hình AI tương thích Chat Completions.
+- Kiểm tra trạng thái cấu hình AI, SMTP, Telegram, Turnstile, SePay và D1 trong Admin.
+- Dòng giao dịch gần đây chỉ hiện cho người mua đã tự bật chia sẻ; email được che. Mặc định người mua không tham gia feed công khai. Cả API feed mới và endpoint lịch sử tương thích cũ đều bắt buộc opt-in.
 
-## Sửa chính
-- Tương thích tenant_accounts cũ dùng `id`, `tenant_id` hoặc `slug`.
-- Lookup tenant master/admin/share không còn phụ thuộc duy nhất vào một cột khóa.
-- Chuẩn hóa tenant trước khi Share File đọc settings/files/tags/comments.
-- Sửa thao tác gia hạn/đổi mật khẩu/khóa/xóa tenant để dùng đúng canonical tenant id.
-- Re-auth Admin: sai mật khẩu xác minh không làm mất session ngay.
-- Health API đổi version thành `rental-v27-safe` để kiểm tra đúng bản Worker đang chạy.
-- Ảnh nền avatar hiển thị thành một dải nhỏ phía sau avatar; avatar nằm đè khoảng giữa ảnh nền và bên ngoài.
-- Giữ nguyên D1 hiện tại, không reset database.
-- Giữ khu vực dịch vụ TikTok / YouTube / Zalo ở cuối Share File.
+## Cấu trúc
 
-## Deploy
-Upload/deploy `cloudflare/worker.js` và frontend đi kèm. Sau deploy kiểm tra `/api/health`; kết quả phải có `version: rental-v27-safe`.
+- `cloudflare/worker.js`: API, xác thực, thanh toán và middleware.
+- `cloudflare/wrangler.toml`: Worker, static assets và binding D1 đang có.
+- `cloudflare/schema*.sql`: schema nền tảng/lịch sử; Worker có thêm bảng/column idempotent qua `ensure...Schema`.
+- `frontend/`: các trang HTML, CSS và JS. Trang `earn.html` giữ đích liên kết “Điểm” cũ hoạt động và giải thích rõ chương trình điểm thưởng riêng chưa bật.
+- `scripts/check-build.sh`: kiểm tra tĩnh trước khi push.
+- `scripts/check-live.sh`: đọc `/api/health` sau deploy.
+- `VERSION_V57_1.md` và `TEST_REPORT_V57_1.md`: ghi chú release và checklist acceptance.
+- `DEPLOY_V57_1_MOBILE.md`: triển khai trên Android/Termux.
+- `CONFIGURATION_V57_1.md`: danh sách biến Runtime và cách test dịch vụ.
 
+## Nguyên tắc nâng cấp D1
 
-## V52 Security / Rental checkout update
-See `VERSION_V52.md` for scope and limitations, and `SECURITY_HARDENING_V52.md` for required Cloudflare edge configuration. This source keeps the current D1 and performs additive migrations only. Do not reset production database or expose secrets.
-
-
-## V52 security and rental checkout
-
-See `VERSION_V52.md`, `SECURITY_HARDENING_V52.md`, and `DEPLOY_V52_MOBILE.md` for current features, known gaps, and safe production rollout. This archive is based on the V51 package available in the conversation, not a verified export of the current GitHub main branch. Compare/merge matching paths; keep the existing D1 database ID and secrets. Do not reset production D1.
-
-
-See `V54_FIXES_AND_RUNTIME_SETUP.md` for runtime SePay/Turnstile setup, why stale frontend files hide sale-mode and wallet forms, and production-safe verification steps.
+Không tạo database mới để thay thế D1 cũ và không chạy lệnh DROP/RESET. Sao lưu D1 trước, giữ nguyên `database_id`, binding `DB` và tất cả secrets hiện tại. Bảng/cột mới được tạo bằng `CREATE TABLE IF NOT EXISTS`/`addColumnSafe` khi endpoint tương ứng được gọi.
