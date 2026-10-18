@@ -48,7 +48,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v56.6-admin-route-fix-manual-ip-block';
+const BUILD_VERSION='v56.7-pbkdf2-tenant-login-fix';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -213,14 +213,17 @@ async function ensureV55Schema(e){
 async function hashPasswordV55(password){
   const salt=crypto.getRandomValues(new Uint8Array(16));
   const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(String(password)),'PBKDF2',false,['deriveBits']);
-  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt,iterations:120000},key,256);
+  const iterations=100000; // Cloudflare Workers WebCrypto currently rejects PBKDF2 iterations above 100000.
+  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt,iterations},key,256);
   const hex=a=>[...new Uint8Array(a)].map(v=>v.toString(16).padStart(2,'0')).join('');
-  return `pbkdf2$120000$${hex(salt)}$${hex(bits)}`;
+  return `pbkdf2$${iterations}$${hex(salt)}$${hex(bits)}`;
 }
 async function verifyPasswordV55(password,stored){
   const x=String(stored||'').split('$');if(x.length!==4||x[0]!=='pbkdf2')return false;
   const fromHex=h=>Uint8Array.from((h.match(/.{2}/g)||[]).map(v=>parseInt(v,16)));
-  const iterations=Math.max(100000,Math.min(200000,Number(x[1])||120000));
+  const iterations=Number(x[1])||100000;
+  // Match the runtime-supported ceiling; never silently change the iteration count for a stored hash.
+  if(!Number.isInteger(iterations)||iterations<10000||iterations>100000)return false;
   try{const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(String(password)),'PBKDF2',false,['deriveBits']);const bits=await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:fromHex(x[2]),iterations},key,256);return safeEq([...new Uint8Array(bits)].map(v=>v.toString(16).padStart(2,'0')).join(''),x[3])}catch{return false}
 }
 async function buyerFromRequest(r,e){const tok=tokenFrom(r);if(!tok)return null;await ensureV55Schema(e);const row=await e.DB.prepare(`SELECT a.* FROM buyer_sessions s JOIN buyer_accounts a ON a.id=s.buyer_id WHERE s.token=? AND s.expires_at>? LIMIT 1`).bind(tok,Date.now()).first();if(!row||Number(row.locked)===1)return null;if(await securityBlocked(e,'email',row.email_normalized||row.email)){try{await e.DB.prepare('DELETE FROM buyer_sessions WHERE token=?').bind(tok).run()}catch{}return null}return row}
@@ -619,20 +622,24 @@ function tenantDaysLeft(x){
 function tenantInfo(x){const freeGate=String(x?.plan_type||'paid')==='free'&&Number(x?.free_admin_unlocked||0)!==1&&!x?.deleted_at&&!Number(x?.locked);return {id:x?.id??x?.tenant_id,slug:x?.slug??x?.tenant_id??x?.id,startsAt:x?.starts_at,expiresAt:x?.expires_at,daysLeft:tenantDaysLeft(x),status:freeGate?'free_bypass_required':tenantStatus(x),locked:!!x?.locked,deleted:!!x?.deleted_at,planType:String(x?.plan_type||'paid'),freeBypassCount:Number(x?.free_bypass_count||0),freeAdminUnlocked:Number(x?.free_admin_unlocked||0)===1,referralCode:String(x?.slug||x?.id||x?.tenant_id||''),createdAt:x?.created_at}}
 async function tenantPasswordMatches(e,t,password){
   const raw=String(password??'');
+  const stored=String(t?.password_hash||'');
   const hash=await sha256(raw);
-  if(String(t?.password_hash||'')===hash)return true;
-  // Compatibility with very old rental schemas that kept a legacy plaintext/password column.
-  // If found, accept it once and immediately migrate it to SHA-256.
+  if(stored===hash)return true;
+  // Legacy rental deployments may have stored the password directly in password_hash,
+  // or in password/pass columns. Accept only an exact match and migrate it immediately.
   try{
     const cols=(await e.DB.prepare('PRAGMA table_info(tenant_accounts)').all()).results||[];
     const names=new Set(cols.map(x=>x.name));
-    for(const col of ['password','pass']){
-      if(names.has(col)&&String(t?.[col]??'')===raw){
-        const key=await tenantAccountKeyColumn(e);
-        if(key)await e.DB.prepare(`UPDATE tenant_accounts SET password_hash=? WHERE ${key}=?`).bind(hash,t.id).run();
-        return true;
-      }
+    const legacyPlain=(stored && stored===raw) || ['password','pass'].some(col=>names.has(col)&&String(t?.[col]??'')===raw);
+    if(legacyPlain){
+      const keys=[];
+      if(names.has('id')&&t?.id!=null)keys.push(['id',t.id]);
+      if(names.has('tenant_id')&&t?.tenant_id!=null)keys.push(['tenant_id',t.tenant_id]);
+      if(names.has('slug')&&t?.slug)keys.push(['slug',t.slug]);
+      for(const [col,value] of keys)await e.DB.prepare(`UPDATE tenant_accounts SET password_hash=? WHERE ${col}=?`).bind(hash,value).run();
+      return true;
     }
+    // Legacy hash formats are intentionally not guessed: a wrong migration could lock out tenants.
   }catch{}
   return false;
 }
@@ -660,7 +667,7 @@ async function tenantByLogin(e,identifier,password){
   // Prefer the account whose stored password actually matches. This prevents a
   // legacy duplicate row from shadowing the real tenant after a migration/update.
   for(const row of rows){
-    if(String(row?.password_hash||'')===hash)return row;
+    if(String(row?.password_hash||'')===hash||String(row?.password_hash||'')===String(password??''))return row;
     try{
       const cols=(await e.DB.prepare('PRAGMA table_info(tenant_accounts)').all()).results||[];
       const names=new Set(cols.map(x=>x.name));
