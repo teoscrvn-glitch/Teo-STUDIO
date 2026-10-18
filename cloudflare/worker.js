@@ -48,7 +48,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v56.7-pbkdf2-tenant-login-fix';
+const BUILD_VERSION='v56.8-tenant-login-ui-cta-fix';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -625,6 +625,10 @@ async function tenantPasswordMatches(e,t,password){
   const stored=String(t?.password_hash||'');
   const hash=await sha256(raw);
   if(stored===hash)return true;
+  // Tenant accounts created by V55+ use PBKDF2. Verify this format before
+  // considering legacy SHA-256/plaintext records; otherwise valid older rentals
+  // appear to reload the login form without ever opening the admin panel.
+  if(stored.startsWith('pbkdf2$') && await verifyPasswordV55(raw,stored))return true;
   // Legacy rental deployments may have stored the password directly in password_hash,
   // or in password/pass columns. Accept only an exact match and migrate it immediately.
   try{
@@ -663,18 +667,10 @@ async function tenantBySlug(e,slug){
 }
 async function tenantByLogin(e,identifier,password){
   const rows=await tenantCandidates(e,identifier);
-  const hash=await sha256(String(password??''));
-  // Prefer the account whose stored password actually matches. This prevents a
-  // legacy duplicate row from shadowing the real tenant after a migration/update.
+  // Match the password using every supported stored format. Do not select the
+  // newest duplicate row blindly: older rental records may share an ID/slug.
   for(const row of rows){
-    if(String(row?.password_hash||'')===hash||String(row?.password_hash||'')===String(password??''))return row;
-    try{
-      const cols=(await e.DB.prepare('PRAGMA table_info(tenant_accounts)').all()).results||[];
-      const names=new Set(cols.map(x=>x.name));
-      for(const col of ['password','pass']){
-        if(names.has(col)&&String(row?.[col]??'')===String(password??''))return row;
-      }
-    }catch{}
+    if(await tenantPasswordMatches(e,row,password))return row;
   }
   return rows[0]||null;
 }
