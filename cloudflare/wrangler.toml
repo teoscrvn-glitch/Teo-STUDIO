@@ -2,6 +2,13 @@ name = "teo-studio"
 main = "worker.js"
 compatibility_date = "2026-09-18"
 
+# Keep existing non-secret Production variables in sync with Cloudflare Builds.
+# Secrets (ADMIN_KEY, SEPAY_API_KEY, TURNSTILE_SECRET, OXMAIL_SMTP_PASS) stay in Cloudflare Secret storage.
+[vars]
+SEPAY_ACCOUNT_NUMBER = "0979498243"
+SEPAY_BANK_CODE = "MB"
+TURNSTILE_SITE_KEY = "0x4AAAAAAFM6DoL2w6HDogkC"
+
 [assets]
 directory = "../frontend"
 binding = "ASSETS"
