@@ -11,7 +11,7 @@ node --check cloudflare/worker.js
 printf '%s\n' '[2/4] Checking frontend JavaScript syntax...'
 find frontend/assets/js -type f -name '*.js' -exec node --check '{}' \;
 printf '%s\n' '[3/4] Checking release fingerprint and admin blocklist...'
-grep -q "v56.8-tenant-login-ui-cta-fix" cloudflare/worker.js
+grep -q "v56.10-config-preserve-tenant-login-diagnostic" cloudflare/worker.js
 grep -q "security_blocks" cloudflare/worker.js
 grep -q "api/admin/security/blocks" cloudflare/worker.js
 printf '%s\n' '[4/4] Ensuring automatic IP bans are absent...'

@@ -9,3 +9,9 @@
 7. Only after those pass, merge/deploy the same code to Production. Preserve all existing production secrets and the production D1 database.
 
 This package does not configure SMTP or AI API keys and does not claim a live deployment.
+
+
+## V56.9 patch notes
+- Tenant login session failures no longer force an immediate page reload; the login page displays a diagnostic message instead.
+- Tenant file and comment lists now have clearly styled show-more controls and a show-less control after expanding.
+- Frontend cache key bumped to v56.9.
