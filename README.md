@@ -1,3 +1,7 @@
+# Current candidate: V56.14 Wallet & Session UX
+
+Read `DEPLOY_V56_14_WALLET_SESSION.md` and `TEST_REPORT_V56.14.md` before deploying.
+
 # TeoStudio V56.13 — Tenant Dashboard Interactions Fix
 
 This release fixes the tenant-admin JavaScript initialization error that left dashboard tabs and buttons unresponsive, improves recovery from a partial tenant-data API failure, and keeps existing non-secret Production variables in Wrangler config.

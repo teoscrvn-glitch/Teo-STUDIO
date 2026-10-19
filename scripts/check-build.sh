@@ -11,11 +11,15 @@ node --check cloudflare/worker.js
 printf '%s\n' '[2/5] Checking frontend JavaScript syntax...'
 find frontend/assets/js -type f -name '*.js' -exec node --check '{}' \;
 printf '%s\n' '[3/5] Checking release fingerprint and tenant handlers...'
-grep -q "v56.13-tenant-dashboard-interactions" cloudflare/worker.js
-grep -q "v56.13-tenant-dashboard-interactions" frontend/assets/js/config.js
-grep -q 'assets/js/tenant-admin.js?v=56.13' frontend/tenant-admin.html
+grep -q "v56.14-wallet-session-ux" cloudflare/worker.js
+grep -q "v56.14-wallet-session-ux" frontend/assets/js/config.js
+grep -q 'assets/js/tenant-admin.js?v=56.14' frontend/tenant-admin.html
 grep -q 'Promise.allSettled' frontend/assets/js/tenant-admin.js
 grep -q 'syncFilterButtons' frontend/assets/js/tenant-admin.js
+grep -q 'TEO_BUYER_LAST_ACTIVE' frontend/assets/js/account.js
+grep -q 'TEO_TENANT_LAST_ACTIVE' frontend/assets/js/tenant-admin.js
+grep -q 'api/account/purchase' frontend/assets/js/account.js
+grep -q 'v55Topups' frontend/admin.html
 if grep -q 'updateProductModeFields();try{bind()' frontend/assets/js/tenant-admin.js; then
   echo 'ERROR: unsafe out-of-scope updateProductModeFields call still exists.'; exit 1
 fi

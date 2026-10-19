@@ -48,7 +48,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v56.13-tenant-dashboard-interactions';
+const BUILD_VERSION='v56.14-wallet-session-ux';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -226,7 +226,7 @@ async function verifyPasswordV55(password,stored){
   if(!Number.isInteger(iterations)||iterations<10000||iterations>100000)return false;
   try{const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(String(password)),'PBKDF2',false,['deriveBits']);const bits=await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:fromHex(x[2]),iterations},key,256);return safeEq([...new Uint8Array(bits)].map(v=>v.toString(16).padStart(2,'0')).join(''),x[3])}catch{return false}
 }
-async function buyerFromRequest(r,e){const tok=tokenFrom(r);if(!tok)return null;await ensureV55Schema(e);const row=await e.DB.prepare(`SELECT a.* FROM buyer_sessions s JOIN buyer_accounts a ON a.id=s.buyer_id WHERE s.token=? AND s.expires_at>? LIMIT 1`).bind(tok,Date.now()).first();if(!row||Number(row.locked)===1)return null;if(await securityBlocked(e,'email',row.email_normalized||row.email)){try{await e.DB.prepare('DELETE FROM buyer_sessions WHERE token=?').bind(tok).run()}catch{}return null}return row}
+async function buyerFromRequest(r,e){const tok=tokenFrom(r);if(!tok)return null;await ensureV55Schema(e);const now=Date.now();const row=await e.DB.prepare(`SELECT a.* FROM buyer_sessions s JOIN buyer_accounts a ON a.id=s.buyer_id WHERE s.token=? AND s.expires_at>? LIMIT 1`).bind(tok,now).first();if(!row||Number(row.locked)===1)return null;if(await securityBlocked(e,'email',row.email_normalized||row.email)){try{await e.DB.prepare('DELETE FROM buyer_sessions WHERE token=?').bind(tok).run()}catch{}return null}try{await e.DB.prepare('UPDATE buyer_sessions SET expires_at=? WHERE token=? AND expires_at>?').bind(now+7*86400000,tok,now).run()}catch{}return row}
 async function buyerBalance(e,buyerId){await ensureV55Schema(e);const x=await e.DB.prepare('SELECT COALESCE(SUM(amount_vnd),0) AS balance FROM buyer_wallet_ledger WHERE buyer_id=?').bind(buyerId).first();return Math.max(0,Number(x?.balance)||0)}
 function buyerPublic(a){return a?{id:a.id,email:a.email,displayName:a.display_name,avatar:a.avatar||'',emailVerified:Number(a.email_verified)===1,createdAt:a.created_at}:null}
 async function saveBuyerCode(e,email,purpose){
@@ -694,7 +694,8 @@ async function tenantByIdentifier(e,value){
 }
 async function tenantFromSession(r,e){
   const tok=tokenFrom(r);if(!tok)return null;await ensureTenantSchema(e);
-  const row=await e.DB.prepare('SELECT tenant_id FROM tenant_sessions WHERE token=? AND expires_at>?').bind(tok,Date.now()).first();
+  const now=Date.now();const row=await e.DB.prepare('SELECT tenant_id FROM tenant_sessions WHERE token=? AND expires_at>?').bind(tok,now).first();
+  if(row?.tenant_id){try{await e.DB.prepare('UPDATE tenant_sessions SET expires_at=? WHERE token=? AND expires_at>?').bind(now+7*86400000,tok,now).run()}catch{}}
   if(!row?.tenant_id){
     // Unified buyer session can open a studio owned by the same verified email.
     const buyer=await buyerFromRequest(r,e),slug=clean(r.headers.get('x-tenant-slug')||new URL(r.url).searchParams.get('tenant')||'',80);
