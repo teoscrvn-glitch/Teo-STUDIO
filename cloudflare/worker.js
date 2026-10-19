@@ -48,7 +48,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v56.14-wallet-session-ux';
+const BUILD_VERSION='v56.16-account-wallet-tenant-suite';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -91,6 +91,12 @@ async function securityBlocked(e,kind,value){
   if(SECURITY_BLOCK_CACHE.size>10000){for(const [k,x] of SECURITY_BLOCK_CACHE)if(x.expiresAt<=now)SECURITY_BLOCK_CACHE.delete(k);if(SECURITY_BLOCK_CACHE.size>10000)SECURITY_BLOCK_CACHE.clear()}
   SECURITY_BLOCK_CACHE.set(cacheKey,{blocked,expiresAt:now+5000});return blocked;
 }
+async function tenantSecurityBlocked(e,tenantId,kind,value){
+  const v=kind==='email'?String(value||'').trim().toLowerCase():normalizeIpInput(value||'');
+  if(!v||!tenantId)return false;
+  try{await ensureTenantSchema(e);return !!(await e.DB.prepare('SELECT id FROM tenant_security_blocks WHERE tenant_id=? AND kind=? AND value_normalized=? LIMIT 1').bind(String(tenantId),kind,v).first())}catch{return false}
+}
+
 function blockedNotFound(r){const accept=String(r.headers.get('accept')||'').toLowerCase();if(accept.includes('text/html'))return new Response('<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Không tìm thấy trang</title><body style="font-family:system-ui;background:#0a0d16;color:#e5e7eb;padding:12vh 8vw"><h1>404 · Không tìm thấy trang</h1><p>Trang bạn yêu cầu không tồn tại hoặc không thể truy cập.</p></body></html>',{status:404,headers:{...C,'content-type':'text/html;charset=UTF-8','cache-control':'no-store'}});return J({ok:false,error:'NOT_FOUND'},404)}
 function normalizeIpInput(value){const v=String(value||'').trim();if(!v||v.length>80||/[\s/,]/.test(v))return '';if(v.includes(':'))return /^[0-9a-f:.]+$/i.test(v)?v.toLowerCase():'';const parts=v.split('.');if(parts.length!==4||parts.some(x=>!/^\d{1,3}$/.test(x)||Number(x)>255))return '';return parts.map(x=>String(Number(x))).join('.')}
 function rateLimit(r,key,limit=20,windowMs=60000){const now=Date.now(),ip=clientIp(r);if(!ip)return 0;const k=key+':'+ip;const a=RL.get(k)||[];const fresh=a.filter(t=>now-t<windowMs);if(fresh.length>=limit){RL.set(k,fresh);pruneMaps(now);return Math.max(1,Math.ceil((windowMs-(now-fresh[0]))/1000))}fresh.push(now);RL.set(k,fresh);pruneMaps(now);return 0}
@@ -179,7 +185,14 @@ async function ensureV55Schema(e){
       email_verified INTEGER NOT NULL DEFAULT 0,locked INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT(datetime('now')),updated_at TEXT NOT NULL DEFAULT(datetime('now'))
     )`).run();
+    await addColumnSafe(e,'buyer_accounts','login_id','TEXT DEFAULT NULL');
+    await e.DB.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_buyer_login_id ON buyer_accounts(lower(login_id)) WHERE login_id IS NOT NULL AND trim(login_id)<>''`).run();
     await e.DB.prepare(`CREATE TABLE IF NOT EXISTS buyer_sessions(token TEXT PRIMARY KEY,buyer_id TEXT NOT NULL,expires_at INTEGER NOT NULL,created_at TEXT NOT NULL DEFAULT(datetime('now')))` ).run();
+    await addColumnSafe(e,'buyer_sessions','device_key','TEXT DEFAULT NULL');
+    await addColumnSafe(e,'buyer_sessions','device_label',"TEXT NOT NULL DEFAULT ''");
+    await addColumnSafe(e,'buyer_sessions','ip_address',"TEXT NOT NULL DEFAULT ''");
+    await e.DB.prepare(`CREATE TABLE IF NOT EXISTS buyer_known_devices(id TEXT PRIMARY KEY,buyer_id TEXT NOT NULL,device_key TEXT NOT NULL,device_label TEXT NOT NULL DEFAULT '',ip_address TEXT NOT NULL DEFAULT '',first_seen_at TEXT NOT NULL DEFAULT(datetime('now')),last_seen_at TEXT NOT NULL DEFAULT(datetime('now')),UNIQUE(buyer_id,device_key))`).run();
+    await e.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_buyer_known_devices_user ON buyer_known_devices(buyer_id,last_seen_at)`).run();
     await e.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_buyer_sessions_expiry ON buyer_sessions(expires_at)`).run();
     await e.DB.prepare(`CREATE TABLE IF NOT EXISTS buyer_email_codes(id TEXT PRIMARY KEY,email_normalized TEXT NOT NULL,purpose TEXT NOT NULL,code_hash TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,expires_at INTEGER NOT NULL,used_at TEXT DEFAULT NULL,created_at TEXT NOT NULL DEFAULT(datetime('now')))` ).run();
     await e.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_buyer_codes_lookup ON buyer_email_codes(email_normalized,purpose,created_at)`).run();
@@ -228,13 +241,14 @@ async function verifyPasswordV55(password,stored){
 }
 async function buyerFromRequest(r,e){const tok=tokenFrom(r);if(!tok)return null;await ensureV55Schema(e);const now=Date.now();const row=await e.DB.prepare(`SELECT a.* FROM buyer_sessions s JOIN buyer_accounts a ON a.id=s.buyer_id WHERE s.token=? AND s.expires_at>? LIMIT 1`).bind(tok,now).first();if(!row||Number(row.locked)===1)return null;if(await securityBlocked(e,'email',row.email_normalized||row.email)){try{await e.DB.prepare('DELETE FROM buyer_sessions WHERE token=?').bind(tok).run()}catch{}return null}try{await e.DB.prepare('UPDATE buyer_sessions SET expires_at=? WHERE token=? AND expires_at>?').bind(now+7*86400000,tok,now).run()}catch{}return row}
 async function buyerBalance(e,buyerId){await ensureV55Schema(e);const x=await e.DB.prepare('SELECT COALESCE(SUM(amount_vnd),0) AS balance FROM buyer_wallet_ledger WHERE buyer_id=?').bind(buyerId).first();return Math.max(0,Number(x?.balance)||0)}
-function buyerPublic(a){return a?{id:a.id,email:a.email,displayName:a.display_name,avatar:a.avatar||'',emailVerified:Number(a.email_verified)===1,createdAt:a.created_at}:null}
+function buyerPublic(a){return a?{id:a.id,loginId:a.login_id||'',email:a.email,displayName:a.display_name,avatar:a.avatar||'',emailVerified:Number(a.email_verified)===1,createdAt:a.created_at}:null}
 async function saveBuyerCode(e,email,purpose){
   const code=String(crypto.getRandomValues(new Uint32Array(1))[0]%1000000).padStart(6,'0');
   const id=crypto.randomUUID(),expires=Date.now()+10*60*1000;
   await e.DB.prepare("INSERT INTO buyer_email_codes(id,email_normalized,purpose,code_hash,expires_at) VALUES(?,?,?,?,?)").bind(id,email,purpose,await sha256(`${email}|${purpose}|${code}`),expires).run();
   const to=validEmail(email);if(!to)return {ok:false};
-  const sent=await sendOxMail(e,{to,subject:purpose==='verify'?'Xác minh tài khoản TeoStudio':'Đặt lại mật khẩu TeoStudio',text:`Mã xác minh của bạn: ${code}\nMã có hiệu lực trong 10 phút. Nếu bạn không yêu cầu, hãy bỏ qua email này.`}).catch(()=>({ok:false}));
+  const subject=purpose==='verify'?'Xác minh tài khoản TeoStudio':purpose==='change_email'?'Xác minh email mới TeoStudio':'Đặt lại mật khẩu TeoStudio';
+  const sent=await sendOxMail(e,{to,subject,text:`Mã xác minh của bạn: ${code}\nMã có hiệu lực trong 10 phút. Nếu bạn không yêu cầu, hãy bỏ qua email này.`}).catch(()=>({ok:false}));
   if(!sent?.ok){await e.DB.prepare('DELETE FROM buyer_email_codes WHERE id=?').bind(id).run();return {ok:false}}
   return {ok:true,expiresAt:expires};
 }
@@ -251,16 +265,21 @@ async function accountApi(r,e,p){
   if(p==='/api/account/register'&&method==='POST'){
     const rl=limited(r,'account-register',3,60000);if(rl)return rl;
     const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi đăng ký.'},400);
-    const email=validEmail(b.email||'').toLowerCase(),name=clean(b.displayName||b.name||'',80),password=String(b.password||'');
+    const email=validEmail(b.email||'').toLowerCase(),loginId=clean(b.loginId||b.username||'',32),name=clean(b.displayName||loginId,80),password=String(b.password||'');
     if(email&&await securityBlocked(e,'email',email))return J({ok:false,error:'NOT_FOUND',message:'Không thể thực hiện yêu cầu.'},404);
-    if(!email||name.length<2||password.length<8)return J({ok:false,error:'INVALID_REGISTER_DATA',message:'Nhập email hợp lệ, tên ít nhất 2 ký tự và mật khẩu tối thiểu 8 ký tự.'},400);
+    if(!email||!/^[A-Za-z0-9][A-Za-z0-9._-]{2,31}$/.test(loginId)||name.length<2||password.length<8)return J({ok:false,error:'INVALID_REGISTER_DATA',message:'ID cần 3–32 ký tự (chữ, số, ., _ hoặc -); nhập email hợp lệ và mật khẩu tối thiểu 8 ký tự.'},400);
     const existing=await e.DB.prepare('SELECT id,email_verified FROM buyer_accounts WHERE email_normalized=?').bind(email).first();
     if(existing&&Number(existing.email_verified)===1)return J({ok:false,error:'ACCOUNT_EXISTS',message:'Email đã có tài khoản. Hãy đăng nhập hoặc đặt lại mật khẩu.'},409);
-    if(existing)await e.DB.prepare('DELETE FROM buyer_email_codes WHERE email_normalized=? AND purpose=\'verify\'').bind(email).run();
+    const idOwner=await e.DB.prepare('SELECT id FROM buyer_accounts WHERE lower(login_id)=lower(?) LIMIT 1').bind(loginId).first();
+    if(idOwner&&(!existing||String(idOwner.id)!==String(existing.id)))return J({ok:false,error:'LOGIN_ID_EXISTS',message:'ID đăng nhập đã được sử dụng. Hãy chọn ID khác.'},409);
+    if(existing)await e.DB.prepare("DELETE FROM buyer_email_codes WHERE email_normalized=? AND purpose='verify'").bind(email).run();
     const id=existing?.id||crypto.randomUUID(),hash=await hashPasswordV55(password);
-    if(existing)await e.DB.prepare("UPDATE buyer_accounts SET email=?,display_name=?,password_hash=?,email_verified=0,updated_at=datetime('now') WHERE id=?").bind(email,name,hash,id).run();
-    else await e.DB.prepare('INSERT INTO buyer_accounts(id,email,email_normalized,display_name,password_hash) VALUES(?,?,?,?,?)').bind(id,email,email,name,hash).run();
+    try{
+      if(existing)await e.DB.prepare("UPDATE buyer_accounts SET email=?,email_normalized=?,login_id=?,display_name=?,password_hash=?,email_verified=0,updated_at=datetime('now') WHERE id=?").bind(email,email,loginId,name,hash,id).run();
+      else await e.DB.prepare('INSERT INTO buyer_accounts(id,email,email_normalized,login_id,display_name,password_hash) VALUES(?,?,?,?,?,?)').bind(id,email,email,loginId,name,hash).run();
+    }catch(err){if(String(err?.message||'').toLowerCase().includes('unique'))return J({ok:false,error:'LOGIN_ID_EXISTS',message:'ID hoặc email đã được sử dụng.'},409);throw err}
     const sent=await saveBuyerCode(e,email,'verify');if(!sent.ok)return J({ok:false,error:'EMAIL_SEND_FAILED',message:'Chưa gửi được email xác minh. Kiểm tra cấu hình email hoặc thử lại.'},502);
+    await notifyEmail(e,{to:email,subject:'TeoStudio: yêu cầu tạo tài khoản',text:`Xin chào ${name},\n\nChúng tôi đã nhận yêu cầu tạo tài khoản TeoStudio với ID: ${loginId}. Mã xác minh đã được gửi trong email riêng. Không chia sẻ mã này cho người khác.`});
     return J({ok:true,requiresVerification:true,message:'Đã gửi mã xác minh vào email.'},201);
   }
   if(p==='/api/account/verify-email'&&method==='POST'){
@@ -268,13 +287,27 @@ async function accountApi(r,e,p){
     const email=validEmail(b.email||'').toLowerCase(),code=clean(b.code||'',6);if(email&&await securityBlocked(e,'email',email))return J({ok:false,error:'NOT_FOUND'},404);if(!email||!/^[0-9]{6}$/.test(code))return J({ok:false,error:'INVALID_CODE'},400);
     const row=await e.DB.prepare("SELECT * FROM buyer_email_codes WHERE email_normalized=? AND purpose='verify' AND used_at IS NULL AND expires_at>? ORDER BY created_at DESC LIMIT 1").bind(email,Date.now()).first();if(!row||Number(row.attempts)>=5)return J({ok:false,error:'CODE_EXPIRED_OR_INVALID'},400);
     if(row.code_hash!==await sha256(`${email}|verify|${code}`)){await e.DB.prepare('UPDATE buyer_email_codes SET attempts=attempts+1 WHERE id=?').bind(row.id).run();return J({ok:false,error:'CODE_EXPIRED_OR_INVALID'},400)}
-    await e.DB.batch([e.DB.prepare("UPDATE buyer_accounts SET email_verified=1,updated_at=datetime('now') WHERE email_normalized=?").bind(email),e.DB.prepare("UPDATE buyer_email_codes SET used_at=datetime('now') WHERE id=? AND used_at IS NULL").bind(row.id)]);return J({ok:true,message:'Email đã xác minh. Bạn có thể đăng nhập.'});
+    await e.DB.batch([e.DB.prepare("UPDATE buyer_accounts SET email_verified=1,updated_at=datetime('now') WHERE email_normalized=?").bind(email),e.DB.prepare("UPDATE buyer_email_codes SET used_at=datetime('now') WHERE id=? AND used_at IS NULL").bind(row.id)]);
+    const verifiedAccount=await e.DB.prepare('SELECT * FROM buyer_accounts WHERE email_normalized=?').bind(email).first();
+    if(verifiedAccount){await notifyEmail(e,{to:email,subject:'Chào mừng đến với TeoStudio',text:`Xin chào ${verifiedAccount.display_name||verifiedAccount.login_id||'bạn'}!\n\nTài khoản TeoStudio của bạn đã được xác minh thành công.\nID đăng nhập: ${verifiedAccount.login_id||'(tài khoản cũ có thể dùng email)'}\nNếu không phải bạn thực hiện, hãy đổi mật khẩu ngay.`});await createNotification(e,{recipientType:'buyer',recipientId:verifiedAccount.id,title:'Xác minh email thành công',body:'Tài khoản đã xác minh và có thể sử dụng.',kind:'account'});}
+    return J({ok:true,message:'Email đã xác minh. Bạn có thể đăng nhập.'});
   }
   if(p==='/api/account/login'&&method==='POST'){
     const rl=limited(r,'account-login',8,60000);if(rl)return rl;const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi đăng nhập.'},400);
-    const email=validEmail(b.email||'').toLowerCase(),password=String(b.password||'');if(email&&await securityBlocked(e,'email',email))return J({ok:false,error:'NOT_FOUND',message:'Không thể thực hiện yêu cầu.'},404);const row=email?await e.DB.prepare('SELECT * FROM buyer_accounts WHERE email_normalized=? LIMIT 1').bind(email).first():null;
-    if(!row||Number(row.email_verified)!==1||!(await verifyPasswordV55(password,row.password_hash)))return J({ok:false,error:'INVALID_LOGIN',message:'Thông tin đăng nhập không đúng hoặc email chưa xác minh.'},401);if(Number(row.locked)===1)return J({ok:false,error:'ACCOUNT_LOCKED'},403);
-    const token=crypto.randomUUID()+crypto.randomUUID();await e.DB.prepare('INSERT INTO buyer_sessions(token,buyer_id,expires_at) VALUES(?,?,?)').bind(token,row.id,Date.now()+14*86400000).run();return J({ok:true,token,user:buyerPublic(row),expiresIn:14*86400000});
+    const identifier=clean(b.identifier||b.loginId||b.email||'',320),password=String(b.password||'');
+    if(!identifier||!password)return J({ok:false,error:'INVALID_LOGIN',message:'Nhập ID/email và mật khẩu.'},400);
+    let row=null;
+    if(identifier.includes('@')){const email=validEmail(identifier).toLowerCase();if(email&&await securityBlocked(e,'email',email))return J({ok:false,error:'NOT_FOUND',message:'Không thể thực hiện yêu cầu.'},404);if(email)row=await e.DB.prepare('SELECT * FROM buyer_accounts WHERE email_normalized=? LIMIT 1').bind(email).first();}
+    else row=await e.DB.prepare('SELECT * FROM buyer_accounts WHERE lower(login_id)=lower(?) LIMIT 1').bind(identifier).first();
+    if(row&&await securityBlocked(e,'email',row.email_normalized||row.email))return J({ok:false,error:'NOT_FOUND',message:'Không thể thực hiện yêu cầu.'},404);
+    if(!row||Number(row.email_verified)!==1||!(await verifyPasswordV55(password,row.password_hash)))return J({ok:false,error:'INVALID_LOGIN',message:'ID/email hoặc mật khẩu không đúng, hoặc email chưa xác minh.'},401);if(Number(row.locked)===1)return J({ok:false,error:'ACCOUNT_LOCKED'},403);
+    const ua=clean(r.headers.get('user-agent')||'Thiết bị không xác định',300),ip=clientIp(r)||'',deviceLabel=ua.slice(0,180),deviceKey=await sha256(`${ua}|${ip}`);
+    let known=false;try{known=!!(await e.DB.prepare('SELECT id FROM buyer_known_devices WHERE buyer_id=? AND device_key=?').bind(row.id,deviceKey).first())}catch{}
+    try{await e.DB.prepare(`INSERT INTO buyer_known_devices(id,buyer_id,device_key,device_label,ip_address) VALUES(?,?,?,?,?) ON CONFLICT(buyer_id,device_key) DO UPDATE SET device_label=excluded.device_label,ip_address=excluded.ip_address,last_seen_at=datetime('now')`).bind(crypto.randomUUID(),row.id,deviceKey,deviceLabel,ip).run()}catch{}
+    const token=crypto.randomUUID()+crypto.randomUUID();await e.DB.prepare('INSERT INTO buyer_sessions(token,buyer_id,expires_at,device_key,device_label,ip_address) VALUES(?,?,?,?,?,?)').bind(token,row.id,Date.now()+7*86400000,deviceKey,deviceLabel,ip).run();
+    if(!known)await notifyEmail(e,{to:row.email,subject:'TeoStudio: đăng nhập từ thiết bị mới',text:`Tài khoản ${row.login_id||row.email} vừa đăng nhập từ thiết bị mới.\nThời gian: ${new Date().toISOString()}\nThiết bị/trình duyệt: ${deviceLabel}\nIP: ${ip||'không xác định'}\nNếu không phải bạn, hãy đổi mật khẩu và đăng xuất các phiên khác.`});
+    await createNotification(e,{recipientType:'buyer',recipientId:row.id,title:'Đăng nhập thành công',body:known?'Bạn đã đăng nhập vào TeoStudio.':'Có phiên đăng nhập từ thiết bị mới.',kind:'account'});
+    return J({ok:true,token,user:buyerPublic(row),expiresIn:7*86400000});
   }
   if(p==='/api/account/logout'&&method==='POST'){const tok=tokenFrom(r);if(tok)await e.DB.prepare('DELETE FROM buyer_sessions WHERE token=?').bind(tok).run();return J({ok:true})}
   if(p==='/api/account/password/reset/start'&&method==='POST'){
@@ -285,9 +318,34 @@ async function accountApi(r,e,p){
     const rl=limited(r,'account-reset-finish',5,60000);if(rl)return rl;
     const email=validEmail(b.email||'').toLowerCase(),code=clean(b.code||'',6),password=String(b.password||'');if(email&&await securityBlocked(e,'email',email))return J({ok:false,error:'NOT_FOUND'},404);if(!email||!/^[0-9]{6}$/.test(code)||password.length<8)return J({ok:false,error:'INVALID_RESET_DATA'},400);
     const row=await e.DB.prepare("SELECT * FROM buyer_email_codes WHERE email_normalized=? AND purpose='reset' AND used_at IS NULL AND expires_at>? ORDER BY created_at DESC LIMIT 1").bind(email,Date.now()).first();if(!row||Number(row.attempts)>=5||row.code_hash!==await sha256(`${email}|reset|${code}`)){if(row)await e.DB.prepare('UPDATE buyer_email_codes SET attempts=attempts+1 WHERE id=?').bind(row.id).run();return J({ok:false,error:'CODE_EXPIRED_OR_INVALID'},400)}
-    await e.DB.batch([e.DB.prepare("UPDATE buyer_accounts SET password_hash=?,updated_at=datetime('now') WHERE email_normalized=?").bind(await hashPasswordV55(password),email),e.DB.prepare("UPDATE buyer_email_codes SET used_at=datetime('now') WHERE id=?").bind(row.id),e.DB.prepare('DELETE FROM buyer_sessions WHERE buyer_id=(SELECT id FROM buyer_accounts WHERE email_normalized=?)').bind(email)]);return J({ok:true,message:'Đổi mật khẩu thành công. Đăng nhập lại nhé.'});
+    const resetAccount=await e.DB.prepare('SELECT id,email,login_id FROM buyer_accounts WHERE email_normalized=?').bind(email).first();await e.DB.batch([e.DB.prepare("UPDATE buyer_accounts SET password_hash=?,updated_at=datetime('now') WHERE email_normalized=?").bind(await hashPasswordV55(password),email),e.DB.prepare("UPDATE buyer_email_codes SET used_at=datetime('now') WHERE id=?").bind(row.id),e.DB.prepare('DELETE FROM buyer_sessions WHERE buyer_id=(SELECT id FROM buyer_accounts WHERE email_normalized=?)').bind(email)]);if(resetAccount){await notifyEmail(e,{to:email,subject:'TeoStudio: mật khẩu đã được đặt lại',text:`Mật khẩu tài khoản ${resetAccount.login_id||email} vừa được đặt lại bằng mã email. Tất cả phiên đăng nhập cũ đã bị đăng xuất. Nếu không phải bạn, hãy liên hệ hỗ trợ.`});await createNotification(e,{recipientType:'buyer',recipientId:resetAccount.id,title:'Mật khẩu đã đặt lại',body:'Các phiên đăng nhập cũ đã bị đăng xuất.',kind:'security'});}return J({ok:true,message:'Đổi mật khẩu thành công. Đăng nhập lại nhé.'});
   }
   const buyer=await buyerFromRequest(r,e);
+  if(p==='/api/account/password/change'&&method==='POST'){
+    if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);const oldPassword=String(b.oldPassword||''),newPassword=String(b.newPassword||'');
+    if(newPassword.length<8)return J({ok:false,error:'PASSWORD_TOO_SHORT',message:'Mật khẩu mới tối thiểu 8 ký tự.'},400);
+    if(!(await verifyPasswordV55(oldPassword,buyer.password_hash)))return J({ok:false,error:'INVALID_OLD_PASSWORD',message:'Mật khẩu hiện tại không đúng.'},401);
+    await e.DB.prepare("UPDATE buyer_accounts SET password_hash=?,updated_at=datetime('now') WHERE id=?").bind(await hashPasswordV55(newPassword),buyer.id).run();
+    const current=tokenFrom(r);await e.DB.prepare('DELETE FROM buyer_sessions WHERE buyer_id=? AND token<>?').bind(buyer.id,current).run();
+    await notifyEmail(e,{to:buyer.email,subject:'TeoStudio: mật khẩu đã thay đổi',text:`Mật khẩu tài khoản ${buyer.login_id||buyer.email} vừa được thay đổi. Nếu không phải bạn thực hiện, hãy dùng quy trình quên mật khẩu và liên hệ hỗ trợ.`});
+    await createNotification(e,{recipientType:'buyer',recipientId:buyer.id,title:'Mật khẩu đã thay đổi',body:'Mật khẩu đăng nhập của bạn đã được cập nhật.',kind:'security'});return J({ok:true,message:'Đã đổi mật khẩu. Phiên hiện tại vẫn được giữ; các phiên khác đã đăng xuất.'});
+  }
+  if(p==='/api/account/email/change/start'&&method==='POST'){
+    if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);const email=validEmail(b.email||'').toLowerCase();if(!email)return J({ok:false,error:'INVALID_EMAIL'},400);if(email===String(buyer.email_normalized||buyer.email).toLowerCase())return J({ok:false,error:'EMAIL_UNCHANGED',message:'Email mới trùng email hiện tại.'},400);
+    const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi đổi email.'},400);
+    const taken=await e.DB.prepare('SELECT id FROM buyer_accounts WHERE email_normalized=? AND id<>? LIMIT 1').bind(email,buyer.id).first();if(taken)return J({ok:false,error:'EMAIL_EXISTS',message:'Email này đã được dùng bởi tài khoản khác.'},409);
+    await e.DB.prepare("DELETE FROM buyer_email_codes WHERE email_normalized=? AND purpose='change_email'").bind(email).run();const sent=await saveBuyerCode(e,email,'change_email');if(!sent.ok)return J({ok:false,error:'EMAIL_SEND_FAILED',message:'Không gửi được mã xác minh email mới.'},502);
+    await createNotification(e,{recipientType:'buyer',recipientId:buyer.id,title:'Yêu cầu đổi email',body:`Đã gửi mã xác minh tới ${maskEmail(email)}.`,kind:'security'});return J({ok:true,message:'Đã gửi mã xác minh tới email mới.'});
+  }
+  if(p==='/api/account/email/change/finish'&&method==='POST'){
+    if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);const email=validEmail(b.email||'').toLowerCase(),code=clean(b.code||'',6);if(!email||!/^[0-9]{6}$/.test(code))return J({ok:false,error:'INVALID_CODE'},400);
+    const row=await e.DB.prepare("SELECT * FROM buyer_email_codes WHERE email_normalized=? AND purpose='change_email' AND used_at IS NULL AND expires_at>? ORDER BY created_at DESC LIMIT 1").bind(email,Date.now()).first();if(!row||Number(row.attempts)>=5||row.code_hash!==await sha256(`${email}|change_email|${code}`)){if(row)await e.DB.prepare('UPDATE buyer_email_codes SET attempts=attempts+1 WHERE id=?').bind(row.id).run();return J({ok:false,error:'CODE_EXPIRED_OR_INVALID',message:'Mã sai hoặc hết hạn.'},400)}
+    const taken=await e.DB.prepare('SELECT id FROM buyer_accounts WHERE email_normalized=? AND id<>? LIMIT 1').bind(email,buyer.id).first();if(taken)return J({ok:false,error:'EMAIL_EXISTS'},409);
+    const oldEmail=String(buyer.email||'');await e.DB.batch([e.DB.prepare("UPDATE buyer_accounts SET email=?,email_normalized=?,email_verified=1,updated_at=datetime('now') WHERE id=?").bind(email,email,buyer.id),e.DB.prepare("UPDATE buyer_email_codes SET used_at=datetime('now') WHERE id=? AND used_at IS NULL").bind(row.id),e.DB.prepare("UPDATE tenant_accounts SET email=?,email_verified_at=datetime('now'),owner_user_id=COALESCE(owner_user_id,?) WHERE owner_user_id=? OR lower(email)=lower(?)").bind(email,buyer.id,buyer.id,oldEmail)]);
+    const fresh=await e.DB.prepare('SELECT * FROM buyer_accounts WHERE id=?').bind(buyer.id).first();await notifyEmail(e,{to:oldEmail,subject:'TeoStudio: email tài khoản đã thay đổi',text:`Email đăng nhập tài khoản đã được thay đổi sang ${email}. Nếu không phải bạn, hãy đổi mật khẩu và báo hỗ trợ.`});await notifyEmail(e,{to:email,subject:'TeoStudio: xác minh email mới thành công',text:`Email này đã được liên kết với tài khoản TeoStudio ${fresh?.login_id||''}. Các Studio liên kết cùng tài khoản đã được cập nhật email.`});await createNotification(e,{recipientType:'buyer',recipientId:buyer.id,title:'Email tài khoản đã cập nhật',body:`Email mới: ${maskEmail(email)}.`,kind:'security'});return J({ok:true,user:buyerPublic(fresh),message:'Đã cập nhật email và đồng bộ vào các Studio thuộc tài khoản.'});
+  }
+  if(p==='/api/account/notifications'&&method==='GET'){if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);const notifications=await notificationList(e,'buyer',buyer.id);return J({ok:true,notifications,unread:notifications.filter(x=>!x.read_at).length})}
+  if(p==='/api/account/notifications/read'&&method==='POST'){if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);await ensureNotificationsSchema(e);if(b.all===true)await e.DB.prepare("UPDATE web_notifications SET read_at=datetime('now') WHERE recipient_type='buyer' AND recipient_id=? AND read_at IS NULL").bind(String(buyer.id)).run();else if(b.id)await e.DB.prepare("UPDATE web_notifications SET read_at=datetime('now') WHERE id=? AND recipient_type='buyer' AND recipient_id=? AND read_at IS NULL").bind(clean(b.id,100),String(buyer.id)).run();return J({ok:true})}
   if(p==='/api/account/me'&&method==='GET'){if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);return J({ok:true,user:buyerPublic(buyer),balanceVnd:await buyerBalance(e,buyer.id),studios:await buyerStudios(e,buyer)})}
   if(p==='/api/account/profile'&&method==='PUT'){if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);const name=clean(b.displayName||'',80),avatar=b.avatar?safeImageValue(b.avatar,800000):'';if(name.length<2)return J({ok:false,error:'INVALID_DISPLAY_NAME',message:'Tên hiển thị cần ít nhất 2 ký tự.'},400);if(b.avatar&&!avatar)return J({ok:false,error:'INVALID_AVATAR'},400);await e.DB.prepare("UPDATE buyer_accounts SET display_name=?,avatar=?,updated_at=datetime('now') WHERE id=?").bind(name,avatar,buyer.id).run();const fresh=await e.DB.prepare('SELECT * FROM buyer_accounts WHERE id=?').bind(buyer.id).first();return J({ok:true,user:buyerPublic(fresh)})}
   if(p==='/api/account/studios'&&method==='GET'){if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);return J({ok:true,studios:await buyerStudios(e,buyer)})}
@@ -335,7 +393,7 @@ async function accountApi(r,e,p){
     const rl=limited(r,'wallet-purchase',5,60000);if(rl)return rl;if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED',message:'Đăng nhập tài khoản trước khi mua file.'},401);if(Number(buyer.email_verified)!==1)return J({ok:false,error:'EMAIL_VERIFICATION_REQUIRED',message:'Hãy xác minh email trước khi mua file.'},403);const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi mua file.'},400);if(b.termsAccepted!==true||b.finalConfirmed!==true)return J({ok:false,error:'TERMS_CONFIRMATION_REQUIRED'},400);
     const scope=String(b.scope||'main'),productId=clean(b.productId||'',100),idempotencyKey=clean(b.idempotencyKey||'',80);if(!/^[A-Za-z0-9_-]{16,80}$/.test(idempotencyKey))return J({ok:false,error:'IDEMPOTENCY_KEY_REQUIRED',message:'Thiếu mã xác nhận giao dịch. Hãy mở lại bước mua.'},400);const prior=await e.DB.prepare("SELECT * FROM buyer_purchases WHERE buyer_id=? AND request_key=? AND status='paid' LIMIT 1").bind(buyer.id,idempotencyKey).first();if(prior){if(prior.scope!==String(b.scope||'main')||prior.product_id!==clean(b.productId||'',100))return J({ok:false,error:'IDEMPOTENCY_KEY_CONFLICT'},409);if(prior.scope==='tenant'){const repeatTenant=await tenantBySlug(e,clean(b.tenant||'',80));if(!repeatTenant||String(repeatTenant.id)!==String(prior.tenant_id||''))return J({ok:false,error:'IDEMPOTENCY_KEY_CONFLICT'},409)}let prevUrl='';if(prior.scope==='main'){const p0=await e.DB.prepare('SELECT * FROM products WHERE id=?').bind(prior.product_id).first();prevUrl=p0?safeHttpUrl(p0.original_link,10000)||safeHttpUrl(p0.download_link,10000):''}else{const p0=await e.DB.prepare('SELECT * FROM tenant_products WHERE tenant_id=? AND id=?').bind(prior.tenant_id,prior.product_id).first();const m0=String(p0?.product_mode||'');prevUrl=p0?(m0==='both'?safeHttpUrl(p0.original_link,10000):safeHttpUrl(p0.download_link,10000)||safeHttpUrl(p0.original_link,10000)):''}return J({ok:true,idempotent:true,purchase:{id:prior.id,title:prior.title,amountVnd:Number(prior.amount_vnd)},downloadUrl:prevUrl,balanceVnd:await buyerBalance(e,buyer.id)})}let title='',amount=0,tenantId='',downloadUrl='';
     if(scope==='main') {const x=await e.DB.prepare('SELECT * FROM products WHERE id=? AND visible=1').bind(productId).first();if(!x)return J({ok:false,error:'PRODUCT_NOT_FOUND'},404);if(!['paid','both'].includes(String(x.sale_mode))||Number(x.price_vnd)<1000)return J({ok:false,error:'PRODUCT_NOT_FOR_SALE'},400);title=clean(x.title,200);amount=Math.floor(Number(x.price_vnd));downloadUrl=safeHttpUrl(x.original_link,10000)||safeHttpUrl(x.download_link,10000)}
-    else if(scope==='tenant') {const slug=clean(b.tenant||'',80),raw=await tenantBySlug(e,slug);const t=await normalizeTenantRow(e,raw);if(!t||tenantStatus(t)==='locked'||tenantStatus(t)==='deleted'||(tenantStatus(t)==='expired'&&String(t.plan_type||'paid')!=='free'))return J({ok:false,error:'TENANT_NOT_FOUND'},404);const k=tenantInSql(t);const x=await e.DB.prepare(`SELECT * FROM tenant_products WHERE ${k.clause} AND id=? AND visible=1`).bind(...k.vals,productId).first();if(!x)return J({ok:false,error:'PRODUCT_NOT_FOUND'},404);const mode=String(x.product_mode||'');if(!['paid','both'].includes(mode)||Number(x.price_vnd)<1000)return J({ok:false,error:'PRODUCT_NOT_FOR_SALE'},400);tenantId=String(t.id);title=clean(x.title,200);amount=Math.floor(Number(x.price_vnd));downloadUrl=mode==='both'?safeHttpUrl(x.original_link,10000):safeHttpUrl(x.download_link,10000)||safeHttpUrl(x.original_link,10000)}
+    else if(scope==='tenant') {const slug=clean(b.tenant||'',80),raw=await tenantBySlug(e,slug);const t=await normalizeTenantRow(e,raw);if(!t||tenantStatus(t)==='locked'||tenantStatus(t)==='deleted'||(tenantStatus(t)==='expired'&&String(t.plan_type||'paid')!=='free'))return J({ok:false,error:'TENANT_NOT_FOUND'},404);tenantId=String(t.id);if(await tenantSecurityBlocked(e,tenantId,'ip',clientIp(r)))return J({ok:false,error:'NOT_FOUND'},404);if(await tenantSecurityBlocked(e,tenantId,'email',buyer.email_normalized||buyer.email))return J({ok:false,error:'NOT_FOUND',message:'Tài khoản không thể thực hiện thao tác trên Studio này.'},404);const k=tenantInSql(t);const x=await e.DB.prepare(`SELECT * FROM tenant_products WHERE ${k.clause} AND id=? AND visible=1`).bind(...k.vals,productId).first();if(!x)return J({ok:false,error:'PRODUCT_NOT_FOUND'},404);const mode=String(x.product_mode||'');if(!['paid','both'].includes(mode)||Number(x.price_vnd)<1000)return J({ok:false,error:'PRODUCT_NOT_FOR_SALE'},400);title=clean(x.title,200);amount=Math.floor(Number(x.price_vnd));downloadUrl=mode==='both'?safeHttpUrl(x.original_link,10000):safeHttpUrl(x.download_link,10000)||safeHttpUrl(x.original_link,10000)}
     else return J({ok:false,error:'INVALID_SCOPE'},400);
     if(!downloadUrl)return J({ok:false,error:'DOWNLOAD_NOT_CONFIGURED',message:'Người bán chưa cấu hình link gốc.'},409);
     const fee=tenantId?Math.floor(amount*0.05):0,seller=tenantId?amount-fee:0,id=crypto.randomUUID(),note=`Mua file: ${title}`;
@@ -349,6 +407,8 @@ async function accountApi(r,e,p){
     const done=await e.DB.prepare('SELECT id FROM buyer_purchases WHERE id=? AND buyer_id=?').bind(id,buyer.id).first();if(!done){const byKey=await e.DB.prepare("SELECT * FROM buyer_purchases WHERE buyer_id=? AND request_key=? AND status='paid' LIMIT 1").bind(buyer.id,idempotencyKey).first();if(byKey)return J({ok:false,error:'PURCHASE_ALREADY_PROCESSING',message:'Yêu cầu này đã được xử lý. Hãy làm mới lịch sử mua trước khi thử lại.'},409);return J({ok:false,error:'INSUFFICIENT_BALANCE',message:'Số dư không đủ. Hãy nạp tiền rồi thử lại.'},402);}
     if(tenantId){await createNotification(e,{recipientType:'tenant',recipientId:tenantId,title:'Có đơn bán file mới',body:`${title} · ${amount.toLocaleString('vi-VN')}đ · số dư nhận ${seller.toLocaleString('vi-VN')}đ`,kind:'sale'});await createNotification(e,{recipientType:'admin',recipientId:'master',title:'Có đơn mua file qua ví',body:`Studio ${tenantId} · ${title} · hoa hồng ${fee.toLocaleString('vi-VN')}đ`,kind:'sale'});}
     await telegramSend(e,`🛒 TeoStudio · Mua file thành công\nĐơn: ${id}\nPhạm vi: ${scope}\nFile: ${title}\nGiá: ${amount.toLocaleString('vi-VN')}đ\nPhí nền tảng: ${fee.toLocaleString('vi-VN')}đ`);
+    await notifyEmail(e,{to:buyer.email,subject:'TeoStudio: mua file thành công',text:`Xin chào ${buyer.display_name||buyer.login_id||'bạn'},\n\nĐã ghi nhận đơn mua file qua ví.\nFile: ${title}\nSố tiền: ${amount.toLocaleString('vi-VN')}đ\nMã đơn: ${id}\nSố dư còn lại: ${(await buyerBalance(e,buyer.id)).toLocaleString('vi-VN')}đ\nMở Tài khoản → Đơn mua để xem liên kết tải. Nếu bạn không thực hiện giao dịch này, hãy báo hỗ trợ ngay.`});
+    if(tenantId){const sellerRow=await e.DB.prepare('SELECT email,slug FROM tenant_accounts WHERE id=? OR slug=? LIMIT 1').bind(tenantId,tenantId).first().catch(()=>null);if(validEmail(sellerRow?.email))await notifyEmail(e,{to:sellerRow.email,subject:'TeoStudio: có khách mua file của bạn',text:`Studio: ${sellerRow.slug||tenantId}\nFile: ${title}\nGiá bán: ${amount.toLocaleString('vi-VN')}đ\nSố dư ghi có (95%): ${seller.toLocaleString('vi-VN')}đ\nPhí nền tảng 5%: ${fee.toLocaleString('vi-VN')}đ\nMã đơn: ${id}.`});}
     return J({ok:true,purchase:{id,title,amountVnd:amount,sellerAmountVnd:seller,commissionVnd:fee,scope},balanceVnd:await buyerBalance(e,buyer.id),downloadUrl},201);
   }
   return J({ok:false,error:'ACCOUNT_ENDPOINT_NOT_FOUND'},404);
@@ -418,6 +478,18 @@ async function ensureTenantSchema(e){
     await tenantExec(e,`CREATE TABLE IF NOT EXISTS tenant_sessions (
       token TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, expires_at INTEGER NOT NULL
     )`);
+    await tenantExec(e,`CREATE TABLE IF NOT EXISTS tenant_security_blocks (
+      id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('ip','email')),
+      value_normalized TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '', created_by TEXT NOT NULL DEFAULT 'tenant_admin',
+      created_at TEXT NOT NULL DEFAULT(datetime('now')), UNIQUE(tenant_id,kind,value_normalized)
+    )`);
+    await tenantExec(e,`CREATE INDEX IF NOT EXISTS idx_tenant_security_blocks_lookup ON tenant_security_blocks(tenant_id,kind,value_normalized)`);
+    await tenantExec(e,`CREATE TABLE IF NOT EXISTS tenant_email_codes (
+      id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, email_normalized TEXT NOT NULL, code_hash TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0, expires_at INTEGER NOT NULL, used_at TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT(datetime('now'))
+    )`);
+    await tenantExec(e,`CREATE INDEX IF NOT EXISTS idx_tenant_email_codes_lookup ON tenant_email_codes(tenant_id,email_normalized,created_at)`);
     // Legacy rental builds may already have tenant_sessions with a different/older
     // shape. CREATE TABLE IF NOT EXISTS does not migrate an existing table, so make
     // the three fields used by the current auth flow available additively.
@@ -716,7 +788,10 @@ async function tenantFromSession(r,e){
   // If legacy migrations left duplicate rows, prefer the row carrying the security
   // password instead of an older shadow row that makes Settings show "not set".
   const a=rows.find(x=>String(x.admin_confirm_password_hash||''))||rows.find(x=>String(x.password_hash||''))||rows[0]||null;
-  return normalizeTenantRow(e,a);
+  const normalized=await normalizeTenantRow(e,a);
+  const requestedSlug=clean(r.headers.get('x-tenant-slug')||new URL(r.url).searchParams.get('tenant')||'',80);
+  if(requestedSlug&&normalized&&String(normalized.slug||'').toLowerCase()!==requestedSlug.toLowerCase())return null;
+  return normalized;
 }
 
 async function tenantSettings(e,t){const k=tenantInSql(t);const rows=(await e.DB.prepare(`SELECT key,value FROM tenant_settings WHERE ${k.clause}`).bind(...k.vals).all()).results||[];const out={siteName:'Lại Húp File',studio:'Téo Studio',heroTitle:'Kho Share File riêng',heroText:'Kho file riêng của bạn.',avatar:'assets/img/default-avatar.svg',avatarVideoUrl:'',groupLink:'#',adminContact:'#',announcementEnabled:true,announcementTitle:'Thông báo từ Téo Studio',announcementText:'Hãy đọc kỹ thông báo trước khi vào web.',donateTitle:'Ủng hộ Téo',donateText:'Nếu thấy web hữu ích, bạn có thể donate để Téo có thêm động lực duy trì và nâng cấp web.',donateQr:'',ownerName:'Téo Studio',ownerText:'Kho Share File được vận hành bởi Téo Studio.',adText:'',adLink:'#',heroBackground:''};for(const x of rows){try{out[x.key]=JSON.parse(x.value)}catch{out[x.key]=x.value}}for(const key of ['groupLink','adminContact','adLink','avatarVideoUrl','socialTikTokUrl','socialYoutubeUrl'])if(out[key]&&out[key]!=='#')out[key]=safeHttpUrl(out[key],4000)||'#';for(const key of ['avatar','donateQr'])if(out[key])out[key]=safeImageValue(out[key],1500000)||'';out.ownerName='Téo Studio';out.ownerText='Kho Share File được vận hành bởi Téo Studio.';return out}
@@ -783,21 +858,38 @@ async function tenantBump(e,t,kind,pid='',request=null,source=''){
   return true;
 }
 async function tenantStats(e,tid,days=30,month=''){
-  let rows=[],sales={orders:0,revenueVnd:0,views:0,conversionRate:0,byDay:[]},start='';
-  if(/^\d{4}-\d{2}$/.test(String(month||''))){start=String(month)+'-01';rows=(await e.DB.prepare(`SELECT day,kind,product_id,views FROM tenant_views WHERE tenant_id=? AND day>=? AND day<date(?, '+1 month') ORDER BY day ASC`).bind(tid,start,start).all()).results||[];
-    const paid=(await e.DB.prepare(`SELECT COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenue FROM tenant_payment_orders WHERE tenant_id=? AND status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<date(?, '+1 month')`).bind(tid,start,start).first())||{};
-    sales.orders=Number(paid.orders||0);sales.revenueVnd=Number(paid.revenue||0);sales.views=rows.filter(x=>x.kind==='product').reduce((a,x)=>a+Number(x.views||0),0);sales.siteVisits=rows.filter(x=>x.kind==='visit').reduce((a,x)=>a+Number(x.views||0),0);sales.conversionRate=sales.views?Math.round(sales.orders/sales.views*10000)/100:0;
-    sales.byDay=(await e.DB.prepare(`SELECT date(paid_at,'+7 hours') AS day,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenue FROM tenant_payment_orders WHERE tenant_id=? AND status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<date(?, '+1 month') GROUP BY date(paid_at,'+7 hours') ORDER BY day`).bind(tid,start,start).all()).results||[];
-    const referrers=(await e.DB.prepare("SELECT domain,SUM(views) AS views FROM tenant_referrers_daily WHERE tenant_id=? AND day>=? AND day<date(?, '+1 month') GROUP BY domain ORDER BY views DESC LIMIT 50").bind(tid,start,start).all()).results||[];
-    return {days:rows.length,month,start,rows,products:await tenantProducts(e,tid,true),referrers,today:rows.filter(x=>x.day===dayVN()&&x.kind==='visit').reduce((a,x)=>a+Number(x.views||0),0),sales};
+  await ensureV55Schema(e);
+  let rows=[],start='',endDate='',n=30;
+  const sales={orders:0,revenueVnd:0,views:0,conversionRate:0,byDay:[],walletOrders:0,walletRevenueVnd:0,sellerNetVnd:0,commissionVnd:0};
+  if(/^\d{4}-\d{2}$/.test(String(month||''))){
+    start=String(month)+'-01';endDate=`${month}-31`;
+    rows=(await e.DB.prepare(`SELECT day,kind,product_id,views FROM tenant_views WHERE tenant_id=? AND day>=? AND day<date(?, '+1 month') ORDER BY day ASC`).bind(tid,start,start).all()).results||[];
+  }else{
+    n=Math.max(1,Math.min(Number(days)||30,3650));
+    start=(await e.DB.prepare(`SELECT date(?, '-'||?||' days') AS d`).bind(dayVN(),n-1).first())?.d||dayVN();endDate=dayVN();
+    rows=(await e.DB.prepare(`SELECT day,kind,product_id,views FROM tenant_views WHERE tenant_id=? AND day>=? AND day<=? ORDER BY day ASC`).bind(tid,start,endDate).all()).results||[];
   }
-  const n=Math.max(1,Math.min(Number(days)||30,3650));rows=(await e.DB.prepare(`SELECT day,kind,product_id,views FROM tenant_views WHERE tenant_id=? AND day>=date(?, '-'||?||' days') ORDER BY day ASC`).bind(tid,dayVN(),n-1).all()).results||[];
-  const from=(await e.DB.prepare(`SELECT date(?, '-'||?||' days') AS d`).bind(dayVN(),n-1).first())?.d||dayVN();
-  const referrers=(await e.DB.prepare("SELECT domain,SUM(views) AS views FROM tenant_referrers_daily WHERE tenant_id=? AND day>=? GROUP BY domain ORDER BY views DESC LIMIT 50").bind(tid,from).all()).results||[];
-  const paid=(await e.DB.prepare(`SELECT COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenue FROM tenant_payment_orders WHERE tenant_id=? AND status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<=?`).bind(tid,from,dayVN()).first())||{};
-  sales.orders=Number(paid.orders||0);sales.revenueVnd=Number(paid.revenue||0);sales.views=rows.filter(x=>x.kind==='product').reduce((a,x)=>a+Number(x.views||0),0);sales.siteVisits=rows.filter(x=>x.kind==='visit').reduce((a,x)=>a+Number(x.views||0),0);sales.conversionRate=sales.views?Math.round(sales.orders/sales.views*10000)/100:0;
-  sales.byDay=(await e.DB.prepare(`SELECT date(paid_at,'+7 hours') AS day,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenue FROM tenant_payment_orders WHERE tenant_id=? AND status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<=? GROUP BY date(paid_at,'+7 hours') ORDER BY day`).bind(tid,from,dayVN()).all()).results||[];
-  return {days:n,rows,products:await tenantProducts(e,tid,true),referrers,today:rows.filter(x=>x.day===dayVN()&&x.kind==='visit').reduce((a,x)=>a+Number(x.views||0),0),sales};
+  const viewKinds={visit:0,product:0,outbound:0,other:0};
+  for(const row of rows){const k=String(row.kind||'other');viewKinds[k in viewKinds?k:'other']+=Number(row.views||0)}
+  sales.views=viewKinds.product;sales.siteVisits=viewKinds.visit;sales.fileViews=viewKinds.product;sales.outboundClicks=viewKinds.outbound;sales.totalViews=Object.values(viewKinds).reduce((a,b)=>a+b,0);
+  const monthly=/^\d{4}-\d{2}$/.test(String(month||''));
+  const saleDateClause=monthly?"date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<date(?, '+1 month')":"date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<=?";
+  const walletDateClause=monthly?"date(created_at,'+7 hours')>=? AND date(created_at,'+7 hours')<date(?, '+1 month')":"date(created_at,'+7 hours')>=? AND date(created_at,'+7 hours')<=?";
+  const legacy=(await e.DB.prepare(`SELECT date(paid_at,'+7 hours') AS day,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenue FROM tenant_payment_orders WHERE tenant_id=? AND status='paid' AND ${saleDateClause} GROUP BY date(paid_at,'+7 hours') ORDER BY day`).bind(tid,start,monthly?start:endDate).all()).results||[];
+  let wallet=[];
+  try{wallet=(await e.DB.prepare(`SELECT date(created_at,'+7 hours') AS day,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenue,COALESCE(SUM(seller_amount_vnd),0) AS seller_net,COALESCE(SUM(commission_vnd),0) AS commission FROM buyer_purchases WHERE scope='tenant' AND tenant_id=? AND status='paid' AND ${walletDateClause} GROUP BY date(created_at,'+7 hours') ORDER BY day`).bind(String(tid),start,monthly?start:endDate).all()).results||[]}catch{}
+  const dateMap=new Map();
+  for(const row of legacy){const k=String(row.day||'');dateMap.set(k,{day:k,orders:Number(row.orders||0),revenue:Number(row.revenue||0),sellerNet:0,commission:0,legacyOrders:Number(row.orders||0),walletOrders:0})}
+  for(const row of wallet){const k=String(row.day||''),x=dateMap.get(k)||{day:k,orders:0,revenue:0,sellerNet:0,commission:0,legacyOrders:0,walletOrders:0};x.orders+=Number(row.orders||0);x.revenue+=Number(row.revenue||0);x.sellerNet+=Number(row.seller_net||0);x.commission+=Number(row.commission||0);x.walletOrders+=Number(row.orders||0);dateMap.set(k,x);}
+  sales.byDay=[...dateMap.values()].sort((a,b)=>a.day.localeCompare(b.day));
+  sales.orders=sales.byDay.reduce((a,x)=>a+x.orders,0);sales.revenueVnd=sales.byDay.reduce((a,x)=>a+x.revenue,0);sales.walletOrders=wallet.reduce((a,x)=>a+Number(x.orders||0),0);sales.walletRevenueVnd=wallet.reduce((a,x)=>a+Number(x.revenue||0),0);sales.sellerNetVnd=wallet.reduce((a,x)=>a+Number(x.seller_net||0),0);sales.commissionVnd=wallet.reduce((a,x)=>a+Number(x.commission||0),0);sales.conversionRate=sales.views?Math.round(sales.orders/sales.views*10000)/100:0;
+  const refQuery=/^\d{4}-\d{2}$/.test(String(month||''))
+    ? e.DB.prepare("SELECT domain,SUM(views) AS views FROM tenant_referrers_daily WHERE tenant_id=? AND day>=? AND day<date(?, '+1 month') GROUP BY domain ORDER BY views DESC LIMIT 50").bind(tid,start,start)
+    : e.DB.prepare('SELECT domain,SUM(views) AS views FROM tenant_referrers_daily WHERE tenant_id=? AND day>=? AND day<=? GROUP BY domain ORDER BY views DESC LIMIT 50').bind(tid,start,endDate);
+  const referrers=(await refQuery.all()).results||[];
+  const todayRows=rows.filter(x=>x.day===dayVN());
+  const today=todayRows.filter(x=>x.kind==='visit').reduce((a,x)=>a+Number(x.views||0),0);
+  return {days:/^\d{4}-\d{2}$/.test(String(month||''))?rows.length:n,month:/^\d{4}-\d{2}$/.test(String(month||''))?month:undefined,start,end:endDate,rows,products:await tenantProducts(e,tid,true),referrers,today,viewKinds,sales};
 }
 async function purgeExpired(e){
   // Expiry changes access/plan state; it must never erase user content or financial history.
@@ -857,6 +949,7 @@ async function handleSePayWebhook(r,e){
     try{await e.DB.prepare("INSERT OR IGNORE INTO buyer_wallet_ledger(id,buyer_id,amount_vnd,kind,ref_type,ref_id,note) VALUES(?,?,?,'topup','topup',?,?)").bind(crypto.randomUUID(),topup.buyer_id,Number(topup.amount_vnd),topup.id,`Nạp ví qua SePay · ${txId}`).run();const exists=await e.DB.prepare("SELECT id FROM buyer_wallet_ledger WHERE buyer_id=? AND kind='topup' AND ref_type='topup' AND ref_id=?").bind(topup.buyer_id,topup.id).first();if(!exists)throw new Error('TOPUP_LEDGER_FAILED')}
     catch(err){try{await e.DB.prepare("UPDATE buyer_wallet_topups SET status='pending',transaction_id=NULL,paid_at=NULL WHERE id=? AND transaction_id=?").bind(topup.id,txId).run()}catch{};try{await e.DB.prepare('DELETE FROM sepay_webhook_events WHERE transaction_id=?').bind(txId).run()}catch{};return J({success:false,error:'TOPUP_LEDGER_FAILED'},500)}
     await createNotification(e,{recipientType:'buyer',recipientId:topup.buyer_id,title:'Nạp ví thành công',body:`Ví đã được cộng ${Number(topup.amount_vnd).toLocaleString('vi-VN')}đ.`,kind:'payment'});
+    const toppedBuyer=await e.DB.prepare('SELECT email,login_id,display_name FROM buyer_accounts WHERE id=?').bind(topup.buyer_id).first().catch(()=>null);if(validEmail(toppedBuyer?.email))await notifyEmail(e,{to:toppedBuyer.email,subject:'TeoStudio: nạp ví thành công',text:`Xin chào ${toppedBuyer.display_name||toppedBuyer.login_id||'bạn'},\n\nSePay đã xác nhận nạp ${(Number(topup.amount_vnd)||0).toLocaleString('vi-VN')}đ vào ví TeoStudio.\nMã đơn: ${topup.id}\nMã giao dịch ngân hàng: ${txId}\nNếu bạn không thực hiện, hãy liên hệ hỗ trợ.`});
     await telegramSend(e,`💰 TeoStudio · Nạp ví thành công\nMã đơn: ${topup.id}\nSố tiền nạp: ${Number(topup.amount_vnd).toLocaleString('vi-VN')}đ\nMã giao dịch SePay: ${txId}`);
     return J({success:true,paid:true,order_id:topup.id,kind:'buyer_wallet_topup'});
   }
@@ -1109,6 +1202,7 @@ async function handleTenantPublic(r,e){
   const slug=clean(parts[2]||'',80),rawTenant=await tenantBySlug(e,slug);let t=await normalizeTenantRow(e,rawTenant);t=await refreshTenantPlan(e,t);
   if(!t||tenantStatus(t)==='deleted'||(tenantStatus(t)==='expired'&&String(t.plan_type||'paid')!=='free'))return J({ok:false,error:'TENANT_NOT_FOUND'},404);
   if(tenantStatus(t)==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);
+  if(await tenantSecurityBlocked(e,t.id,'ip',clientIp(r)))return blockedNotFound(r);
   if(r.method==='GET'&&parts.length===3){await tenantBump(e,t,'visit','',r,u.searchParams.get('source')||'');let layout=[];try{await ensureV55Schema(e);const ll=await e.DB.prepare('SELECT layout_json FROM tenant_site_layouts WHERE tenant_id=?').bind(String(t.id)).first();layout=JSON.parse(ll?.layout_json||'[]')}catch{}return J({ok:true,tenant:tenantInfo(t),settings:await tenantSettings(e,t),tags:await tenantTags(e,t),products:await tenantProducts(e,t),layout})}
   if(parts[3]==='recent-sales'&&r.method==='GET'){await ensureV55Schema(e);const rows=(await e.DB.prepare("SELECT p.title,p.amount_vnd,p.created_at,a.display_name,a.email FROM buyer_purchases p LEFT JOIN buyer_accounts a ON a.id=p.buyer_id WHERE p.tenant_id=? AND p.scope='tenant' AND p.status='paid' ORDER BY p.created_at DESC LIMIT 12").bind(String(t.id)).all()).results||[];return J({ok:true,sales:rows.map(x=>({title:clean(x.title,100),amountVnd:Number(x.amount_vnd||0),createdAt:x.created_at,name:clean(x.display_name||'Khách',60),emailMasked:maskEmail(x.email)}))})}
   if(parts[3]==='product'&&parts[4]&&r.method==='GET'){
@@ -1156,7 +1250,7 @@ async function handleTenantPublic(r,e){
   }
   if(parts[3]==='comments'&&r.method==='GET'){const ck=tenantInSql(t);const rows=(await e.DB.prepare(`SELECT id,name,text,image,created_at FROM tenant_comments WHERE ${ck.clause} AND visible=1 ORDER BY created_at DESC LIMIT 50`).bind(...ck.vals).all()).results||[];return J({ok:true,comments:rows.map(x=>({...x,image:x.image?safeImageValue(x.image,450000):''}))});}
   if(parts[3]==='comments'&&r.method==='POST'){
-    const rl=commentRateResponse(r);if(rl)return rl;const buyer=await buyerFromRequest(r,e);if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED',message:'Đăng nhập tài khoản TeoStudio để bình luận.'},401);if(Number(buyer.email_verified)!==1)return J({ok:false,error:'EMAIL_VERIFICATION_REQUIRED',message:'Hãy xác minh email trước khi bình luận.'},403);
+    const rl=commentRateResponse(r);if(rl)return rl;const buyer=await buyerFromRequest(r,e);if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED',message:'Đăng nhập tài khoản TeoStudio để bình luận.'},401);if(Number(buyer.email_verified)!==1)return J({ok:false,error:'EMAIL_VERIFICATION_REQUIRED',message:'Hãy xác minh email trước khi bình luận.'},403);if(await tenantSecurityBlocked(e,t.id,'email',buyer.email_normalized||buyer.email))return J({ok:false,error:'NOT_FOUND',message:'Tài khoản không thể bình luận tại Studio này.'},404);
     try{const b=await r.json().catch(()=>({})),cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi bình luận.'},400);const text=clean(b.text,700),image=b.image?safeCommentImage(b.image):'';if(b.image&&!image)return J({ok:false,error:'INVALID_COMMENT_IMAGE',message:'Ảnh không hợp lệ hoặc quá lớn. Chỉ nhận ảnh JPEG/PNG/WebP đã nén.'},400);if(!text&&!image)return J({ok:false,error:'COMMENT_EMPTY'},400);
       const id=crypto.randomUUID(),eventId=crypto.randomUUID(),ip=clientIp(r)||'unknown',email=String(buyer.email_normalized||buyer.email).toLowerCase(),visible=image?0:1,withImage=image?1:0;
       await e.DB.batch([
@@ -1196,7 +1290,11 @@ async function handleTenantAdmin(r,e){
     await ensureV55Schema(e);if(String(t.plan_type||'free')==='free')return J({ok:false,error:'VIP_REQUIRED',message:'Trình thiết kế website nâng cao dành cho gói trả phí.'},403);const b=await r.json().catch(()=>({}));let layout;try{layout=safeBuilderLayout(b.layout)}catch(err){return J({ok:false,error:String(err.message||err)},400)}
     await e.DB.prepare("INSERT INTO tenant_site_layouts(tenant_id,layout_json,updated_at) VALUES(?,?,datetime('now')) ON CONFLICT(tenant_id) DO UPDATE SET layout_json=excluded.layout_json,updated_at=datetime('now')").bind(String(t.id),JSON.stringify(layout)).run();await tenantLog(e,t.id,'owner','builder_saved',`${layout.length} blocks`);return J({ok:true,layout,updatedAt:isoSqlDate()});
   }
-  if(p==='/api/tenant/me')return J({ok:true,tenant:tenantInfo(t),settings:await tenantSettings(e,t)});
+  if(p==='/api/tenant/me'){
+    const buyer=await buyerFromRequest(r,e).catch(()=>null);let unified=false;
+    if(buyer){unified=(String(t.owner_user_id||'')===String(buyer.id))||String(t.email||'').toLowerCase()===String(buyer.email||'').toLowerCase();}
+    return J({ok:true,tenant:tenantInfo(t),settings:await tenantSettings(e,t),accountAuth:{mode:unified?'buyer':'tenant',email:unified?buyer.email:(t.email||''),loginId:unified?(buyer.login_id||''):(t.slug||''),displayName:unified?(buyer.display_name||''): (t.studio_name||t.slug||''),emailVerified:unified?Number(buyer.email_verified)===1:!!t.email_verified_at}});
+  }
   if(p==='/api/tenant/products'&&r.method==='GET')return J({ok:true,products:await tenantProducts(e,t,true)});
   if(p==='/api/tenant/products'&&r.method==='POST'){
     const b=await r.json().catch(()=>({}));
@@ -1345,6 +1443,26 @@ async function handleTenantAdmin(r,e){
     if(validEmail(tenantEmailRow?.email))await notifyEmail(e,{to:tenantEmailRow.email,subject:'Téo Studio: Đã nhận yêu cầu rút tiền',text:`Téo Studio đã nhận yêu cầu rút tiền của bạn.\n\n${notifyText}\n\nThời gian xử lý là mục tiêu dự kiến, không phải cam kết thanh toán.`});
     return J({ok:true,withdrawal:{id,grossVnd:gross,feeVnd:fee,payoutVnd:payout,speed,status:'pending'},message:'Đã gửi yêu cầu rút tiền để Admin duyệt.'},201);
   }
+  if(p==='/api/tenant/security/blocks'&&r.method==='GET'){
+    await ensureTenantSchema(e);const rows=(await e.DB.prepare('SELECT id,kind,value_normalized,reason,created_at FROM tenant_security_blocks WHERE tenant_id=? ORDER BY created_at DESC LIMIT 500').bind(String(t.id)).all()).results||[];return J({ok:true,blocks:rows});
+  }
+  if(p==='/api/tenant/security/blocks'&&r.method==='POST'){
+    const rl=limited(r,'tenant-security-block-create',12,60000);if(rl)return rl;const b=await r.json().catch(()=>({})),kind=String(b.kind||''),raw=clean(b.value||'',320),reason=clean(b.reason||'',300);if(!['ip','email'].includes(kind))return J({ok:false,error:'INVALID_BLOCK_KIND'},400);
+    const value=kind==='email'?(validEmail(raw)||'').toLowerCase():normalizeIpInput(raw);if(!value)return J({ok:false,error:kind==='email'?'INVALID_EMAIL':'INVALID_IP',message:kind==='email'?'Nhập email hợp lệ.':'Nhập một địa chỉ IPv4 hoặc IPv6 hợp lệ.'},400);
+    try{await e.DB.prepare('INSERT INTO tenant_security_blocks(id,tenant_id,kind,value_normalized,reason,created_by) VALUES(?,?,?,?,?,?)').bind(crypto.randomUUID(),String(t.id),kind,value,reason||'Chủ Studio chủ động chặn','tenant_admin').run()}catch(err){if(String(err?.message||'').toLowerCase().includes('unique'))return J({ok:false,error:'BLOCK_EXISTS',message:'Giá trị này đã nằm trong danh sách chặn.'},409);return J({ok:false,error:'BLOCK_SAVE_FAILED'},500)}
+    await tenantLog(e,t.id,t.id,'security_block_add',`${kind}:${value}`);return J({ok:true,message:'Đã thêm vào danh sách chặn thủ công.'},201);
+  }
+  const tenantBlockMatch=p.match(/^\/api\/tenant\/security\/blocks\/([^/]+)$/);
+  if(tenantBlockMatch&&r.method==='DELETE'){
+    const id=decodeURIComponent(tenantBlockMatch[1]);const result=await e.DB.prepare('DELETE FROM tenant_security_blocks WHERE tenant_id=? AND id=?').bind(String(t.id),id).run();if(!result?.meta?.changes)return J({ok:false,error:'BLOCK_NOT_FOUND'},404);await tenantLog(e,t.id,t.id,'security_block_remove',id);return J({ok:true});
+  }
+  if(p==='/api/tenant/email/start'&&r.method==='POST'){
+    const b=await r.json().catch(()=>({})),email=validEmail(b.email||'').toLowerCase();if(!email)return J({ok:false,error:'INVALID_EMAIL'},400);if(email.toLowerCase()===String(t.email||'').toLowerCase())return J({ok:false,error:'EMAIL_UNCHANGED'},400);const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi đổi email.'},400);
+    await ensureTenantSchema(e);await e.DB.prepare('DELETE FROM tenant_email_codes WHERE tenant_id=? AND email_normalized=?').bind(String(t.id),email).run();const code=String(crypto.getRandomValues(new Uint32Array(1))[0]%1000000).padStart(6,'0'),id=crypto.randomUUID(),expires=Date.now()+10*60*1000;await e.DB.prepare('INSERT INTO tenant_email_codes(id,tenant_id,email_normalized,code_hash,expires_at) VALUES(?,?,?,?,?)').bind(id,String(t.id),email,await sha256(`${t.id}|${email}|${code}`),expires).run();const sent=await notifyEmail(e,{to:email,subject:'TeoStudio: xác minh email quản trị',text:`Mã xác minh email của Studio ${t.slug}: ${code}\nMã hết hạn sau 10 phút. Nếu không yêu cầu, hãy bỏ qua.`});if(!sent?.ok){await e.DB.prepare('DELETE FROM tenant_email_codes WHERE id=?').bind(id).run();return J({ok:false,error:'EMAIL_SEND_FAILED',message:'Không gửi được email. Hãy thử lại sau.'},502)}return J({ok:true,message:'Đã gửi mã xác minh tới email mới.'});
+  }
+  if(p==='/api/tenant/email/verify'&&r.method==='POST'){
+    const b=await r.json().catch(()=>({})),email=validEmail(b.email||'').toLowerCase(),code=clean(b.code||'',6);if(!email||!/^[0-9]{6}$/.test(code))return J({ok:false,error:'INVALID_CODE'},400);const row=await e.DB.prepare('SELECT * FROM tenant_email_codes WHERE tenant_id=? AND email_normalized=? AND used_at IS NULL AND expires_at>? ORDER BY created_at DESC LIMIT 1').bind(String(t.id),email,Date.now()).first();if(!row||Number(row.attempts)>=5||row.code_hash!==await sha256(`${t.id}|${email}|${code}`)){if(row)await e.DB.prepare('UPDATE tenant_email_codes SET attempts=attempts+1 WHERE id=?').bind(row.id).run();return J({ok:false,error:'CODE_EXPIRED_OR_INVALID',message:'Mã sai hoặc hết hạn.'},400)}const key=await tenantAccountKeyColumn(e);if(!key)return J({ok:false,error:'TENANT_SCHEMA_KEY_MISSING'},500);await e.DB.batch([e.DB.prepare(`UPDATE tenant_accounts SET email=?,email_verified_at=datetime('now') WHERE ${key}=?`).bind(email,t.id),e.DB.prepare("UPDATE tenant_email_codes SET used_at=datetime('now') WHERE id=?").bind(row.id)]);await tenantLog(e,t.id,t.id,'tenant_email_changed',email);await notifyEmail(e,{to:email,subject:'TeoStudio: email quản trị đã xác minh',text:`Email ${email} đã được xác minh và liên kết với Studio ${t.slug}.`});return J({ok:true,message:'Email đã xác minh và cập nhật.'});
+  }
   if(p==='/api/tenant/stats'&&r.method==='GET')return J({ok:true,...await tenantStats(e,t.id,u.searchParams.get('days')||30,u.searchParams.get('month')||'')});
   if(p==='/api/tenant/audit'&&r.method==='GET')return J({ok:true,logs:await tenantAudit(e,t.id)});
   if(p==='/api/tenant/logout'&&r.method==='POST'){const tok=tokenFrom(r);await e.DB.prepare('DELETE FROM tenant_sessions WHERE token=?').bind(tok).run();return J({ok:true})}
@@ -1400,7 +1518,7 @@ async function handleMasterTenant(r,e){
       row=await e.DB.prepare(`SELECT * FROM tenant_accounts WHERE ${finalKey}=?`).bind(tid).first();
       row=await normalizeTenantRow(e,row);
       if(!row)return J({ok:false,error:'TENANT_CREATE_FAILED'},500);
-      if(email){await e.DB.prepare(`UPDATE tenant_accounts SET email=? WHERE ${finalKey}=?`).bind(email,tid).run();row.email=email;}
+      if(email){await e.DB.prepare(`UPDATE tenant_accounts SET email=?,email_verified_at=COALESCE(email_verified_at,datetime('now')) WHERE ${finalKey}=?`).bind(email,tid).run();row.email=email;row.email_verified_at=row.email_verified_at||starts;}
       try{await tenantLog(e,row.id,'master','create',`plan=${planType};days=${planType==='free'?4:days}`)}catch{}
       await createNotification(e,{recipientType:'admin',recipientId:'master',title:'Đã tạo tenant mới',body:planType==='free'?`Tài khoản ${slug} thuộc gói Free. Admin cần xác minh 2 lượt vượt link; mỗi lượt cộng 2 ngày.`:`Tài khoản ${slug} đã được tạo với thời hạn ${days} ngày.`,kind:'tenant'});
       await createNotification(e,{recipientType:'tenant',recipientId:row.id,title:'Chào mừng đến với Téo Studio',body:planType==='free'?'Tài khoản Free đã được tạo. Hãy hoàn thành 2 lượt vượt link được máy chủ xác minh để mở Admin trong 4 ngày.':`Tài khoản ${slug} đã được tạo. Hãy đăng nhập trang quản trị tenant để bắt đầu.`,kind:'welcome'});
