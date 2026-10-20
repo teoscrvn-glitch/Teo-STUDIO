@@ -8,13 +8,19 @@ node --check cloudflare/worker.js
 echo '[2/8] Frontend JavaScript syntax'
 find frontend/assets/js -type f -name '*.js' -exec node --check '{}' \;
 echo '[3/8] Version fingerprint and cache keys'
-grep -q "v56.18-tenant-stats-polish-vn-email" cloudflare/worker.js
-grep -q "v56.18-tenant-stats-polish-vn-email" frontend/assets/js/config.js
-grep -q 'assets/js/account.js?v=56.18' frontend/index.html
-grep -q 'assets/js/account.js?v=56.18' frontend/detail.html
-grep -q 'assets/js/tenant-detail.js?v=56.18' frontend/tenant-detail.html
-grep -q 'assets/css/style.css?v=56.18' frontend/detail.html
+grep -q "v56.19-sales-feed-detail-share-ai-diagnostics" cloudflare/worker.js
+grep -q "v56.19-sales-feed-detail-share-ai-diagnostics" frontend/assets/js/config.js
+grep -q 'assets/js/account.js?v=56.19' frontend/index.html
+grep -q 'assets/js/account.js?v=56.19' frontend/detail.html
+grep -q 'assets/js/tenant-detail.js?v=56.19' frontend/tenant-detail.html
+grep -q 'assets/css/style.css?v=56.19' frontend/detail.html
 ! grep -R -qE 'v=56\.16|v56\.15' frontend cloudflare
+grep -q 'callAICompletion' cloudflare/worker.js
+grep -q 'Gemini từ chối API key' cloudflare/worker.js
+grep -q 'recentSalesSection' frontend/index.html
+grep -q 'recentSalesSection' frontend/share.html
+grep -q 'detailShareUrl' frontend/assets/js/main.js
+grep -q '/api/og/product/' cloudflare/worker.js
 echo '[4/8] Wallet purchase flow'
 grep -q 'data-teo-wallet-buy' frontend/assets/js/main.js
 grep -q 'data-teo-wallet-buy' frontend/assets/js/tenant-detail.js
@@ -43,6 +49,8 @@ grep -q 'buyerToken' frontend/assets/js/tenant-admin.js
 grep -q "p==='/api/admin/tenants'&&r.method==='POST'" cloudflare/worker.js
 echo '[7/8] Cloudflare configuration and secrets'
 grep -q '^\[vars\]' cloudflare/wrangler.toml
+grep -q '^AI_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"' cloudflare/wrangler.toml
+grep -q '^AI_MODEL = "gemini-3.8-flash"' cloudflare/wrangler.toml
 grep -q '^SEPAY_ACCOUNT_NUMBER = "0979498243"' cloudflare/wrangler.toml
 grep -q '^SEPAY_BANK_CODE = "MB"' cloudflare/wrangler.toml
 grep -q '^TURNSTILE_SITE_KEY = "0x4AAAAAAFM6DoL2w6HDogkC"' cloudflare/wrangler.toml

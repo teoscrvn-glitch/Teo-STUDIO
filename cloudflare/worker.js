@@ -50,7 +50,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v56.18-tenant-stats-polish-vn-email';
+const BUILD_VERSION='v56.19-sales-feed-detail-share-ai-diagnostics';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -419,13 +419,39 @@ async function buyerStudios(e,buyer){
   await ensureTenantSchema(e);const rows=(await e.DB.prepare("SELECT id,slug,plan_type,starts_at,expires_at,created_at,studio_name FROM tenant_accounts WHERE lower(email)=lower(?) AND (deleted_at IS NULL OR deleted_at='') ORDER BY created_at DESC LIMIT 20").bind(buyer.email).all()).results||[];
   return rows.map(t=>({id:t.id,slug:t.slug,studioName:t.studio_name||t.slug,planType:String(t.plan_type||'free'),startsAt:t.starts_at,expiresAt:t.expires_at,adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(t.slug)}`}));
 }
+function aiProviderErrorMessage(status){
+  const n=Number(status)||0;
+  if(n===400)return 'Gemini đã từ chối nội dung yêu cầu (HTTP 400). Kiểm tra AI_MODEL và endpoint Chat Completions trên Worker.';
+  if(n===401||n===403)return `Gemini từ chối API key hoặc quyền truy cập (HTTP ${n}). Kiểm tra lại secret AI_API_KEY trong đúng Worker môi trường Production.`;
+  if(n===404)return 'Gemini không tìm thấy endpoint hoặc model (HTTP 404). Kiểm tra AI_API_URL và AI_MODEL.';
+  if(n===429)return 'Gemini đang giới hạn tốc độ hoặc hết hạn mức (HTTP 429). Kiểm tra quota/billing của Google AI Studio rồi thử lại sau.';
+  if(n>=500)return `Dịch vụ Gemini đang lỗi phía máy chủ (HTTP ${n}). Thử lại sau.`;
+  return n?`Nhà cung cấp AI trả lỗi HTTP ${n}. Kiểm tra endpoint, model, API key và hạn mức.`:'Không kết nối được nhà cung cấp AI. Kiểm tra endpoint và kết nối mạng của Worker.';
+}
+async function callAICompletion(e,messages,{maxTokens=700,temperature=0.2,timeoutMs=15000}={}){
+  const status=runtimeConfigStatus(e).ai;
+  if(!status.ready)return {ok:false,error:'AI_NOT_READY',message:'Chưa đủ cấu hình AI_API_URL, AI_API_KEY, AI_MODEL hoặc endpoint không phải HTTPS.',missing:status.missing};
+  const url=new URL(String(e.AI_API_URL));
+  let resp;
+  try{
+    resp=await fetch(url.toString(),{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+String(e.AI_API_KEY)},body:JSON.stringify({model:String(e.AI_MODEL),temperature,max_tokens:maxTokens,stream:false,messages}),signal:AbortSignal.timeout(timeoutMs),cache:'no-store'});
+  }catch(err){return {ok:false,error:err?.name==='TimeoutError'||err?.name==='AbortError'?'AI_PROVIDER_TIMEOUT':'AI_PROVIDER_UNREACHABLE',message:err?.name==='TimeoutError'||err?.name==='AbortError'?'Gemini phản hồi quá thời gian chờ. Hãy thử lại; nếu tiếp tục lỗi, dùng Thử kết nối AI trong trang Admin.':'Worker không gọi được endpoint Gemini. Kiểm tra URL AI_API_URL và thử kết nối AI trong Admin.'};}
+  if(!resp.ok){const providerStatus=resp.status;try{await resp.body?.cancel()}catch{}return {ok:false,error:'AI_PROVIDER_HTTP_ERROR',providerStatus,message:aiProviderErrorMessage(providerStatus)};}
+  let raw='';try{raw=await resp.text()}catch{return {ok:false,error:'AI_RESPONSE_READ_FAILED',message:'Kết nối đã mở nhưng không đọc được phản hồi của Gemini. Hãy thử lại.'};}
+  let data;try{data=JSON.parse(raw)}catch{return {ok:false,error:'AI_RESPONSE_NOT_JSON',message:'Gemini trả phản hồi không phải JSON Chat Completions. Kiểm tra AI_API_URL phải kết thúc bằng /v1beta/openai/chat/completions.'};}
+  const reply=clean(data?.choices?.[0]?.message?.content||'',3000);
+  if(!reply)return {ok:false,error:'AI_RESPONSE_FORMAT',message:'Gemini có phản hồi nhưng thiếu choices[0].message.content. Kiểm tra endpoint tương thích OpenAI và model.'};
+  return {ok:true,reply};
+}
 async function assistantChat(r,e){
   const rl=limited(r,'assistant-chat',15,60000);if(rl)return rl;await ensureV55Schema(e);const b=await r.json().catch(()=>({})),message=clean(b.message||'',1800);if(!message)return J({ok:false,error:'MESSAGE_REQUIRED'},400);
   const buyer=await buyerFromRequest(r,e);let context={site:'TeoStudio',path:clean(b.page||'',250),authenticated:!!buyer};if(buyer){context.account={displayName:buyer.display_name,email:maskEmail(buyer.email),emailVerified:Number(buyer.email_verified)===1,balanceVnd:await buyerBalance(e,buyer.id)};context.purchases=(await e.DB.prepare('SELECT title,amount_vnd,status,created_at,scope FROM buyer_purchases WHERE buyer_id=? ORDER BY created_at DESC LIMIT 5').bind(buyer.id).all()).results||[];context.studios=(await e.DB.prepare("SELECT studio_name,slug,plan_type,expires_at,locked FROM tenant_accounts WHERE lower(email)=lower(?) AND (deleted_at IS NULL OR deleted_at='') ORDER BY rowid DESC LIMIT 5").bind(buyer.email).all().catch(()=>({results:[]}))).results||[]}
-  const apiUrl=String(e.AI_API_URL||''),key=String(e.AI_API_KEY||''),model=String(e.AI_MODEL||'');
-  if(!apiUrl||!key||!model){const text=/mua|nạp|ví|số dư/i.test(message)?'Mình là trợ lý TeoStudio. Để mua file trả phí, bạn cần đăng nhập, xác minh chống bot và có đủ số dư. Nếu thiếu tiền, mở Tài khoản → Nạp tiền; mỗi mã QR chỉ dùng cho đơn tương ứng.':/lỗi|bug|error|không chạy|hỏng/i.test(message)?'Mình có thể giúp ghi nhận lỗi. Hãy bấm “Báo lỗi”, mô tả các bước gây lỗi và gửi mã đơn nếu có. Đừng gửi mật khẩu, Admin Key hoặc mã bí mật.':'Mình là trợ lý hỗ trợ TeoStudio. Hiện API AI chưa được cấu hình nên mình chỉ trả lời được một số câu hỏi cơ bản. Bạn vẫn có thể gửi báo cáo lỗi để Téo kiểm tra.';return J({ok:true,reply:text,mode:'fallback',aiConfigured:false})}
-  let url;try{url=new URL(apiUrl);if(url.protocol!=='https:')throw new Error('HTTPS_REQUIRED')}catch{return J({ok:false,error:'AI_ENDPOINT_INVALID'},503)}
-  try{const resp=await fetch(url.toString(),{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+key},body:JSON.stringify({model,temperature:0.2,max_tokens:700,messages:[{role:'system',content:'Bạn là trợ lý hỗ trợ TeoStudio. Chỉ hướng dẫn cách sử dụng website, đọc thông tin tài khoản được máy chủ cung cấp và hướng dẫn lập báo cáo lỗi. Không được yêu cầu mật khẩu, API key, mã OTP, thông tin ngân hàng hoặc bí mật. Không tuyên bố đã thực hiện thao tác quan trọng; không thể tự sửa số dư, thanh toán, gói thuê hay trạng thái đơn. Nếu có sự cố, hướng dẫn dùng nút Báo lỗi. Dữ liệu website có thể thiếu; hãy nói rõ khi không biết. Ngữ cảnh an toàn: '+JSON.stringify(context).slice(0,1200)},{role:'user',content:message}]}) ,signal:AbortSignal.timeout(15000)});if(!resp.ok)return J({ok:true,reply:'AI đang bận hoặc hết hạn mức miễn phí. Bạn có thể thử lại hoặc bấm Báo lỗi.',mode:'fallback'});const data=await resp.json(),reply=clean(data.choices?.[0]?.message?.content||'',3000);return J({ok:true,reply:reply||'Mình chưa tạo được câu trả lời. Hãy thử hỏi lại.',mode:'ai'})}catch{return J({ok:true,reply:'Không kết nối được API AI lúc này. Bạn có thể thử lại hoặc gửi báo cáo lỗi.',mode:'fallback'})}
+  const configured=runtimeConfigStatus(e).ai;
+  if(!configured.ready){const text=/mua|nạp|ví|số dư/i.test(message)?'Mình là trợ lý TeoStudio. Để mua file trả phí, bạn cần đăng nhập, xác minh chống bot và có đủ số dư. Nếu thiếu tiền, mở Tài khoản → Nạp tiền; mỗi mã QR chỉ dùng cho đơn tương ứng.':/lỗi|bug|error|không chạy|hỏng/i.test(message)?'Mình có thể giúp ghi nhận lỗi. Hãy bấm “Báo lỗi”, mô tả các bước gây lỗi và gửi mã đơn nếu có. Đừng gửi mật khẩu, Admin Key hoặc mã bí mật.':'Mình là trợ lý hỗ trợ TeoStudio. API AI chưa sẵn sàng nên hiện mình chỉ hướng dẫn cơ bản được. Hãy mở Admin → Trạng thái dịch vụ → Thử kết nối AI để xem cấu hình nào còn thiếu.';return J({ok:true,reply:text,mode:'fallback',aiConfigured:false,missing:configured.missing})}
+  const system='Bạn là trợ lý hỗ trợ TeoStudio. Chỉ hướng dẫn cách sử dụng website, đọc thông tin tài khoản được máy chủ cung cấp và hướng dẫn lập báo cáo lỗi. Không được yêu cầu mật khẩu, API key, mã OTP, thông tin ngân hàng hoặc bí mật. Không tuyên bố đã thực hiện thao tác quan trọng; không thể tự sửa số dư, thanh toán, gói thuê hay trạng thái đơn. Nếu có sự cố, hướng dẫn dùng nút Báo lỗi. Dữ liệu website có thể thiếu; hãy nói rõ khi không biết. Ngữ cảnh an toàn: '+JSON.stringify(context).slice(0,1200);
+  const result=await callAICompletion(e,[{role:'system',content:system},{role:'user',content:message}],{maxTokens:700,temperature:0.2,timeoutMs:20000});
+  if(!result.ok)return J({ok:false,error:result.error,message:result.message,providerStatus:result.providerStatus,missing:result.missing},502);
+  return J({ok:true,reply:result.reply,mode:'ai'});
 }
 async function submitSupportReport(r,e){const rl=limited(r,'support-report',3,60000);if(rl)return rl;await ensureV55Schema(e);const b=await r.json().catch(()=>({}));if(clean(b.website||'',100))return J({ok:true,message:'Đã nhận báo cáo.'});const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy hoàn thành xác minh chống bot trước khi gửi báo lỗi.'},400);const message=clean(b.message||'',1800);if(message.length<8)return J({ok:false,error:'REPORT_TOO_SHORT',message:'Mô tả lỗi ít nhất 8 ký tự.'},400);const buyer=await buyerFromRequest(r,e),email=buyer?.email||validEmail(b.email||'');if(email&&await securityBlocked(e,'email',email))return J({ok:false,error:'NOT_FOUND'},404);const id=crypto.randomUUID(),report={id,buyer_id:buyer?.id||null,email,display_name:buyer?.display_name||clean(b.name||'',80),page:clean(b.page||'',250),category:clean(b.category||'other',40),message,user_agent:clean(r.headers.get('user-agent')||'',400),client_ip:clientIp(r)||''};await e.DB.prepare('INSERT INTO support_reports(id,buyer_id,email,display_name,page,category,message,user_agent,client_ip) VALUES(?,?,?,?,?,?,?,?,?)').bind(report.id,report.buyer_id,report.email,report.display_name,report.page,report.category,report.message,report.user_agent,report.client_ip).run();await supportNotify(e,report);return J({ok:true,id,message:'Đã gửi báo cáo lỗi. Mã tiếp nhận: '+id},201)}
 async function settings(e){const a=(await e.DB.prepare('SELECT key,value FROM settings').all()).results||[];const s={};for(const x of a){if(['adminPasswordHash'].includes(x.key))continue;try{s[x.key]=JSON.parse(x.value)}catch{s[x.key]=x.value}}for(const k of ['groupLink','adminContact','rentZalo','socialTikTokUrl','socialYoutubeUrl'])if(s[k])s[k]=safeHttpUrl(s[k],4000)||'#';for(const k of ['avatar','donateQr'])if(s[k])s[k]=safeImageValue(s[k],1500000)||'';return s}
@@ -1206,7 +1232,7 @@ async function handleTenantPublic(r,e){
   if(tenantStatus(t)==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);
   if(await tenantSecurityBlocked(e,t.id,'ip',clientIp(r)))return blockedNotFound(r);
   if(r.method==='GET'&&parts.length===3){await tenantBump(e,t,'visit','',r,u.searchParams.get('source')||'');let layout=[];try{await ensureV55Schema(e);const ll=await e.DB.prepare('SELECT layout_json FROM tenant_site_layouts WHERE tenant_id=?').bind(String(t.id)).first();layout=JSON.parse(ll?.layout_json||'[]')}catch{}return J({ok:true,tenant:tenantInfo(t),settings:await tenantSettings(e,t),tags:await tenantTags(e,t),products:await tenantProducts(e,t),layout})}
-  if(parts[3]==='recent-sales'&&r.method==='GET'){await ensureV55Schema(e);const rows=(await e.DB.prepare("SELECT p.title,p.amount_vnd,p.created_at,a.display_name,a.email FROM buyer_purchases p LEFT JOIN buyer_accounts a ON a.id=p.buyer_id WHERE p.tenant_id=? AND p.scope='tenant' AND p.status='paid' ORDER BY p.created_at DESC LIMIT 12").bind(String(t.id)).all()).results||[];return J({ok:true,sales:rows.map(x=>({title:clean(x.title,100),amountVnd:Number(x.amount_vnd||0),createdAt:x.created_at,name:clean(x.display_name||'Khách',60),emailMasked:maskEmail(x.email)}))})}
+  if(parts[3]==='recent-sales'&&r.method==='GET'){await ensureV55Schema(e);const rows=(await e.DB.prepare("SELECT p.product_id,p.title,p.amount_vnd,p.created_at,a.display_name,a.email,tp.thumb FROM buyer_purchases p LEFT JOIN buyer_accounts a ON a.id=p.buyer_id LEFT JOIN tenant_products tp ON tp.id=p.product_id AND tp.tenant_id=p.tenant_id WHERE p.tenant_id=? AND p.scope='tenant' AND p.status='paid' ORDER BY p.created_at DESC LIMIT 6").bind(String(t.id)).all()).results||[];return J({ok:true,sales:rows.map(x=>({productId:clean(x.product_id,100),title:clean(x.title,160),amountVnd:Number(x.amount_vnd||0),createdAt:x.created_at,name:clean(x.display_name||'Khách',60),emailMasked:maskEmail(x.email),thumb:x.thumb?safeImageValue(x.thumb,450000):''}))})}
   if(parts[3]==='product'&&parts[4]&&r.method==='GET'){
     const id=decodeURIComponent(parts[4]);
     const pk=tenantInSql(t);const p=await e.DB.prepare(`SELECT * FROM tenant_products WHERE ${pk.clause} AND id=? AND visible=1 ORDER BY updated_at DESC LIMIT 1`).bind(...pk.vals,id).first();
@@ -1605,6 +1631,15 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   }catch{}}
   if(p==='/api/webhook/sepay')return await handleSePayWebhook(r,e);
   if(p==='/api/public-config'&&r.method==='GET')return J(paymentConfig(e));
+  if(p==='/api/public/recent-sales'&&r.method==='GET'){
+    await ensureV55Schema(e);
+    const rows=(await e.DB.prepare(`SELECT bp.product_id,bp.title,bp.amount_vnd,bp.created_at,a.display_name,a.email,p.thumb
+      FROM buyer_purchases bp LEFT JOIN buyer_accounts a ON a.id=bp.buyer_id
+      LEFT JOIN products p ON p.id=bp.product_id
+      WHERE bp.scope='main' AND bp.status='paid'
+      ORDER BY bp.created_at DESC LIMIT 6`).all()).results||[];
+    return J({ok:true,sales:rows.map(x=>({productId:clean(x.product_id,100),title:clean(x.title,160),amountVnd:Number(x.amount_vnd||0),createdAt:x.created_at,name:clean(x.display_name||'Khách',60),emailMasked:maskEmail(x.email),thumb:x.thumb?safeImageValue(x.thumb,450000):''}))});
+  }
   if(p==='/api/rental/config'&&r.method==='GET')return J({...paymentConfig(e),freeBypassConfigured:!!(e.FREE_BYPASS_TEMPLATE_1&&e.FREE_BYPASS_TEMPLATE_2&&e.FREE_BYPASS_VERIFY_URL&&e.FREE_BYPASS_API_KEY),emailConfigured:!!e.OXMAIL_SMTP_PASS});
   if(p==='/api/rental/email/start'&&r.method==='POST')return await startRentalEmailVerification(r,e);
   if(p==='/api/rental/email/verify'&&r.method==='POST')return await verifyRentalEmail(r,e);
@@ -1790,9 +1825,44 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
       return new Response(svg,{headers:{'content-type':'image/svg+xml;charset=utf-8','cache-control':'public, max-age=300'}});
     }catch{return new Response('Not found',{status:404})}
   }
+  if(crawler&&(p==='/detail'||p==='/detail.html')&&r.method==='GET'&&e.ASSETS){
+    try{
+      await ensureSchema(e);const id=clean(u.searchParams.get('id')||'',100),product=id?await productById(e,id):null;
+      if(product){
+        const rr=await e.ASSETS.fetch(new Request(new URL('/detail.html',r.url),r));let html=await rr.text();
+        const escMeta=v=>String(v??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const title=escMeta((product.title||'Chi tiết file')+' — Lại Húp File');
+        const desc=escMeta(String(product.description||product.game||'Xem chi tiết file trên TeoStudio.').replace(/\s+/g,' ').slice(0,220));
+        const shareUrl=PUBLIC_ORIGIN+'/detail?id='+encodeURIComponent(product.id);
+        const img=PUBLIC_ORIGIN+'/api/og/product/'+encodeURIComponent(product.id);
+        const meta=`<meta name="description" content="${desc}"><meta property="og:type" content="website"><meta property="og:title" content="${title}"><meta property="og:description" content="${desc}"><meta property="og:image" content="${img}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:url" content="${shareUrl}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${title}"><meta name="twitter:description" content="${desc}"><meta name="twitter:image" content="${img}"><link rel="canonical" href="${shareUrl}">`;
+        html=html.replace(/<title>.*?<\/title>/i,`<title>${title}</title>`)
+          .replace(/<meta\s+name="description"[^>]*>/gi,'')
+          .replace(/<meta\s+property="og:(?:type|title|description|image|image:type|image:width|image:height|url)"[^>]*>/gi,'')
+          .replace(/<meta\s+name="twitter:(?:card|title|description|image)"[^>]*>/gi,'')
+          .replace(/<link\s+rel="canonical"[^>]*>/gi,'')
+          .replace('</head>',meta+'</head>');
+        return new Response(html,{status:rr.status,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'public, max-age=60','x-content-type-options':'nosniff'}});
+      }
+    }catch{}
+  }
+  // Human visitors use the same clean `/detail?id=...` share URL as social crawlers.
+  if((p==='/detail'||p==='/detail.html')&&r.method==='GET'&&e.ASSETS){
+    try{const target=new URL('/detail.html',r.url);target.search=u.search;const asset=await e.ASSETS.fetch(new Request(target,r));const headers=new Headers(asset.headers);headers.set('cache-control','no-store');headers.set('x-content-type-options','nosniff');return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers})}catch{}
+  }
   if(p==='/share.html'&&r.method==='GET'){
     const crawler=/facebookexternalhit|Facebot|Twitterbot|TelegramBot|WhatsApp|Discordbot|Slackbot|Googlebot|Zalo(?:Bot)?|ZaloPC|LinkedInBot|Pinterestbot|Viber|Line\//i.test(ua);
     if(crawler && e.ASSETS){try{await ensureTenantSchema(e);const slug=clean(new URL(r.url).searchParams.get('tenant')||'',80);const raw=await tenantBySlug(e,slug),t=await normalizeTenantRow(e,raw);const s=t?await tenantSettings(e,t):{};const base=PUBLIC_ORIGIN;const title=String(s.heroTitle||s.siteName||t?.slug||'Share File — Téo Studio').replace(/[<>]/g,'');const desc=String(s.heroText||'Kho file riêng của bạn.').replace(/[<>]/g,'');const img=base+'/api/og/tenant/'+encodeURIComponent(slug);let rr=await e.ASSETS.fetch(new Request(new URL('/share.html',r.url),r));let html=await rr.text();const meta=`<meta name=\"description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta property=\"og:type\" content=\"website\"><meta property=\"og:title\" content=\"${title.replace(/\"/g,'&quot;')}\"><meta property=\"og:description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta property=\"og:image\" content=\"${img}\"><meta property=\"og:url\" content=\"${r.url}\"><meta name=\"twitter:card\" content=\"summary_large_image\"><meta name=\"twitter:title\" content=\"${title.replace(/\"/g,'&quot;')}\"><meta name=\"twitter:description\" content=\"${desc.replace(/\"/g,'&quot;')}\"><meta name=\"twitter:image\" content=\"${img}\">`;html=html.replace('</head>',meta+'</head>');return new Response(html,{status:rr.status,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'public, max-age=60'}})}catch{}}
+  }
+  const ogProductMatch=p.match(/^\/api\/og\/product\/([^/]+)$/);
+  if(ogProductMatch&&r.method==='GET'){
+    await ensureSchema(e);const id=clean(decodeURIComponent(ogProductMatch[1]),100),product=await productById(e,id);if(!product)return new Response('Not found',{status:404});
+    const src=String(product.thumb||'');
+    const data=src.match(/^data:(image\/(?:png|jpeg|jpg|webp|gif|avif));base64,([A-Za-z0-9+/=\r\n]+)$/i);
+    if(data){try{const binary=atob(data[2].replace(/[\r\n]/g,''));if(binary.length>1200000)return new Response('Image too large',{status:413});const bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);return new Response(bytes,{headers:{'content-type':data[1].toLowerCase().replace('image/jpg','image/jpeg'),'cache-control':'public, max-age=300','x-content-type-options':'nosniff'}})}catch{}}
+    const remote=safeHttpUrl(src,1500000);if(remote)return Response.redirect(remote,302);
+    const rel=src.replace(/^\//,'');if(rel&&/^[A-Za-z0-9_./?&=%#-]+$/.test(rel)&&!rel.split('/').includes('..')&&e.ASSETS){try{const ar=await e.ASSETS.fetch(new Request(new URL('/'+rel,r.url)));if(ar.ok&&String(ar.headers.get('content-type')||'').startsWith('image/'))return new Response(ar.body,{status:200,headers:{'content-type':ar.headers.get('content-type'),'cache-control':'public, max-age=300','x-content-type-options':'nosniff'}})}catch{}}
+    return Response.redirect(PUBLIC_ORIGIN+'/assets/img/og-preview.png',302);
   }
   if(p.startsWith('/api/public-tenant/'))return await handleTenantPublic(r,e);
   if(p==='/api/admin/notifications'||p==='/api/admin/notifications/read'){
@@ -1850,8 +1920,13 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   if(p==='/api/admin/logout'&&r.method==='POST'){const t=tokenFrom(r);if(t)await e.DB.prepare('DELETE FROM admin_sessions WHERE token=?').bind(t).run();return J({ok:true})}
   if(p.startsWith('/api/admin/')&&!(await isAdmin(r,e)))return J({ok:false,error:'ADMIN_REQUIRED'},401);
   if(p==='/api/admin/config-status'&&r.method==='GET'){const status=runtimeConfigStatus(e);return J({ok:true,version:BUILD_VERSION,checkedAt:new Date().toISOString(),config:status})}
-  if(p==='/api/admin/ai/test'&&r.method==='POST'){const rl=limited(r,'admin-ai-test',2,60000);if(rl)return rl;const status=runtimeConfigStatus(e).ai;if(!status.configured||!status.endpointValid)return J({ok:false,error:'AI_NOT_READY',message:'Thiếu cấu hình AI hoặc AI_API_URL không phải HTTPS hợp lệ.',missing:status.missing},503);try{const u=new URL(String(e.AI_API_URL));const resp=await fetch(u.toString(),{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+String(e.AI_API_KEY)},body:JSON.stringify({model:String(e.AI_MODEL),temperature:0,max_tokens:8,messages:[{role:'system',content:'Reply with exactly OK.'},{role:'user',content:'health-check'}]}),signal:AbortSignal.timeout(12000)});if(!resp.ok){try{await resp.body?.cancel()}catch{}return J({ok:false,error:'AI_PROVIDER_HTTP_ERROR',status:resp.status,message:'Nhà cung cấp AI từ chối yêu cầu. Kiểm tra URL, model, API key và hạn mức; response body không được ghi ra log.'},502)}const data=await resp.json().catch(()=>null);if(!data?.choices?.[0]?.message?.content)return J({ok:false,error:'AI_RESPONSE_FORMAT',message:'API phản hồi nhưng không đúng định dạng Chat Completions dự kiến.'},502);return J({ok:true,message:'Kết nối AI thành công.',version:BUILD_VERSION})}catch(err){return J({ok:false,error:err?.name==='TimeoutError'?'AI_PROVIDER_TIMEOUT':'AI_PROVIDER_UNREACHABLE',message:'Không kết nối được AI hoặc đã hết thời gian chờ. Kiểm tra endpoint và nhà cung cấp.'},502)}}
-  if(p==='/api/admin/telegram/test'&&r.method==='POST'){const rl=limited(r,'admin-telegram-test',2,60000);if(rl)return rl;const status=runtimeConfigStatus(e).telegram;if(!status.configured)return J({ok:false,error:'TELEGRAM_NOT_CONFIGURED',message:'Thiếu TELEGRAM_BOT_TOKEN hoặc TELEGRAM_CHAT_ID.',missing:status.missing},503);const sent=await telegramSend(e,'✅ Kiểm tra kết nối TeoStudio Telegram thành công. Version '+BUILD_VERSION);if(!sent.ok)return J({ok:false,error:'TELEGRAM_SEND_FAILED',message:'Telegram không nhận được tin nhắn. Kiểm tra bot token, chat ID và quyền gửi tin.'},502);return J({ok:true,message:'Đã gửi tin kiểm tra tới Telegram.'})}
+  if(p==='/api/admin/ai/test'&&r.method==='POST'){
+    const rl=limited(r,'admin-ai-test',2,60000);if(rl)return rl;
+    const result=await callAICompletion(e,[{role:'system',content:'Reply with exactly OK.'},{role:'user',content:'health-check'}],{maxTokens:8,temperature:0,timeoutMs:12000});
+    if(!result.ok)return J({ok:false,error:result.error,message:result.message,providerStatus:result.providerStatus,missing:result.missing},502);
+    return J({ok:true,message:'Kết nối AI thành công.',version:BUILD_VERSION});
+  }
+  if(p==='/api/admin/telegram/test' &&r.method==='POST'){const rl=limited(r,'admin-telegram-test',2,60000);if(rl)return rl;const status=runtimeConfigStatus(e).telegram;if(!status.configured)return J({ok:false,error:'TELEGRAM_NOT_CONFIGURED',message:'Thiếu TELEGRAM_BOT_TOKEN hoặc TELEGRAM_CHAT_ID.',missing:status.missing},503);const sent=await telegramSend(e,'✅ Kiểm tra kết nối TeoStudio Telegram thành công. Version '+BUILD_VERSION);if(!sent.ok)return J({ok:false,error:'TELEGRAM_SEND_FAILED',message:'Telegram không nhận được tin nhắn. Kiểm tra bot token, chat ID và quyền gửi tin.'},502);return J({ok:true,message:'Đã gửi tin kiểm tra tới Telegram.'})}
   if(p==='/api/admin/security/blocks'&&r.method==='GET'){await ensureV55Schema(e);const rows=(await e.DB.prepare('SELECT id,kind,value_normalized,reason,created_by,created_at FROM security_blocks ORDER BY created_at DESC LIMIT 500').all()).results||[];return J({ok:true,blocks:rows})}
   if(p==='/api/admin/security/blocks'&&r.method==='POST'){
     const rl=limited(r,'admin-security-block-create',15,60000);if(rl)return rl;await ensureV55Schema(e);const b=await r.json().catch(()=>({}));const kind=String(b.kind||'').toLowerCase();let value='';if(kind==='ip')value=normalizeIpInput(b.value||'');else if(kind==='email')value=validEmail(b.value||'').toLowerCase();else return J({ok:false,error:'INVALID_BLOCK_KIND',message:'Chọn loại IP hoặc email.'},400);if(!value)return J({ok:false,error:'INVALID_BLOCK_VALUE',message:kind==='ip'?'Địa chỉ IP không hợp lệ.':'Email không hợp lệ.'},400);const id=crypto.randomUUID();try{await e.DB.prepare('INSERT INTO security_blocks(id,kind,value_normalized,reason,created_by) VALUES(?,?,?,?,?)').bind(id,kind,value,clean(b.reason||'',300),'admin').run()}catch(err){if(await e.DB.prepare('SELECT id FROM security_blocks WHERE kind=? AND value_normalized=?').bind(kind,value).first())return J({ok:false,error:'BLOCK_ALREADY_EXISTS',message:'Mục này đã bị chặn rồi.'},409);return J({ok:false,error:'BLOCK_SAVE_FAILED'},500)}SECURITY_BLOCK_CACHE.delete(kind+':'+value);return J({ok:true,id,kind,value,permanent:true,message:'Đã chặn vĩnh viễn. Gỡ chặn bằng nút Xóa trong danh sách.'},201)

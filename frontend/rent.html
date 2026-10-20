@@ -2,9 +2,9 @@
 <html lang="vi">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="robots" content="noindex"><meta name="teo-frontend-version" content="v56.18-tenant-stats-polish-vn-email">
+  <meta name="robots" content="noindex"><meta name="teo-frontend-version" content="v56.19-sales-feed-detail-share-ai-diagnostics">
   <title>Tài khoản & thuê website — TeoStudio</title>
-  <link rel="stylesheet" href="assets/css/style.css?v=56.18">
+  <link rel="stylesheet" href="assets/css/style.css?v=56.19">
   <style>
     .rent-v55{max-width:900px;margin:28px auto}.rent-hero{position:relative;overflow:hidden;padding:clamp(24px,5vw,48px);border-radius:26px;border:1px solid var(--border);background:radial-gradient(circle at 85% 15%,rgba(139,92,246,.24),transparent 35%),linear-gradient(145deg,var(--surface),var(--bg));box-shadow:0 20px 70px #0002}.rent-hero h1{font-size:clamp(28px,5vw,44px);line-height:1.1;margin:10px 0 14px}.rent-hero p{max-width:680px;line-height:1.7;color:var(--muted)}.rent-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}.rent-actions .btn{min-width:170px}.rent-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}.rent-step{padding:18px;border:1px solid var(--border);background:var(--surface);border-radius:18px}.rent-step b{display:block;margin:8px 0}.rent-step p{margin:0;color:var(--muted);font-size:13px;line-height:1.6}.rent-help{margin-top:16px;padding:18px;border:1px solid var(--border);border-radius:18px;background:var(--surface)}@media(max-width:650px){.rent-steps{grid-template-columns:1fr}.rent-actions{flex-direction:column}.rent-actions .btn{width:100%}}
   </style>
@@ -16,6 +16,6 @@
   <section class="rent-steps"><article class="rent-step"><span>01 · TÀI KHOẢN</span><b>Đăng ký một lần</b><p>Dùng email đã xác minh, tên hiển thị và mật khẩu. Có chức năng đặt lại mật khẩu qua email.</p></article><article class="rent-step"><span>02 · CHỌN GÓI</span><b>Free hoặc VIP</b><p>Tạo studio Free hoặc thuê VIP theo QR. Không tạo tài khoản thứ hai; trạng thái chỉ đổi sau khi máy chủ xác nhận thanh toán.</p></article><article class="rent-step"><span>03 · QUẢN LÝ</span><b>Admin riêng & Share công khai</b><p>Sao chép link Admin từ tài khoản; link Share có thể công khai. Không chia sẻ token, mật khẩu hoặc link chứa quyền quản trị.</p></article></section>
   <section class="rent-help"><h2>Đã có studio từ phiên bản cũ?</h2><p class="muted">Các studio hiện có vẫn được giữ lại. Mở Admin cũ để tiếp tục quản lý; khi cần liên kết tài khoản chung, hãy dùng đúng email đã đăng ký và liên hệ Téo nếu studio chưa xuất hiện trong mục Tài khoản.</p><div class="rent-actions"><a class="btn ghost" href="tenant-admin.html">Mở Admin studio hiện có</a><a class="btn ghost" href="index.html#contact">Liên hệ hỗ trợ</a></div></section>
 </main>
-<script src="assets/js/config.js?v=56.18"></script><script src="assets/js/account.js?v=56.18" defer></script><script src="assets/js/assistant.js?v=56.18" defer></script>
+<script src="assets/js/config.js?v=56.19"></script><script src="assets/js/account.js?v=56.19" defer></script><script src="assets/js/assistant.js?v=56.19" defer></script>
 <script>document.addEventListener('DOMContentLoaded',()=>{const open=()=>window.TeoAccount?.open();document.querySelector('#rentOpenAccount')?.addEventListener('click',open);document.querySelector('#rentOpenStudios')?.addEventListener('click',()=>{open();setTimeout(()=>{document.querySelector('#teoAccountPanel [data-tab="studios"]')?.click()},350)});const ref=new URLSearchParams(location.search).get('ref');if(ref&&/^[a-z0-9_-]{2,60}$/i.test(ref))localStorage.setItem('TEO_REFERRER',ref);if(new URLSearchParams(location.search).get('account')==='open')open()});</script>
 </body></html>
