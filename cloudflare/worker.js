@@ -29,6 +29,8 @@ async function sendOxMail(e,{to,subject,text}){
   }finally{try{reader.releaseLock()}catch{}try{writer.releaseLock()}catch{}try{await socket.close()}catch{}}
 }
 function notifyEmail(e,{to,subject,text}){return sendOxMail(e,{to,subject,text}).catch(err=>({ok:false,error:String(err?.message||err)}));}
+function formatVietnamTime(date=new Date()){return new Intl.DateTimeFormat('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',weekday:'long',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(date)+' (giờ Việt Nam, UTC+7)';}
+function describeDevice(ua=''){ua=String(ua);let os='Thiết bị không xác định';if(/Android/i.test(ua))os='Điện thoại/máy tính bảng Android';else if(/iPhone|iPad|iPod/i.test(ua))os='Thiết bị Apple iOS/iPadOS';else if(/Windows/i.test(ua))os='Máy tính Windows';else if(/Mac OS X|Macintosh/i.test(ua))os='Máy tính macOS';else if(/Linux/i.test(ua))os='Máy tính Linux';let browser='trình duyệt không xác định';if(/Edg\//i.test(ua))browser='Microsoft Edge';else if(/OPR\//i.test(ua))browser='Opera';else if(/Chrome\//i.test(ua)&&!/Edg\//i.test(ua))browser='Google Chrome';else if(/Firefox\//i.test(ua))browser='Mozilla Firefox';else if(/Safari\//i.test(ua)&&!/Chrome\//i.test(ua))browser='Safari';return os+' · '+browser+'\nThông tin trình duyệt: '+ua.slice(0,220);}
 function validEmail(v){const x=clean(v,320);return EMAIL_RE.test(x)?x:'';}
 async function ensureNotificationsSchema(e){
   await e.DB.prepare(`CREATE TABLE IF NOT EXISTS web_notifications (
@@ -48,7 +50,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v56.16-account-wallet-tenant-suite';
+const BUILD_VERSION='v56.18-tenant-stats-polish-vn-email';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -305,7 +307,7 @@ async function accountApi(r,e,p){
     let known=false;try{known=!!(await e.DB.prepare('SELECT id FROM buyer_known_devices WHERE buyer_id=? AND device_key=?').bind(row.id,deviceKey).first())}catch{}
     try{await e.DB.prepare(`INSERT INTO buyer_known_devices(id,buyer_id,device_key,device_label,ip_address) VALUES(?,?,?,?,?) ON CONFLICT(buyer_id,device_key) DO UPDATE SET device_label=excluded.device_label,ip_address=excluded.ip_address,last_seen_at=datetime('now')`).bind(crypto.randomUUID(),row.id,deviceKey,deviceLabel,ip).run()}catch{}
     const token=crypto.randomUUID()+crypto.randomUUID();await e.DB.prepare('INSERT INTO buyer_sessions(token,buyer_id,expires_at,device_key,device_label,ip_address) VALUES(?,?,?,?,?,?)').bind(token,row.id,Date.now()+7*86400000,deviceKey,deviceLabel,ip).run();
-    if(!known)await notifyEmail(e,{to:row.email,subject:'TeoStudio: đăng nhập từ thiết bị mới',text:`Tài khoản ${row.login_id||row.email} vừa đăng nhập từ thiết bị mới.\nThời gian: ${new Date().toISOString()}\nThiết bị/trình duyệt: ${deviceLabel}\nIP: ${ip||'không xác định'}\nNếu không phải bạn, hãy đổi mật khẩu và đăng xuất các phiên khác.`});
+    if(!known)await notifyEmail(e,{to:row.email,subject:'TeoStudio: đăng nhập từ thiết bị mới',text:`Xin chào ${row.display_name||row.login_id||'bạn'},\n\nTài khoản TeoStudio của bạn vừa đăng nhập từ một thiết bị chưa từng được ghi nhận.\n\nTài khoản: ${row.login_id||row.email}\nThời gian: ${formatVietnamTime()}\nThiết bị: ${describeDevice(deviceLabel)}\nĐịa chỉ IP: ${ip||'không xác định'}\n\nNếu chính bạn vừa đăng nhập, bạn không cần làm gì. Nếu không phải bạn, hãy đổi mật khẩu và liên hệ hỗ trợ để bảo vệ tài khoản.\n\nTeoStudio · Thông báo bảo mật tự động.`});
     await createNotification(e,{recipientType:'buyer',recipientId:row.id,title:'Đăng nhập thành công',body:known?'Bạn đã đăng nhập vào TeoStudio.':'Có phiên đăng nhập từ thiết bị mới.',kind:'account'});
     return J({ok:true,token,user:buyerPublic(row),expiresIn:7*86400000});
   }

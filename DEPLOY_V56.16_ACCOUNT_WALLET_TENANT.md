@@ -11,7 +11,7 @@
 2. Merge/replace the matching root paths from this ZIP: `cloudflare/`, `frontend/`, `scripts/`, `README.md`, and the V56.16 docs. Keep files in their existing paths; do not add an extra parent folder.
 3. Confirm Worker Builds is still configured with root directory `cloudflare` and build/deploy command `npx wrangler deploy`.
 4. Commit, then open Cloudflare → Workers & Pages → `teo-studio` → Deployments and verify the newest deployment uses the new commit hash. Do not retry an old build hoping it will pick up a later commit.
-5. Check `https://teostudio.top/api/health`; expected version is `v56.16-account-wallet-tenant-suite`.
+5. Check `https://teostudio.top/api/health`; expected version is `v56.18-tenant-stats-polish-vn-email`.
 
 ## Preserve configuration
 - `cloudflare/wrangler.toml` retains the observed D1 binding and non-secret vars `SEPAY_ACCOUNT_NUMBER`, `SEPAY_BANK_CODE`, `TURNSTILE_SITE_KEY`. Compare these values to your current Production Variables before commit; edit them if your current values differ.

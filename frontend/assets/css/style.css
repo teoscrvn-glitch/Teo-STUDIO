@@ -154,3 +154,6 @@ html.theme-glow .product-card,html.theme-glow .social-card{box-shadow:0 0 18px c
 .detail-body>a.btn.ghost.full,.download-card>a.btn.ghost.full{min-height:50px;font-size:15px;font-weight:900;color:#bbf7d0;background:linear-gradient(135deg,rgba(22,163,74,.23),rgba(16,185,129,.10));border:1px solid rgba(74,222,128,.72);box-shadow:0 5px 20px rgba(34,197,94,.12)}
 .social-card{border-color:rgba(167,139,250,.28)}.social-platform{font-size:10px;font-weight:900;letter-spacing:.12em}.social-main small{display:block;overflow-wrap:anywhere}
 .content-tools .active-filter{background:rgba(167,139,250,.2);border-color:#a78bfa;color:#ddd6fe;font-weight:900}.content-tools #visibleFiles,.content-tools #hiddenFiles{min-height:42px;padding-inline:16px;font-weight:850}.tenant-row .row-actions .table-btn{min-height:36px;padding:8px 12px;font-weight:800}.tenant-row .row-actions .table-btn:nth-of-type(2){border-color:rgba(167,139,250,.6);background:rgba(167,139,250,.13)}
+
+/* V56.17: buyer wallet launcher belongs on public/share pages, not the tenant management console. */
+body.admin-body #teoAccountLauncher{display:none!important}

@@ -24,4 +24,4 @@
 - Full Teo AI answers/actions need valid `AI_API_URL`, `AI_API_KEY` and `AI_MODEL` values; this ZIP cannot create the vendor API key.
 - A real purchase must be tested with a test product and enough confirmed wallet balance. A 10,000đ balance cannot purchase a 15,000đ item; this release makes the 5,000đ shortfall explicit.
 - Email transport/configuration still depends on the configured OxMail mailbox and Cloudflare network support for SMTP via `cloudflare:sockets`; run the admin email test after deployment.
-- Always verify `/api/health` returns `v56.16-account-wallet-tenant-suite` after deployment; an old response means the new commit/cache is not active.
+- Always verify `/api/health` returns `v56.18-tenant-stats-polish-vn-email` after deployment; an old response means the new commit/cache is not active.

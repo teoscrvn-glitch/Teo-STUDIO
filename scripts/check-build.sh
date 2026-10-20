@@ -8,13 +8,13 @@ node --check cloudflare/worker.js
 echo '[2/8] Frontend JavaScript syntax'
 find frontend/assets/js -type f -name '*.js' -exec node --check '{}' \;
 echo '[3/8] Version fingerprint and cache keys'
-grep -q "v56.16-account-wallet-tenant-suite" cloudflare/worker.js
-grep -q "v56.16-account-wallet-tenant-suite" frontend/assets/js/config.js
-grep -q 'assets/js/account.js?v=56.16' frontend/index.html
-grep -q 'assets/js/account.js?v=56.16' frontend/detail.html
-grep -q 'assets/js/tenant-detail.js?v=56.16' frontend/tenant-detail.html
-grep -q 'assets/css/style.css?v=56.16' frontend/detail.html
-! grep -R -qE 'v=56\.15|v56\.15' frontend cloudflare
+grep -q "v56.18-tenant-stats-polish-vn-email" cloudflare/worker.js
+grep -q "v56.18-tenant-stats-polish-vn-email" frontend/assets/js/config.js
+grep -q 'assets/js/account.js?v=56.18' frontend/index.html
+grep -q 'assets/js/account.js?v=56.18' frontend/detail.html
+grep -q 'assets/js/tenant-detail.js?v=56.18' frontend/tenant-detail.html
+grep -q 'assets/css/style.css?v=56.18' frontend/detail.html
+! grep -R -qE 'v=56\.16|v56\.15' frontend cloudflare
 echo '[4/8] Wallet purchase flow'
 grep -q 'data-teo-wallet-buy' frontend/assets/js/main.js
 grep -q 'data-teo-wallet-buy' frontend/assets/js/tenant-detail.js
@@ -36,6 +36,7 @@ echo '[6/8] Tenant dashboard and scope'
 grep -q 'tenantViewVisitCount' frontend/tenant-admin.html
 grep -q 'tenantViewOutboundCount' frontend/assets/js/tenant-admin.js
 grep -q 'Ví nhận từ bán file' frontend/assets/js/tenant-admin.js
+grep -q 'Doanh thu hôm nay' frontend/assets/js/tenant-admin.js
 grep -q 'tenant_security_blocks' cloudflare/worker.js
 grep -q "p==='/api/tenant/security/blocks'" cloudflare/worker.js
 grep -q 'buyerToken' frontend/assets/js/tenant-admin.js
@@ -48,6 +49,9 @@ grep -q '^TURNSTILE_SITE_KEY = "0x4AAAAAAFM6DoL2w6HDogkC"' cloudflare/wrangler.t
 grep -q 'database_name = "teo-studio"' cloudflare/wrangler.toml
 grep -q '567f1c65-c144-414e-8bc4-26a3a0d276ca' cloudflare/wrangler.toml
 if grep -Eq '^(ADMIN_KEY|SEPAY_API_KEY|TURNSTILE_SECRET|OXMAIL_SMTP_PASS|AI_API_KEY|TELEGRAM_BOT_TOKEN)\s*=' cloudflare/wrangler.toml; then echo 'ERROR: secret value hardcoded in wrangler.toml'; exit 1; fi
+grep -q 'formatVietnamTime' cloudflare/worker.js
+grep -q 'describeDevice' cloudflare/worker.js
+grep -q 'body.admin-body #teoAccountLauncher' frontend/assets/css/style.css
 echo '[8/8] No unrequested automatic IP-ban mechanism'
 if grep -Eq 'function banIp|function activeBan|IP_TEMPORARILY_BLOCKED|banIp\(' cloudflare/worker.js; then echo 'ERROR: unexpected automatic IP-ban code'; exit 1; fi
 echo 'PASS: local syntax/static checks only. Live Cloudflare, browser, D1, SMTP, Turnstile and SePay flows are NOT tested here.'
