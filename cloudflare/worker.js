@@ -50,7 +50,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v56.26-detail-runtime-diagnostics-fix';
+const BUILD_VERSION='v56.27-detail-route-ai-diagnostic-antibypass';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -441,8 +441,9 @@ async function buyerStudios(e,buyer){
   await ensureTenantSchema(e);const rows=(await e.DB.prepare("SELECT id,slug,plan_type,starts_at,expires_at,created_at,studio_name FROM tenant_accounts WHERE lower(email)=lower(?) AND (deleted_at IS NULL OR deleted_at='') ORDER BY created_at DESC LIMIT 20").bind(buyer.email).all()).results||[];
   return rows.map(t=>({id:t.id,slug:t.slug,studioName:t.studio_name||t.slug,planType:String(t.plan_type||'free'),startsAt:t.starts_at,expiresAt:t.expires_at,adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(t.slug)}`}));
 }
-function aiProviderErrorMessage(status){
+function aiProviderErrorMessage(status,detail=''){
   const n=Number(status)||0;
+  if(n===400&&/user location is not supported for the api use|location.{0,40}not supported/i.test(String(detail)))return 'Google Gemini đã nhận yêu cầu nhưng từ chối theo điều kiện vị trí/tài khoản/API project (FAILED_PRECONDITION). Endpoint và cú pháp request không thể tự sửa lỗi điều kiện này; hãy xác nhận tài khoản/dự án đủ điều kiện dùng Gemini API và khu vực được hỗ trợ.';
   if(n===400)return 'Gemini trả lỗi yêu cầu không hợp lệ (HTTP 400). Kiểm tra AI_MODEL, AI_API_URL và định dạng yêu cầu trên Worker.';
   if(n===401||n===403)return `Gemini từ chối API key hoặc quyền truy cập (HTTP ${n}). Kiểm tra lại secret AI_API_KEY trong đúng Worker môi trường Production.`;
   if(n===404)return 'Gemini không tìm thấy endpoint hoặc model (HTTP 404). Kiểm tra AI_API_URL và AI_MODEL.';
@@ -463,7 +464,7 @@ async function callAICompletion(e,messages,{maxTokens=700,timeoutMs=15000}={}){
     if(providerStatus===400||providerStatus===401||providerStatus===403||providerStatus===404||providerStatus===429){
       try{const rawError=await resp.text();let problem={};try{problem=JSON.parse(rawError)}catch{};detail=clean(problem?.error?.message||problem?.message||rawError,500).replace(/AIza[0-9A-Za-z_-]{20,}/g,'[API key đã ẩn]').replace(/Bearer\s+[^\s]+/gi,'Bearer [đã ẩn]').replace(/(api[_ -]?key["'=:\s]+)[^,\s"}]+/gi,'$1[đã ẩn]') }catch{try{await resp.body?.cancel()}catch{}}
     }else{try{await resp.body?.cancel()}catch{}}
-    const base=aiProviderErrorMessage(providerStatus);
+    const base=aiProviderErrorMessage(providerStatus,detail);
     return {ok:false,error:'AI_PROVIDER_HTTP_ERROR',providerStatus,message:detail?base+' Chi tiết từ nhà cung cấp: '+detail:base};
   }
   let raw='';try{raw=await resp.text()}catch{return {ok:false,error:'AI_RESPONSE_READ_FAILED',message:'Kết nối đã mở nhưng không đọc được phản hồi của Gemini. Hãy thử lại.'};}
@@ -1854,11 +1855,15 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
       return new Response(svg,{headers:{'content-type':'image/svg+xml;charset=utf-8','cache-control':'public, max-age=300'}});
     }catch{return new Response('Not found',{status:404})}
   }
-  if((p==='/detail'||p==='/detail.html')&&r.method==='GET'&&e.ASSETS){
+  // Only social crawlers need a D1 lookup before HTML so their preview gets product-specific metadata.
+  // Normal browsers receive the static detail shell immediately; product data loads client-side from /api/products/:id.
+  if(crawler&&(p==='/detail'||p==='/detail.html')&&r.method==='GET'&&e.ASSETS){
     try{
-      await ensureSchema(e);const id=clean(u.searchParams.get('id')||'',100),product=id?await productById(e,id):null;
+      await ensureSchema(e);
+      const id=clean(u.searchParams.get('id')||'',100),product=id?await productById(e,id):null;
       if(product){
-        const rr=await e.ASSETS.fetch(new Request(new URL('/product-detail-view.html',r.url),r));let html=await rr.text();
+        const rr=await e.ASSETS.fetch(new Request(new URL('/detail.html',r.url),r));
+        let html=await rr.text();
         const escMeta=v=>String(v??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         const title=escMeta((product.title||'Chi tiết file')+' — Lại Húp File');
         const desc=escMeta(String(product.description||product.game||'Xem chi tiết file trên TeoStudio.').replace(/\s+/g,' ').slice(0,220));
@@ -1871,13 +1876,23 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
           .replace(/<meta\s+name="twitter:(?:card|title|description|image)"[^>]*>/gi,'')
           .replace(/<link\s+rel="canonical"[^>]*>/gi,'')
           .replace('</head>',meta+'</head>');
-        return new Response(html,{status:rr.status,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'public, max-age=60','x-content-type-options':'nosniff'}});
+        return new Response(html,{status:rr.status,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'public, max-age=60','x-content-type-options':'nosniff','x-teostudio-version':BUILD_VERSION}});
       }
     }catch{}
   }
-  // Human visitors use the same clean `/detail?id=...` share URL as social crawlers.
   if((p==='/detail'||p==='/detail.html')&&r.method==='GET'&&e.ASSETS){
-    try{const target=new URL('/product-detail-view.html',r.url);target.search=u.search;const asset=await e.ASSETS.fetch(new Request(target,r));const headers=new Headers(asset.headers);headers.set('cache-control','no-store');headers.set('x-content-type-options','nosniff');return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers})}catch{}
+    try{
+      const target=new URL('/detail.html',r.url);target.search=u.search;
+      const asset=await e.ASSETS.fetch(new Request(target,r));
+      const ct=String(asset.headers.get('content-type')||'');
+      if(asset.ok&&ct.toLowerCase().includes('text/html')){
+        const headers=new Headers(asset.headers);headers.set('cache-control','no-store');headers.set('x-content-type-options','nosniff');headers.set('x-teostudio-version',BUILD_VERSION);
+        return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
+      }
+    }catch{}
+    // Failsafe: never return an empty white page if the static asset fetch fails.
+    const fallback='<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Chi tiết file — TeoStudio</title><body style="margin:0;background:#0b0d14;color:#f3f4f6;font:16px system-ui;padding:10vh 7vw"><main style="max-width:620px;margin:auto"><h1>Chưa tải được giao diện chi tiết</h1><p>Máy chủ chưa trả được trang chi tiết file. File và giao dịch không bị thay đổi.</p><p><a style="color:#bba6ff" href="/">← Về trang chủ</a> · <a style="color:#bba6ff" href="'+PUBLIC_ORIGIN+'/detail?id='+encodeURIComponent(clean(u.searchParams.get('id')||'',100))+'">Thử mở lại</a></p></main></body></html>';
+    return new Response(fallback,{status:200,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'no-store','x-content-type-options':'nosniff','x-teostudio-version':BUILD_VERSION}});
   }
   if(p==='/share.html'&&r.method==='GET'){
     const crawler=/facebookexternalhit|Facebot|Twitterbot|TelegramBot|WhatsApp|Discordbot|Slackbot|Googlebot|Zalo(?:Bot)?|ZaloPC|LinkedInBot|Pinterestbot|Viber|Line\//i.test(ua);

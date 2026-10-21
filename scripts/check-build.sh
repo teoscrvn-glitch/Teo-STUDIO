@@ -8,12 +8,12 @@ node --check cloudflare/worker.js
 echo '[2/8] Frontend JavaScript syntax'
 find frontend/assets/js -type f -name '*.js' -exec node --check '{}' \;
 echo '[3/8] Version fingerprint and cache keys'
-grep -q "v56.20-sales-marquee-detail-ai-fix" cloudflare/worker.js
-grep -q "v56.20-sales-marquee-detail-ai-fix" frontend/assets/js/config.js
-grep -q 'assets/js/account.js?v=56.20' frontend/index.html
-grep -q 'assets/js/account.js?v=56.20' frontend/detail.html
-grep -q 'assets/js/tenant-detail.js?v=56.20' frontend/tenant-detail.html
-grep -q 'assets/css/style.css?v=56.20' frontend/detail.html
+grep -q "v56.27-detail-route-ai-diagnostic-antibypass" cloudflare/worker.js
+grep -q "v56.27-detail-route-ai-diagnostic-antibypass" frontend/assets/js/config.js
+grep -q 'assets/js/account.js?v=56.22' frontend/index.html
+grep -q 'assets/js/account.js?v=56.27' frontend/detail.html
+grep -q 'assets/js/tenant-detail.js?v=56.25' frontend/tenant-detail.html
+grep -q 'assets/css/style.css?v=56.27' frontend/detail.html
 ! grep -R -qE 'v=56\.16|v56\.15' frontend cloudflare
 grep -q 'callAICompletion' cloudflare/worker.js
 grep -q 'Gemini từ chối API key' cloudflare/worker.js
@@ -29,6 +29,13 @@ grep -q "WHERE p.tenant_id=? AND p.scope='tenant' AND p.status='paid'" cloudflar
 ! grep -q 'temperature,max_tokens' cloudflare/worker.js
 grep -q 'detailShareUrl' frontend/assets/js/main.js
 grep -q '/api/og/product/' cloudflare/worker.js
+grep -q "if(crawler&&(p==='/detail'||p==='/detail.html')" cloudflare/worker.js
+grep -q "new URL('/detail.html',r.url)" cloudflare/worker.js
+grep -q 'AbortController' frontend/assets/js/main.js
+grep -q 'user location is not supported for the api use' cloudflare/worker.js
+grep -q 'e?.TELEGRAM_CHAT_ID||e?.ID_CHAT_TELEGRAM||' cloudflare/worker.js
+grep -q "WHERE state_hash=? AND status='pending' AND expires_at>? LIMIT 1" cloudflare/worker.js
+grep -q "if(mode==='paid'){p.download_link='';p.original_link='';}" cloudflare/worker.js
 echo '[4/8] Wallet purchase flow'
 grep -q 'data-teo-wallet-buy' frontend/assets/js/main.js
 grep -q 'data-teo-wallet-buy' frontend/assets/js/tenant-detail.js
