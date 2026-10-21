@@ -1,4 +1,4 @@
-# Test report V56.22
+# Test report V56.23
 
 - [x] Worker source patched: Gemini body reduced to `model` + `messages`.
 - [x] Product detail OG metadata route no longer depends on a crawler user-agent match.

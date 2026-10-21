@@ -50,7 +50,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v56.21-detail-redirect-loop-fix';
+const BUILD_VERSION='v56.23-ai-telegram-diagnostics-fix';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -266,7 +266,16 @@ async function saveBuyerCode(e,email,purpose){
   return {ok:true,expiresAt:expires};
 }
 function maskEmail(email){const [name,domain]=String(email||'').split('@');if(!domain)return '';return `${(name||'').slice(0,1)}${'*'.repeat(Math.min(5,Math.max(2,(name||'').length-1)))}@${domain}`;}
-async function telegramSend(e,text){const token=String(e.TELEGRAM_BOT_TOKEN||''),chat=String(e.TELEGRAM_CHAT_ID||'');if(!token||!chat)return {ok:false,skipped:true};try{const r=await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:chat,text:String(text||'').slice(0,3900),disable_web_page_preview:true}),signal:AbortSignal.timeout(10000)});const data=await r.json().catch(()=>null);return {ok:r.ok&&data?.ok===true,status:r.status}}catch{return {ok:false}}}
+async function telegramSend(e,text){
+  const token=String(e.TELEGRAM_BOT_TOKEN||'').trim(),chat=String(e.TELEGRAM_CHAT_ID||'').trim();
+  if(!token||!chat)return {ok:false,skipped:true,reason:'Thiếu TELEGRAM_BOT_TOKEN hoặc TELEGRAM_CHAT_ID.'};
+  try{
+    const r=await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:chat,text:String(text||'').slice(0,3900),disable_web_page_preview:true}),signal:AbortSignal.timeout(10000),cache:'no-store'});
+    const data=await r.json().catch(()=>null);
+    const description=clean(data?.description||'',220).replace(new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'),'[token ẩn]');
+    return {ok:r.ok&&data?.ok===true,status:r.status,reason:description||(!r.ok?'Telegram HTTP '+r.status:'')};
+  }catch(err){return {ok:false,reason:err?.name==='TimeoutError'?'Telegram phản hồi quá thời gian chờ.':'Worker không gọi được Telegram API.'}}
+}
 async function supportNotify(e,report){await telegramSend(e,`🚨 TeoStudio · Báo lỗi mới\nMã: ${report.id}\nLoại: ${report.category}\nTrang: ${report.page}\nIP: ${report.client_ip||'không xác định'}\nTài khoản: ${report.display_name||'Khách'} (${maskEmail(report.email)||'ẩn danh'})\nMô tả: ${report.message}`)}
 function safeBuilderLayout(input){
   let blocks=Array.isArray(input)?input:[];if(blocks.length>40)throw new Error('TOO_MANY_BLOCKS');
@@ -445,7 +454,7 @@ async function callAICompletion(e,messages,{maxTokens=700,timeoutMs=15000}={}){
   const url=new URL(String(e.AI_API_URL));
   let resp;
   try{
-    resp=await fetch(url.toString(),{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+String(e.AI_API_KEY)},body:JSON.stringify({model:String(e.AI_MODEL),max_tokens:maxTokens,stream:false,messages}),signal:AbortSignal.timeout(timeoutMs),cache:'no-store'});
+    resp=await fetch(url.toString(),{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+String(e.AI_API_KEY)},body:JSON.stringify({model:String(e.AI_MODEL),messages}),signal:AbortSignal.timeout(timeoutMs),cache:'no-store'});
   }catch(err){return {ok:false,error:err?.name==='TimeoutError'||err?.name==='AbortError'?'AI_PROVIDER_TIMEOUT':'AI_PROVIDER_UNREACHABLE',message:err?.name==='TimeoutError'||err?.name==='AbortError'?'Gemini phản hồi quá thời gian chờ. Hãy thử lại; nếu tiếp tục lỗi, dùng Thử kết nối AI trong trang Admin.':'Worker không gọi được endpoint Gemini. Kiểm tra URL AI_API_URL và thử kết nối AI trong Admin.'};}
   if(!resp.ok){
     const providerStatus=resp.status;let detail='';
@@ -1843,7 +1852,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
       return new Response(svg,{headers:{'content-type':'image/svg+xml;charset=utf-8','cache-control':'public, max-age=300'}});
     }catch{return new Response('Not found',{status:404})}
   }
-  if(crawler&&(p==='/detail'||p==='/detail.html')&&r.method==='GET'&&e.ASSETS){
+  if((p==='/detail'||p==='/detail.html')&&r.method==='GET'&&e.ASSETS){
     try{
       await ensureSchema(e);const id=clean(u.searchParams.get('id')||'',100),product=id?await productById(e,id):null;
       if(product){
@@ -1878,7 +1887,10 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
     const src=String(product.thumb||'');
     const data=src.match(/^data:(image\/(?:png|jpeg|jpg|webp|gif|avif));base64,([A-Za-z0-9+/=\r\n]+)$/i);
     if(data){try{const binary=atob(data[2].replace(/[\r\n]/g,''));if(binary.length>1200000)return new Response('Image too large',{status:413});const bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);return new Response(bytes,{headers:{'content-type':data[1].toLowerCase().replace('image/jpg','image/jpeg'),'cache-control':'public, max-age=300','x-content-type-options':'nosniff'}})}catch{}}
-    const remote=safeHttpUrl(src,1500000);if(remote)return Response.redirect(remote,302);
+    const remote=safeHttpUrl(src,1500000);if(remote){
+      try{const imageResponse=await fetch(remote,{redirect:'follow',signal:AbortSignal.timeout(8000),cf:{cacheTtl:300,cacheEverything:true}});const imageType=String(imageResponse.headers.get('content-type')||'').split(';')[0].toLowerCase();if(imageResponse.ok&&imageType.startsWith('image/')&&!/svg\+xml/i.test(imageType)){const headers=new Headers({'content-type':imageType,'cache-control':'public, max-age=300','x-content-type-options':'nosniff'});const length=Number(imageResponse.headers.get('content-length')||0);if(length>0&&length<=1500000)headers.set('content-length',String(length));return new Response(imageResponse.body,{status:200,headers})}}catch{}
+      return Response.redirect(remote,302);
+    }
     const rel=src.replace(/^\//,'');if(rel&&/^[A-Za-z0-9_./?&=%#-]+$/.test(rel)&&!rel.split('/').includes('..')&&e.ASSETS){try{const ar=await e.ASSETS.fetch(new Request(new URL('/'+rel,r.url)));if(ar.ok&&String(ar.headers.get('content-type')||'').startsWith('image/'))return new Response(ar.body,{status:200,headers:{'content-type':ar.headers.get('content-type'),'cache-control':'public, max-age=300','x-content-type-options':'nosniff'}})}catch{}}
     return Response.redirect(PUBLIC_ORIGIN+'/assets/img/og-preview.png',302);
   }
@@ -1950,7 +1962,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
     if(!result.ok)return J({ok:false,error:result.error,message:result.message,providerStatus:result.providerStatus,missing:result.missing},502);
     return J({ok:true,message:'Kết nối AI thành công.',version:BUILD_VERSION});
   }
-  if(p==='/api/admin/telegram/test' &&r.method==='POST'){const rl=limited(r,'admin-telegram-test',2,60000);if(rl)return rl;const status=runtimeConfigStatus(e).telegram;if(!status.configured)return J({ok:false,error:'TELEGRAM_NOT_CONFIGURED',message:'Thiếu TELEGRAM_BOT_TOKEN hoặc TELEGRAM_CHAT_ID.',missing:status.missing},503);const sent=await telegramSend(e,'✅ Kiểm tra kết nối TeoStudio Telegram thành công. Version '+BUILD_VERSION);if(!sent.ok)return J({ok:false,error:'TELEGRAM_SEND_FAILED',message:'Telegram không nhận được tin nhắn. Kiểm tra bot token, chat ID và quyền gửi tin.'},502);return J({ok:true,message:'Đã gửi tin kiểm tra tới Telegram.'})}
+  if(p==='/api/admin/telegram/test' &&r.method==='POST'){const rl=limited(r,'admin-telegram-test',2,60000);if(rl)return rl;const status=runtimeConfigStatus(e).telegram;if(!status.configured)return J({ok:false,error:'TELEGRAM_NOT_CONFIGURED',message:'Thiếu TELEGRAM_BOT_TOKEN hoặc TELEGRAM_CHAT_ID.',missing:status.missing},503);const sent=await telegramSend(e,'✅ Kiểm tra kết nối TeoStudio Telegram thành công. Version '+BUILD_VERSION);if(!sent.ok)return J({ok:false,error:'TELEGRAM_SEND_FAILED',message:sent.reason||'Telegram không nhận được tin nhắn. Kiểm tra bot token, chat ID và quyền gửi tin.',providerStatus:sent.status||null},502);return J({ok:true,message:'Đã gửi tin kiểm tra tới Telegram.'})}
   if(p==='/api/admin/security/blocks'&&r.method==='GET'){await ensureV55Schema(e);const rows=(await e.DB.prepare('SELECT id,kind,value_normalized,reason,created_by,created_at FROM security_blocks ORDER BY created_at DESC LIMIT 500').all()).results||[];return J({ok:true,blocks:rows})}
   if(p==='/api/admin/security/blocks'&&r.method==='POST'){
     const rl=limited(r,'admin-security-block-create',15,60000);if(rl)return rl;await ensureV55Schema(e);const b=await r.json().catch(()=>({}));const kind=String(b.kind||'').toLowerCase();let value='';if(kind==='ip')value=normalizeIpInput(b.value||'');else if(kind==='email')value=validEmail(b.value||'').toLowerCase();else return J({ok:false,error:'INVALID_BLOCK_KIND',message:'Chọn loại IP hoặc email.'},400);if(!value)return J({ok:false,error:'INVALID_BLOCK_VALUE',message:kind==='ip'?'Địa chỉ IP không hợp lệ.':'Email không hợp lệ.'},400);const id=crypto.randomUUID();try{await e.DB.prepare('INSERT INTO security_blocks(id,kind,value_normalized,reason,created_by) VALUES(?,?,?,?,?)').bind(id,kind,value,clean(b.reason||'',300),'admin').run()}catch(err){if(await e.DB.prepare('SELECT id FROM security_blocks WHERE kind=? AND value_normalized=?').bind(kind,value).first())return J({ok:false,error:'BLOCK_ALREADY_EXISTS',message:'Mục này đã bị chặn rồi.'},409);return J({ok:false,error:'BLOCK_SAVE_FAILED'},500)}SECURITY_BLOCK_CACHE.delete(kind+':'+value);return J({ok:true,id,kind,value,permanent:true,message:'Đã chặn vĩnh viễn. Gỡ chặn bằng nút Xóa trong danh sách.'},201)
