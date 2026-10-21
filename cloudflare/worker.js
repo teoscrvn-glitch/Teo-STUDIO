@@ -50,7 +50,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v56.20-sales-marquee-detail-ai-fix';
+const BUILD_VERSION='v56.21-detail-redirect-loop-fix';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -1847,7 +1847,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
     try{
       await ensureSchema(e);const id=clean(u.searchParams.get('id')||'',100),product=id?await productById(e,id):null;
       if(product){
-        const rr=await e.ASSETS.fetch(new Request(new URL('/detail.html',r.url),r));let html=await rr.text();
+        const rr=await e.ASSETS.fetch(new Request(new URL('/product-detail-view.html',r.url),r));let html=await rr.text();
         const escMeta=v=>String(v??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         const title=escMeta((product.title||'Chi tiết file')+' — Lại Húp File');
         const desc=escMeta(String(product.description||product.game||'Xem chi tiết file trên TeoStudio.').replace(/\s+/g,' ').slice(0,220));
@@ -1866,7 +1866,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   }
   // Human visitors use the same clean `/detail?id=...` share URL as social crawlers.
   if((p==='/detail'||p==='/detail.html')&&r.method==='GET'&&e.ASSETS){
-    try{const target=new URL('/detail.html',r.url);target.search=u.search;const asset=await e.ASSETS.fetch(new Request(target,r));const headers=new Headers(asset.headers);headers.set('cache-control','no-store');headers.set('x-content-type-options','nosniff');return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers})}catch{}
+    try{const target=new URL('/product-detail-view.html',r.url);target.search=u.search;const asset=await e.ASSETS.fetch(new Request(target,r));const headers=new Headers(asset.headers);headers.set('cache-control','no-store');headers.set('x-content-type-options','nosniff');return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers})}catch{}
   }
   if(p==='/share.html'&&r.method==='GET'){
     const crawler=/facebookexternalhit|Facebot|Twitterbot|TelegramBot|WhatsApp|Discordbot|Slackbot|Googlebot|Zalo(?:Bot)?|ZaloPC|LinkedInBot|Pinterestbot|Viber|Line\//i.test(ua);
