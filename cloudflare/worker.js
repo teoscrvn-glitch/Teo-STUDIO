@@ -50,7 +50,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v56.23-ai-telegram-diagnostics-fix';
+const BUILD_VERSION='v56.25-detail-white-screen-fix';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -58,7 +58,9 @@ function runtimeConfigStatus(e){
   let aiEndpointValid=false;try{const u=new URL(String(e?.AI_API_URL||''));aiEndpointValid=u.protocol==='https:'&&!!u.hostname&&!u.username&&!u.password}catch{}
   ai.endpointValid=aiEndpointValid;ai.ready=ai.configured&&aiEndpointValid;
   const emailMissing=[];if(!has('OXMAIL_SMTP_PASS'))emailMissing.push('OXMAIL_SMTP_PASS');if(Number(e?.OXMAIL_SMTP_PORT||465)!==465)emailMissing.push('OXMAIL_SMTP_PORT (must be 465)');const smtpHost=String(e?.OXMAIL_SMTP_HOST||'mail.teostudio.top');if(!/^[a-z0-9.-]+$/i.test(smtpHost)||smtpHost.startsWith('.')||smtpHost.endsWith('.'))emailMissing.push('OXMAIL_SMTP_HOST');const smtpUser=String(e?.OXMAIL_SMTP_USER||'teostudio@teostudio.top'),smtpFrom=String(e?.EMAIL_FROM||smtpUser);if(!EMAIL_RE.test(smtpUser))emailMissing.push('OXMAIL_SMTP_USER');if(!EMAIL_RE.test(smtpFrom))emailMissing.push('EMAIL_FROM');const email={configured:emailMissing.length===0,missing:emailMissing,hostUsesDefault:!has('OXMAIL_SMTP_HOST'),userUsesDefault:!has('OXMAIL_SMTP_USER'),fromUsesDefault:!has('EMAIL_FROM')};
-  return {database:{configured:!!e?.DB},ai,email,telegram:check(['TELEGRAM_BOT_TOKEN','TELEGRAM_CHAT_ID']),turnstile:check(['TURNSTILE_SITE_KEY','TURNSTILE_SECRET']),sepay:check(['SEPAY_API_KEY','SEPAY_BANK_CODE','SEPAY_ACCOUNT_NUMBER'])};
+  const telegramChatId=String(e?.TELEGRAM_CHAT_ID||e?.ID_CHAT_TELEGRAM||'').trim();
+  const telegramMissing=[];if(!has('TELEGRAM_BOT_TOKEN'))telegramMissing.push('TELEGRAM_BOT_TOKEN');if(!telegramChatId)telegramMissing.push('TELEGRAM_CHAT_ID (or legacy ID_CHAT_TELEGRAM)');
+  return {database:{configured:!!e?.DB},ai,email,telegram:{configured:telegramMissing.length===0,missing:telegramMissing},turnstile:check(['TURNSTILE_SITE_KEY','TURNSTILE_SECRET']),sepay:check(['SEPAY_API_KEY','SEPAY_BANK_CODE','SEPAY_ACCOUNT_NUMBER'])};
 }
 const C={"content-type":"application/json;charset=utf-8","access-control-allow-origin":"https://teostudio.top","access-control-allow-methods":"GET,POST,PUT,DELETE,OPTIONS","access-control-allow-headers":"Content-Type,Authorization,X-Requested-With,X-Tenant-Slug","vary":"Origin","cache-control":"no-store","x-content-type-options":"nosniff","x-frame-options":"SAMEORIGIN","referrer-policy":"strict-origin-when-cross-origin","permissions-policy":"camera=(),microphone=(),geolocation=()","x-permitted-cross-domain-policies":"none","cross-origin-opener-policy":"same-origin","strict-transport-security":"max-age=31536000","content-security-policy":"default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://challenges.cloudflare.com; frame-src 'self' https://challenges.cloudflare.com; worker-src 'self' blob: https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"};
 const J=(x,s=200,extra={})=>new Response(JSON.stringify(x),{status:s,headers:{...C,...extra}});
@@ -267,7 +269,7 @@ async function saveBuyerCode(e,email,purpose){
 }
 function maskEmail(email){const [name,domain]=String(email||'').split('@');if(!domain)return '';return `${(name||'').slice(0,1)}${'*'.repeat(Math.min(5,Math.max(2,(name||'').length-1)))}@${domain}`;}
 async function telegramSend(e,text){
-  const token=String(e.TELEGRAM_BOT_TOKEN||'').trim(),chat=String(e.TELEGRAM_CHAT_ID||'').trim();
+  const token=String(e.TELEGRAM_BOT_TOKEN||'').trim(),chat=String(e.TELEGRAM_CHAT_ID||e.ID_CHAT_TELEGRAM||'').trim();
   if(!token||!chat)return {ok:false,skipped:true,reason:'Thiếu TELEGRAM_BOT_TOKEN hoặc TELEGRAM_CHAT_ID.'};
   try{
     const r=await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:chat,text:String(text||'').slice(0,3900),disable_web_page_preview:true}),signal:AbortSignal.timeout(10000),cache:'no-store'});
@@ -458,8 +460,8 @@ async function callAICompletion(e,messages,{maxTokens=700,timeoutMs=15000}={}){
   }catch(err){return {ok:false,error:err?.name==='TimeoutError'||err?.name==='AbortError'?'AI_PROVIDER_TIMEOUT':'AI_PROVIDER_UNREACHABLE',message:err?.name==='TimeoutError'||err?.name==='AbortError'?'Gemini phản hồi quá thời gian chờ. Hãy thử lại; nếu tiếp tục lỗi, dùng Thử kết nối AI trong trang Admin.':'Worker không gọi được endpoint Gemini. Kiểm tra URL AI_API_URL và thử kết nối AI trong Admin.'};}
   if(!resp.ok){
     const providerStatus=resp.status;let detail='';
-    if(providerStatus===400||providerStatus===404||providerStatus===429){
-      try{const problem=await resp.json();detail=clean(problem?.error?.message||problem?.message||'',260).replace(/AIza[0-9A-Za-z_-]{20,}/g,'[API key đã ẩn]').replace(/Bearer\s+[^\s]+/gi,'Bearer [đã ẩn]')}catch{try{await resp.body?.cancel()}catch{}}
+    if(providerStatus===400||providerStatus===401||providerStatus===403||providerStatus===404||providerStatus===429){
+      try{const rawError=await resp.text();let problem={};try{problem=JSON.parse(rawError)}catch{};detail=clean(problem?.error?.message||problem?.message||rawError,500).replace(/AIza[0-9A-Za-z_-]{20,}/g,'[API key đã ẩn]').replace(/Bearer\s+[^\s]+/gi,'Bearer [đã ẩn]').replace(/(api[_ -]?key["'=:\s]+)[^,\s"}]+/gi,'$1[đã ẩn]') }catch{try{await resp.body?.cancel()}catch{}}
     }else{try{await resp.body?.cancel()}catch{}}
     const base=aiProviderErrorMessage(providerStatus);
     return {ok:false,error:'AI_PROVIDER_HTTP_ERROR',providerStatus,message:detail?base+' Chi tiết từ nhà cung cấp: '+detail:base};
