@@ -50,7 +50,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v56.27-detail-route-ai-diagnostic-antibypass';
+const BUILD_VERSION='v56.28-detail-clean-url-routing-fix';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -1649,6 +1649,51 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   }
   const ua=r.headers.get('user-agent')||'';
   const crawler=/facebookexternalhit|Facebot|Twitterbot|TelegramBot|WhatsApp|Discordbot|Slackbot|Googlebot|Zalo(?:Bot)?|ZaloPC|LinkedInBot|Pinterestbot|Viber|Line\//i.test(ua);
+  // Only social crawlers need a D1 lookup before HTML so their preview gets product-specific metadata.
+  // Normal browsers receive the static detail shell immediately; product data loads client-side from /api/products/:id.
+  if(crawler&&(p==='/detail'||p==='/detail.html')&&r.method==='GET'&&e.ASSETS){
+    try{
+      await ensureSchema(e);
+      const id=clean(u.searchParams.get('id')||'',100),product=id?await productById(e,id):null;
+      if(product){
+        // Workers Static Assets defaults to clean URLs: /detail.html redirects to /detail.
+        // Fetch the canonical /detail path so the binding resolves frontend/detail.html without a redirect loop.
+        const detailAssetUrl=new URL('/detail',r.url);detailAssetUrl.search=u.search;
+        const rr=await e.ASSETS.fetch(new Request(detailAssetUrl,r));
+        if(!rr.ok||!String(rr.headers.get('content-type')||'').toLowerCase().includes('text/html'))throw new Error('Detail HTML asset unavailable');
+        let html=await rr.text();
+        const escMeta=v=>String(v??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const title=escMeta((product.title||'Chi tiết file')+' — Lại Húp File');
+        const desc=escMeta(String(product.description||product.game||'Xem chi tiết file trên TeoStudio.').replace(/\s+/g,' ').slice(0,220));
+        const shareUrl=PUBLIC_ORIGIN+'/detail?id='+encodeURIComponent(product.id);
+        const img=PUBLIC_ORIGIN+'/api/og/product/'+encodeURIComponent(product.id);
+        const meta=`<meta name="description" content="${desc}"><meta property="og:type" content="website"><meta property="og:title" content="${title}"><meta property="og:description" content="${desc}"><meta property="og:image" content="${img}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:url" content="${shareUrl}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${title}"><meta name="twitter:description" content="${desc}"><meta name="twitter:image" content="${img}"><link rel="canonical" href="${shareUrl}">`;
+        html=html.replace(/<title>.*?<\/title>/i,`<title>${title}</title>`)
+          .replace(/<meta\s+name="description"[^>]*>/gi,'')
+          .replace(/<meta\s+property="og:(?:type|title|description|image|image:type|image:width|image:height|url)"[^>]*>/gi,'')
+          .replace(/<meta\s+name="twitter:(?:card|title|description|image)"[^>]*>/gi,'')
+          .replace(/<link\s+rel="canonical"[^>]*>/gi,'')
+          .replace('</head>',meta+'</head>');
+        return new Response(html,{status:rr.status,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'public, max-age=60','x-content-type-options':'nosniff','x-teostudio-version':BUILD_VERSION}});
+      }
+    }catch{}
+  }
+  if((p==='/detail'||p==='/detail.html')&&r.method==='GET'&&e.ASSETS){
+    try{
+      // Ask the asset binding for the clean URL. With html_handling=auto-trailing-slash,
+      // /detail maps to frontend/detail.html; requesting .html can redirect back to /detail.
+      const target=new URL('/detail',r.url);target.search=u.search;
+      const asset=await e.ASSETS.fetch(new Request(target,r));
+      const ct=String(asset.headers.get('content-type')||'');
+      if(asset.ok&&ct.toLowerCase().includes('text/html')){
+        const headers=new Headers(asset.headers);headers.set('cache-control','no-store');headers.set('x-content-type-options','nosniff');headers.set('x-teostudio-version',BUILD_VERSION);
+        return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
+      }
+    }catch{}
+    // Failsafe: never return an empty white page if the static asset fetch fails.
+    const fallback='<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Chi tiết file — TeoStudio</title><body style="margin:0;background:#0b0d14;color:#f3f4f6;font:16px system-ui;padding:10vh 7vw"><main style="max-width:620px;margin:auto"><h1>Chưa tải được giao diện chi tiết</h1><p>Máy chủ chưa trả được trang chi tiết file. File và giao dịch không bị thay đổi.</p><p><a style="color:#bba6ff" href="/">← Về trang chủ</a> · <a style="color:#bba6ff" href="'+PUBLIC_ORIGIN+'/detail?id='+encodeURIComponent(clean(u.searchParams.get('id')||'',100))+'">Thử mở lại</a></p></main></body></html>';
+    return new Response(fallback,{status:200,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'no-store','x-content-type-options':'nosniff','x-teostudio-version':BUILD_VERSION}});
+  }
   if(crawler && (p==='/'||p==='/index.html') && e.ASSETS){try{
     const base=u.origin;
     const title='Lại Húp File — Téo Studio', desc='Kho file, code, script và tài nguyên của Téo Studio.';
@@ -1854,45 +1899,6 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
       const svg=`<svg xmlns=\"http://www.w3.org/2000/svg\" width=1200 height=630 viewBox=\"0 0 1200 630\"><rect width=\"1200\" height=\"630\" fill=\"#0b0b12\"/><text x=\"70\" y=\"270\" fill=\"#fff\" font-size=\"72\" font-family=\"Arial,sans-serif\" font-weight=\"700\">${String(t.slug).replace(/[&<>]/g,'')}</text><text x=\"70\" y=\"345\" fill=\"#a78bfa\" font-size=\"34\" font-family=\"Arial,sans-serif\">Téo Studio · Share File</text></svg>`;
       return new Response(svg,{headers:{'content-type':'image/svg+xml;charset=utf-8','cache-control':'public, max-age=300'}});
     }catch{return new Response('Not found',{status:404})}
-  }
-  // Only social crawlers need a D1 lookup before HTML so their preview gets product-specific metadata.
-  // Normal browsers receive the static detail shell immediately; product data loads client-side from /api/products/:id.
-  if(crawler&&(p==='/detail'||p==='/detail.html')&&r.method==='GET'&&e.ASSETS){
-    try{
-      await ensureSchema(e);
-      const id=clean(u.searchParams.get('id')||'',100),product=id?await productById(e,id):null;
-      if(product){
-        const rr=await e.ASSETS.fetch(new Request(new URL('/detail.html',r.url),r));
-        let html=await rr.text();
-        const escMeta=v=>String(v??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        const title=escMeta((product.title||'Chi tiết file')+' — Lại Húp File');
-        const desc=escMeta(String(product.description||product.game||'Xem chi tiết file trên TeoStudio.').replace(/\s+/g,' ').slice(0,220));
-        const shareUrl=PUBLIC_ORIGIN+'/detail?id='+encodeURIComponent(product.id);
-        const img=PUBLIC_ORIGIN+'/api/og/product/'+encodeURIComponent(product.id);
-        const meta=`<meta name="description" content="${desc}"><meta property="og:type" content="website"><meta property="og:title" content="${title}"><meta property="og:description" content="${desc}"><meta property="og:image" content="${img}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:url" content="${shareUrl}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${title}"><meta name="twitter:description" content="${desc}"><meta name="twitter:image" content="${img}"><link rel="canonical" href="${shareUrl}">`;
-        html=html.replace(/<title>.*?<\/title>/i,`<title>${title}</title>`)
-          .replace(/<meta\s+name="description"[^>]*>/gi,'')
-          .replace(/<meta\s+property="og:(?:type|title|description|image|image:type|image:width|image:height|url)"[^>]*>/gi,'')
-          .replace(/<meta\s+name="twitter:(?:card|title|description|image)"[^>]*>/gi,'')
-          .replace(/<link\s+rel="canonical"[^>]*>/gi,'')
-          .replace('</head>',meta+'</head>');
-        return new Response(html,{status:rr.status,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'public, max-age=60','x-content-type-options':'nosniff','x-teostudio-version':BUILD_VERSION}});
-      }
-    }catch{}
-  }
-  if((p==='/detail'||p==='/detail.html')&&r.method==='GET'&&e.ASSETS){
-    try{
-      const target=new URL('/detail.html',r.url);target.search=u.search;
-      const asset=await e.ASSETS.fetch(new Request(target,r));
-      const ct=String(asset.headers.get('content-type')||'');
-      if(asset.ok&&ct.toLowerCase().includes('text/html')){
-        const headers=new Headers(asset.headers);headers.set('cache-control','no-store');headers.set('x-content-type-options','nosniff');headers.set('x-teostudio-version',BUILD_VERSION);
-        return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
-      }
-    }catch{}
-    // Failsafe: never return an empty white page if the static asset fetch fails.
-    const fallback='<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Chi tiết file — TeoStudio</title><body style="margin:0;background:#0b0d14;color:#f3f4f6;font:16px system-ui;padding:10vh 7vw"><main style="max-width:620px;margin:auto"><h1>Chưa tải được giao diện chi tiết</h1><p>Máy chủ chưa trả được trang chi tiết file. File và giao dịch không bị thay đổi.</p><p><a style="color:#bba6ff" href="/">← Về trang chủ</a> · <a style="color:#bba6ff" href="'+PUBLIC_ORIGIN+'/detail?id='+encodeURIComponent(clean(u.searchParams.get('id')||'',100))+'">Thử mở lại</a></p></main></body></html>';
-    return new Response(fallback,{status:200,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'no-store','x-content-type-options':'nosniff','x-teostudio-version':BUILD_VERSION}});
   }
   if(p==='/share.html'&&r.method==='GET'){
     const crawler=/facebookexternalhit|Facebot|Twitterbot|TelegramBot|WhatsApp|Discordbot|Slackbot|Googlebot|Zalo(?:Bot)?|ZaloPC|LinkedInBot|Pinterestbot|Viber|Line\//i.test(ua);

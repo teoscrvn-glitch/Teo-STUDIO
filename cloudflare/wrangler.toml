@@ -14,6 +14,7 @@ TURNSTILE_SITE_KEY = "0x4AAAAAAFM6DoL2w6HDogkC"
 [assets]
 directory = "../frontend"
 binding = "ASSETS"
+html_handling = "auto-trailing-slash"
 # Run Worker middleware before assets so canonical-host redirects and security checks apply to HTML navigation.
 run_worker_first = true
 
