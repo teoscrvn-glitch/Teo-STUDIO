@@ -50,7 +50,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v56.39-ai-history-report-image-tag-video-guard';
+const BUILD_VERSION='v56.43-ai-capability-actions-support';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -447,35 +447,42 @@ async function buyerStudios(e,buyer){
   return rows.map(t=>({id:t.id,slug:t.slug,studioName:t.studio_name||t.slug,planType:String(t.plan_type||'free'),startsAt:t.starts_at,expiresAt:t.expires_at,adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(t.slug)}`}));
 }
 function aiProviderErrorMessage(status,detail=''){
-  const n=Number(status)||0;
-  if(n===400&&/user location is not supported for the api use|location.{0,40}not supported/i.test(String(detail)))return 'Google Gemini đã nhận yêu cầu nhưng từ chối theo điều kiện vị trí/tài khoản/API project (FAILED_PRECONDITION). Endpoint và cú pháp request không thể tự sửa lỗi điều kiện này; hãy xác nhận tài khoản/dự án đủ điều kiện dùng Gemini API và khu vực được hỗ trợ.';
-  if(n===400)return 'Gemini trả lỗi yêu cầu không hợp lệ (HTTP 400). Kiểm tra AI_MODEL, AI_API_URL và định dạng yêu cầu trên Worker.';
-  if(n===401||n===403)return `Gemini từ chối API key hoặc quyền truy cập (HTTP ${n}). Kiểm tra lại secret AI_API_KEY trong đúng Worker môi trường Production.`;
-  if(n===404)return 'Gemini không tìm thấy endpoint hoặc model (HTTP 404). Kiểm tra AI_API_URL và AI_MODEL.';
-  if(n===429)return 'Gemini đang giới hạn tốc độ hoặc hết hạn mức (HTTP 429). Kiểm tra quota/billing của Google AI Studio rồi thử lại sau.';
-  if(n>=500)return `Dịch vụ Gemini đang lỗi phía máy chủ (HTTP ${n}). Thử lại sau.`;
-  return n?`Nhà cung cấp AI trả lỗi HTTP ${n}. Kiểm tra endpoint, model, API key và hạn mức.`:'Không kết nối được nhà cung cấp AI. Kiểm tra endpoint và kết nối mạng của Worker.';
+  const n=Number(status)||0,provider=/openrouter\.ai/i.test(String(detail))?'OpenRouter':'nhà cung cấp AI';
+  if(n===400&&/api key|invalid_api_key|please pass a valid api key/i.test(String(detail)))return `${provider} từ chối API key (HTTP 400). Kiểm tra Secret AI_API_KEY trong đúng Worker Production, bảo đảm đó là key của nhà cung cấp đang dùng và chưa bị thu hồi.`;
+  if(n===400&&/model.*(not found|unknown|invalid)|no endpoints found/i.test(String(detail)))return `${provider} không hỗ trợ model đã chọn (HTTP 400). Kiểm tra chính xác AI_MODEL và quyền truy cập model trên tài khoản.`;
+  if(n===400&&/user location is not supported for the api use|location.{0,40}not supported/i.test(String(detail)))return `Nhà cung cấp AI từ chối yêu cầu theo điều kiện vị trí/tài khoản/API project. Kiểm tra điều kiện khu vực và dự án của nhà cung cấp.`;
+  if(n===400)return `${provider} trả yêu cầu không hợp lệ (HTTP 400). Kiểm tra AI_MODEL, AI_API_URL, định dạng request và chi tiết lỗi bên dưới.`;
+  if(n===401||n===403)return `${provider} từ chối API key hoặc quyền truy cập (HTTP ${n}). Kiểm tra Secret AI_API_KEY, quyền của key và hạn mức tài khoản.`;
+  if(n===404)return `${provider} không tìm thấy endpoint hoặc model (HTTP 404). Kiểm tra AI_API_URL và AI_MODEL.`;
+  if(n===429)return `${provider} đang giới hạn tốc độ hoặc hết hạn mức (HTTP 429). Kiểm tra quota, số dư và giới hạn model rồi thử lại sau.`;
+  if(n>=500)return `${provider} đang lỗi phía máy chủ (HTTP ${n}). Thử lại sau.`;
+  return n?`${provider} trả lỗi HTTP ${n}. Kiểm tra endpoint, model, API key và hạn mức.`:'Không kết nối được nhà cung cấp AI. Kiểm tra endpoint và kết nối mạng của Worker.';
 }
-async function callAICompletion(e,messages,{maxTokens=700,timeoutMs=15000}={}){
+async function callAICompletion(e,messages,{maxTokens=900,timeoutMs=25000}={}){
   const status=runtimeConfigStatus(e).ai;
   if(!status.ready)return {ok:false,error:'AI_NOT_READY',message:'Chưa đủ cấu hình AI_API_URL, AI_API_KEY, AI_MODEL hoặc endpoint không phải HTTPS.',missing:status.missing};
-  const url=new URL(String(e.AI_API_URL));
+  const url=new URL(String(e.AI_API_URL)),isOpenRouter=/openrouter\.ai$/i.test(url.hostname);
+  const headers={'content-type':'application/json','authorization':'Bearer '+String(e.AI_API_KEY)};
+  if(isOpenRouter){headers['HTTP-Referer']='https://teostudio.top';headers['X-Title']='TeoStudio - Teo He Thong AI'}
   let resp;
   try{
-    resp=await fetch(url.toString(),{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+String(e.AI_API_KEY)},body:JSON.stringify({model:String(e.AI_MODEL),messages,max_tokens:Math.max(128,Math.min(1200,Math.floor(Number(maxTokens)||700))),temperature:0.35}),signal:AbortSignal.timeout(timeoutMs),cache:'no-store'});
-  }catch(err){return {ok:false,error:err?.name==='TimeoutError'||err?.name==='AbortError'?'AI_PROVIDER_TIMEOUT':'AI_PROVIDER_UNREACHABLE',message:err?.name==='TimeoutError'||err?.name==='AbortError'?'Gemini phản hồi quá thời gian chờ. Hãy thử lại; nếu tiếp tục lỗi, dùng Thử kết nối AI trong trang Admin.':'Worker không gọi được endpoint Gemini. Kiểm tra URL AI_API_URL và thử kết nối AI trong Admin.'};}
+    resp=await fetch(url.toString(),{method:'POST',headers,body:JSON.stringify({model:String(e.AI_MODEL),messages,max_tokens:Math.max(128,Math.min(1800,Math.floor(Number(maxTokens)||900))),temperature:0.25}),signal:AbortSignal.timeout(timeoutMs),cache:'no-store'});
+  }catch(err){return {ok:false,error:err?.name==='TimeoutError'||err?.name==='AbortError'?'AI_PROVIDER_TIMEOUT':'AI_PROVIDER_UNREACHABLE',message:err?.name==='TimeoutError'||err?.name==='AbortError'?'Nhà cung cấp AI phản hồi quá thời gian chờ. Hãy thử lại; nếu tiếp tục lỗi, kiểm tra cấu hình AI trong Admin.':'Worker không gọi được endpoint AI. Kiểm tra URL AI_API_URL và kết nối mạng của Worker.'};}
   if(!resp.ok){
     const providerStatus=resp.status;let detail='';
-    if(providerStatus===400||providerStatus===401||providerStatus===403||providerStatus===404||providerStatus===429){
-      try{const rawError=await resp.text();let problem={};try{problem=JSON.parse(rawError)}catch{};detail=clean(problem?.error?.message||problem?.message||rawError,500).replace(/AIza[0-9A-Za-z_-]{20,}/g,'[API key đã ẩn]').replace(/Bearer\s+[^\s]+/gi,'Bearer [đã ẩn]').replace(/(api[_ -]?key["'=:\s]+)[^,\s"}]+/gi,'$1[đã ẩn]') }catch{try{await resp.body?.cancel()}catch{}}
+    if([400,401,403,404,429].includes(providerStatus)){
+      try{const rawError=await resp.text();let problem={};try{problem=JSON.parse(rawError)}catch{};detail=clean(problem?.error?.message||problem?.message||rawError,500).replace(/AIza[0-9A-Za-z_-]{20,}/g,'[API key đã ẩn]').replace(/Bearer\s+[^\s]+/gi,'Bearer [đã ẩn]').replace(/(api[_ -]?key["'=:\s]+)[^,\s"}]+/gi,'$1[đã ẩn]')}catch{try{await resp.body?.cancel()}catch{}}
     }else{try{await resp.body?.cancel()}catch{}}
     const base=aiProviderErrorMessage(providerStatus,detail);
     return {ok:false,error:'AI_PROVIDER_HTTP_ERROR',providerStatus,message:detail?base+' Chi tiết từ nhà cung cấp: '+detail:base};
   }
-  let raw='';try{raw=await resp.text()}catch{return {ok:false,error:'AI_RESPONSE_READ_FAILED',message:'Kết nối đã mở nhưng không đọc được phản hồi của Gemini. Hãy thử lại.'};}
-  let data;try{data=JSON.parse(raw)}catch{return {ok:false,error:'AI_RESPONSE_NOT_JSON',message:'Gemini trả phản hồi không phải JSON Chat Completions. Kiểm tra AI_API_URL phải kết thúc bằng /v1beta/openai/chat/completions.'};}
-  const reply=clean(data?.choices?.[0]?.message?.content||'',3000);
-  if(!reply)return {ok:false,error:'AI_RESPONSE_FORMAT',message:'Gemini có phản hồi nhưng thiếu choices[0].message.content. Kiểm tra endpoint tương thích OpenAI và model.'};
+  let raw='';try{raw=await resp.text()}catch{return {ok:false,error:'AI_RESPONSE_READ_FAILED',message:'Kết nối đã mở nhưng không đọc được phản hồi của AI. Hãy thử lại.'};}
+  let data;try{data=JSON.parse(raw)}catch{return {ok:false,error:'AI_RESPONSE_NOT_JSON',message:'AI trả phản hồi không phải JSON Chat Completions. Kiểm tra AI_API_URL có đúng endpoint tương thích OpenAI hay không.'};}
+  let content=data?.choices?.[0]?.message?.content;
+  // Some OpenAI-compatible providers return text as an array of content blocks.
+  if(Array.isArray(content))content=content.map(part=>typeof part==='string'?part:(part?.text||part?.content||'')).filter(Boolean).join('\n');
+  const reply=clean(typeof content==='string'?content:'',4500);
+  if(!reply)return {ok:false,error:'AI_RESPONSE_FORMAT',message:'AI đã phản hồi nhưng nội dung không đúng định dạng Chat Completions hoặc model trả nội dung rỗng. Kiểm tra endpoint và model.'};
   return {ok:true,reply};
 }
 function redactAssistantSecrets(value,max=1800){return clean(String(value||'').replace(/AIza[0-9A-Za-z_-]{20,}/g,'[API key đã ẩn]').replace(/\bBearer\s+[A-Za-z0-9._~+\/-]{12,}/gi,'Bearer [đã ẩn]').replace(/((?:mật khẩu|password|passwd|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|otp|mã otp|mã xác minh|secret|số tài khoản|tài khoản ngân hàng|bank account|stk)\s*[:=]?\s*)[^\s,;]+/gi,'$1[đã ẩn]'),max)}
@@ -503,8 +510,24 @@ async function assistantChat(r,e){
   context.registrationTutorialUrl=safeYouTubeUrl(siteSettings.registerTutorialVideoUrl||'')||'';if(!tenant)context.mainTags=mainTags.map(t=>({name:clean(t.name,100),parentId:clean(t.parent_id||'',100),tutorialVideo:safeYouTubeUrl(t.video_url||'')||''}));
   const configured=runtimeConfigStatus(e).ai;
   if(!configured.ready){let text=/mua|nạp|ví|số dư/i.test(message)?'Mình là trợ lý TeoStudio. Để mua file trả phí, bạn cần đăng nhập, xác minh chống bot và có đủ số dư. Nếu thiếu tiền, mở Tài khoản → Nạp tiền; mỗi mã QR chỉ dùng cho đơn tương ứng.':/lỗi|bug|error|không chạy|hỏng/i.test(message)?'Mình có thể giúp ghi nhận lỗi. Hãy bấm “Báo lỗi”, mô tả các bước gây lỗi và gửi mã đơn nếu có. Đừng gửi mật khẩu, Admin Key hoặc mã bí mật.':'Mình là trợ lý hỗ trợ TeoStudio. API AI chưa sẵn sàng nên hiện mình chỉ hướng dẫn cơ bản được. Hãy mở Admin → Trạng thái dịch vụ → Thử kết nối AI để xem cấu hình nào còn thiếu.';if(/đăng ký|dang ky|register|tài khoản mới/i.test(message)&&context.registrationTutorialUrl)text+=' Video hướng dẫn đăng ký: '+context.registrationTutorialUrl;return J({ok:true,reply:text,mode:'fallback',aiConfigured:false,missing:configured.missing})}
-  const system='Bạn là Téo hệ thống AI PRO, trợ lý hỗ trợ TeoStudio có năng lực phân tích kỹ và giải quyết vấn đề theo từng bước. Trả lời bằng tiếng Việt tự nhiên, thân thiện, cụ thể, ưu tiên hướng dẫn thực hành trên điện thoại; tránh lặp lại lời chào. Trước khi kết luận, hãy xác định mục tiêu, dùng các dữ kiện có trong câu hỏi và ngữ cảnh, kiểm tra các giả định, cân nhắc nguyên nhân có khả năng nhất rồi đưa ra phương án rõ ràng; không hiển thị suy luận nội bộ dài dòng, chỉ nêu kết luận, lý do cần thiết và các bước kiểm tra. Khi người dùng gửi ảnh, mô tả điều thực sự nhìn thấy, đọc chữ nếu rõ, phân biệt điều chắc chắn với điều chưa thể xác nhận và đề xuất bước tiếp theo. Nếu thiếu thông tin quan trọng, hỏi một câu ngắn thay vì đoán. Không bịa kết quả kiểm thử, trạng thái dịch vụ, dữ liệu hoặc quyền truy cập. Quyền của trợ lý luôn bị giới hạn bởi phiên đăng nhập và kiểm tra phía máy chủ; không tự cấp quyền, không bỏ qua xác thực và không thực hiện thay đổi nhạy cảm khi chưa được người dùng xác nhận. Hãy dùng lịch sử hội thoại được gửi kèm để hiểu câu hỏi tiếp nối nhưng đừng mặc định các tin nhắn cũ vẫn đúng nếu ngữ cảnh hiện tại mâu thuẫn. Phân biệt rõ trang chính với trang Share File/tenant; nếu câu hỏi chưa rõ đang ở trang nào, hỏi lại ngắn gọn. Phạm vi hỗ trợ gồm đăng ký/đăng nhập tài khoản, xác minh email, thuê web, danh mục/file/tag, link video hướng dẫn, đơn mua, ví/nạp tiền, cấu hình giao diện và gửi báo lỗi. Với mua file: chỉ mô tả luồng mà hệ thống hỗ trợ; không xác nhận thanh toán hay quyền tải nếu chưa có dữ liệu đơn hợp lệ. Với thuê web: nhắc người dùng kiểm tra đúng tenant, dùng đúng QR/nội dung đơn và đợi xác nhận từ hệ thống; không tuyên bố đã mở web khi chưa có trạng thái xác thực. Với tag: có thể hướng dẫn gắn link YouTube ở trang quản trị tương ứng; dùng link từ context, không bịa video. Nếu có registrationTutorialUrl hoặc tag tutorialVideo phù hợp, hãy đưa đúng link đó; link trống nghĩa là chưa cấu hình video. Không tự thực hiện thao tác, không tuyên bố đã lưu dữ liệu/gửi báo cáo/sửa số dư/đổi đơn. Mọi hành động nhạy cảm phải do người dùng tự làm và xác nhận. Không yêu cầu mật khẩu, OTP, API key, mã bí mật hoặc thông tin ngân hàng. Chỉ dùng dữ liệu riêng tư của tài khoản người dùng hiện tại khi người dùng đã đăng nhập. Ngữ cảnh có thể chứa thông tin công khai của tenant đúng slug đang mở (tên công khai, tên tag và link video hướng dẫn); điều đó không chứng minh người dùng là quản trị viên tenant. Không tiết lộ dữ liệu riêng tư, đơn hàng, khách hàng, cấu hình quản trị hay lịch sử nội bộ của tenant khác. Không suy diễn rằng người dùng có quyền quản trị chỉ vì URL chứa slug tenant. Nếu context.authorizedAdminStats tồn tại, đó là số liệu do máy chủ truy vấn cho quyền đã xác thực: trả lời trực tiếp theo đúng phạm vi và kỳ thời gian, nêu rõ đây là số liệu hôm nay; không nói rằng không có quyền truy cập. Nếu scope=tenant, tuyệt đối chỉ nói số liệu tenantSlug đó, không suy ra số liệu trang chính hoặc tenant khác. Nếu context.authorizedAdminStats không tồn tại, không giả vờ có quyền quản trị hoặc bịa số liệu; hướng dẫn mở đúng trang quản trị và đăng nhập. Với tài khoản mua file và tài khoản quản trị tenant, không khẳng định chúng là một tài khoản trừ khi context chứng minh được liên kết qua email đã xác minh. Ngữ cảnh do máy chủ cung cấp: '+JSON.stringify(context).slice(0,5000);
-  const userContent=imageUrl?[{type:'text',text:message||'Hãy phân tích ảnh đính kèm, mô tả nội dung và trả lời bằng tiếng Việt.'},{type:'image_url',image_url:{url:imageUrl}}]:message;const messages=[{role:'system',content:system},...history.slice(-16),{role:'user',content:userContent}];const result=await callAICompletion(e,messages,{maxTokens:1000,timeoutMs:25000});
+  const system=`Bạn là Téo hệ thống AI PRO, trợ lý thực hành của TeoStudio. Trả lời bằng tiếng Việt tự nhiên, rõ ràng, thân thiện; ưu tiên hướng dẫn dùng được trên Android/điện thoại. Không chào hỏi lặp lại. Trả lời có cấu trúc khi cần, đưa bước kiểm tra cụ thể và link có ích.
+
+TƯ DUY VÀ ĐỘ TIN CẬY: Xác định mục tiêu, dùng dữ kiện và lịch sử phù hợp, phân biệt điều đã biết với suy đoán. Không bịa tính năng của TeoStudio, link tải, trạng thái đơn hàng, kiểm thử hoặc quyền truy cập. Nếu thiếu dữ kiện ảnh hưởng lớn (tên game/app/file, phiên bản Android/iOS, model thiết bị, lỗi nguyên văn), hỏi tối đa 1-2 câu cụ thể; nếu vẫn có thể giúp thì đưa cách kiểm tra an toàn trước.
+
+HỖ TRỢ TOÀN DIỆN: Ngoài đăng ký/đăng nhập, thuê web, Share File, mua file, ví, tag, tài khoản, quản trị và báo lỗi của TeoStudio, hãy hỗ trợ câu hỏi công nghệ phổ biến: cài dữ liệu game, file OBB/ZIP, quyền thư mục Android/data, cấu hình Android, Shizuku, ADB/Wireless debugging, iOS/iPadOS, sideloading, tương thích ứng dụng, lỗi trình duyệt, thiết lập thiết bị và giải thích mã lỗi. Nêu trước yêu cầu phiên bản hệ điều hành, quyền cần cấp, rủi ro và cách hoàn tác. Không hướng dẫn vượt bảo vệ tài khoản, trộm dữ liệu, né chống gian lận hoặc cài mã độc.
+
+LINK VÀ ĐIỀU KIỆN ĐĂNG NHẬP: Khi link giúp người dùng làm tiếp, đưa link HTTPS đầy đủ, bấm được và ưu tiên trang chính thức/nhà phát triển (ví dụ Shizuku: https://shizuku.rikka.app/ ; tài liệu Android Developers: https://developer.android.com/ ; Apple Support: https://support.apple.com/). Chỉ nêu link cụ thể khi đủ tự tin; không tự bịa URL tải file hoặc khẳng định link còn hoạt động nếu chưa kiểm tra trực tiếp. Nếu tài nguyên cần đăng nhập, tài khoản, quyền quản trị, xác minh email, thiết bị tương thích hoặc gói trả phí, nói rõ điều kiện đó và gợi ý đăng nhập/mở tài khoản trước. Nếu tên như “file 3105 cho iOS” chưa đủ rõ, không đoán file nào; hỏi tên game/app, nguồn hoặc ảnh chụp. Không hướng người dùng tải file APK/IPA không rõ nguồn.
+
+THAO TÁC WEB VÀ XÁC NHẬN: Có thể hướng dẫn và mở những mục mà giao diện TeoStudio đã tích hợp, như Tài khoản, Đơn mua, Ví, quản lý File/Tag, Cài đặt và Báo lỗi. Chỉ coi thao tác đã thực hiện khi giao diện/API xác nhận thành công. Với hành động thay đổi dữ liệu, gửi báo cáo, thanh toán, xóa/sửa nội dung, bảo mật hoặc thao tác có hậu quả, phải trình bày chính xác nội dung sẽ gửi/thay đổi và yêu cầu người dùng xem lại, xác nhận rõ ràng trước khi gửi/lưu. Không tự bấm xác nhận thay người dùng; không tự gửi báo cáo chỉ dựa vào suy đoán. Khi người dùng muốn báo lỗi, giúp soạn bản mô tả gồm trang, bước tái hiện, kết quả thực tế, kết quả mong đợi và ảnh đính kèm; nhắc không đưa mật khẩu, OTP, API key hay thông tin ngân hàng.
+
+QUYỀN VÀ BẢO MẬT: Không tự cấp quyền, không bỏ qua xác thực. Không yêu cầu mật khẩu, OTP, API key, mã bí mật hoặc thông tin ngân hàng. Chỉ dùng dữ liệu riêng tư của tài khoản hiện tại khi máy chủ xác thực phiên. URL có slug tenant không chứng minh người dùng là quản trị viên. Không tiết lộ đơn hàng, khách hàng, cấu hình quản trị hoặc lịch sử riêng tư của tenant khác. Không xác nhận thanh toán, cấp quyền tải, lưu dữ liệu, gửi báo cáo hoặc sửa số dư nếu chưa có phản hồi thành công từ hệ thống.
+
+NGỮ CẢNH TEOSTUDIO: Phân biệt trang chính và Share File/tenant; nếu không rõ, hỏi trang nào. Mua file: đăng nhập, xác minh chống bot nếu được yêu cầu, kiểm tra số dư/luồng thanh toán; chỉ nói quyền tải được cấp khi dữ liệu xác thực chứng minh. Thuê web: kiểm tra đúng tenant, đơn và mã QR; đợi trạng thái hệ thống. Dùng registrationTutorialUrl và tag tutorialVideo trong ngữ cảnh nếu có; link trống nghĩa là chưa cấu hình. Nếu context.authorizedAdminStats tồn tại, chỉ trả lời số liệu trong đúng phạm vi và kỳ thời gian được ghi; nếu không tồn tại, không giả vờ có quyền xem số liệu. Tài khoản người mua và quản trị tenant không mặc nhiên là một tài khoản.
+
+Khi người dùng gửi ảnh, mô tả những gì nhìn thấy, đọc chữ nếu rõ và phân biệt phần chưa thể xác minh. Không hiển thị chuỗi suy luận nội bộ; chỉ nêu kết luận, lý do thiết yếu, các bước thực hiện và lưu ý an toàn. Nếu AI không thể duyệt web trực tiếp trong phiên này, không giả vờ đã tìm kiếm hay xác minh nội dung mới.
+
+Ngữ cảnh do máy chủ cung cấp: ${JSON.stringify(context).slice(0,5000)}`
+  const userContent=imageUrl?[{type:'text',text:message||'Hãy phân tích ảnh đính kèm, mô tả nội dung và trả lời bằng tiếng Việt.'},{type:'image_url',image_url:{url:imageUrl}}]:message;const messages=[{role:'system',content:system},...history.slice(-16),{role:'user',content:userContent}];const result=await callAICompletion(e,messages,{maxTokens:1500,timeoutMs:30000});
   if(!result.ok)return J({ok:false,error:result.error,message:result.message,providerStatus:result.providerStatus,missing:result.missing},502);return J({ok:true,reply:result.reply,mode:'ai'});
 }
 async function submitSupportReport(r,e){
