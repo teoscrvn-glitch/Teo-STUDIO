@@ -525,7 +525,7 @@ async function assistantChat(r,e){
   let authenticatedTenantAdmin=false;
   if(tenant){const ts=await tenantSettings(e,tenant).catch(()=>({}));context.tenant={slug:clean(tenant.slug,80),name:clean(ts.siteName||ts.studio||tenant.studio_name||tenant.slug,100)};context.tenantTags=(await tenantTags(e,tenant).catch(()=>[])).slice(0,40).map(t=>({name:clean(t.name,100),parentId:clean(t.parent_id||'',100),tutorialVideo:safeYouTubeUrl(t.video_url||'')||''}));
     try{const sessionToken=tokenFrom(r),sessionRow=sessionToken?await e.DB.prepare('SELECT tenant_id FROM tenant_sessions WHERE token=? AND expires_at>?').bind(sessionToken,Date.now()).first():null;authenticatedTenantAdmin=!!(sessionRow&&tenantKeyValues(tenant).map(String).includes(String(sessionRow.tenant_id)))}catch{}
-    if(authenticatedTenantAdmin){try{context.tenantRecentActivity=(await tenantAudit(e,String(tenant.id))).slice(0,12).map(x=>({action:clean(x.action,80),detail:clean(x.detail,180),createdAt:clean(x.created_at,40)}))}catch{context.tenantRecentActivity=[]}try{const tsx=await tenantStats(e,String(tenant.id),1,'');const today=dayVN(),todaySales=(tsx.sales?.byDay||[]).filter(x=>x.day===today);context.authorizedAdminStats={scope:'tenant',tenantSlug:clean(tenant.slug,80),period:'today',siteVisits:Number(tsx.viewKinds?.visit||0),fileViews:Number(tsx.viewKinds?.product||0),outboundClicks:Number(tsx.viewKinds?.outbound||0),paidOrdersToday:todaySales.reduce((a,x)=>a+Number(x.orders||0),0),grossRevenueVndToday:todaySales.reduce((a,x)=>a+Number(x.revenue||0),0),sellerNetVndToday:todaySales.reduce((a,x)=>a+Number(x.sellerNet||0),0)}}catch{context.authorizedAdminStats={scope:'tenant',tenantSlug:clean(tenant.slug,80),available:false}}}
+    if(authenticatedTenantAdmin){try{context.tenantRecentActivity=(await tenantAudit(e,String(tenant.id))).slice(0,12).map(x=>({action:clean(x.action,80),detail:clean(x.detail,180),createdAt:clean(x.created_at,40)}))}catch{context.tenantRecentActivity=[]}try{const tsx=await tenantStats(e,String(tenant.id),1,'');const today=dayVN(),todaySales=(tsx.sales?.byDay||[]).filter(x=>x.day===today);context.authorizedAdminStats={scope:'tenant',tenantSlug:clean(tenant.slug,80),period:'today',siteVisits:Number(tsx.viewKinds?.visit||0),fileViews:Number(tsx.viewKinds?.product||0),outboundClicks:Number(tsx.viewKinds?.outbound||0),paidOrdersToday:todaySales.reduce((a,x)=>a+Number(x.orders||0),0),grossRevenueVndToday:todaySales.reduce((a,x)=>a+Number(x.revenue||0),0),sellerNetVndToday:todaySales.reduce((a,x)=>a+Number(x.sellerNet||0),0),commissionVndToday:todaySales.reduce((a,x)=>a+Number(x.commission||0),0)}}catch{context.authorizedAdminStats={scope:'tenant',tenantSlug:clean(tenant.slug,80),available:false}}}
   }
   if(!tenant&&await isAdmin(r,e)){try{const today=dayVN();const [walletSales,legacySales,rentalSales,views]=await Promise.all([
       e.DB.prepare("SELECT COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS gross FROM buyer_purchases WHERE status='paid' AND date(created_at,'+7 hours')=?").bind(today).first(),
@@ -655,6 +655,13 @@ async function ensureTenantSchema(e){
     await tenantAddColumn(e,'tenant_products','sale_enabled','INTEGER DEFAULT 0');
     await tenantAddColumn(e,'tenant_products','product_mode',"TEXT DEFAULT 'free'");
     await tenantAddColumn(e,'tenant_products','original_link','TEXT DEFAULT ""');
+    // V56.45: safely retire legacy combined tenant-product mode. Old rows used download_link for bypass and original_link for paid download.
+    await tenantExec(e, `UPDATE tenant_products SET
+      download_link=CASE WHEN COALESCE(price_vnd,0)>=1000 AND TRIM(COALESCE(original_link,''))<>'' THEN original_link ELSE download_link END,
+      product_mode=CASE WHEN COALESCE(price_vnd,0)>=1000 THEN 'paid' ELSE 'unlock' END,
+      sale_enabled=CASE WHEN COALESCE(price_vnd,0)>=1000 THEN 1 ELSE 0 END,
+      original_link=''
+      WHERE product_mode='both'`);
     await tenantAddColumn(e,'tenant_withdrawals','terms_accepted_at','TEXT DEFAULT NULL');
     await tenantExec(e,`CREATE TABLE IF NOT EXISTS tenant_payment_orders (
       id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, product_id TEXT NOT NULL,
@@ -948,17 +955,12 @@ async function tenantProducts(e,t,admin=false){
   const k=tenantInSql(t);
   const rows=((await e.DB.prepare(`SELECT * FROM tenant_products WHERE ${k.clause} ${admin?'':'AND visible=1'} ORDER BY updated_at DESC`).bind(...k.vals).all()).results||[]);
   return rows.map(row=>{
-    const mode=['free','unlock','paid','both'].includes(String(row.product_mode||''))?String(row.product_mode):(Number(row.sale_enabled)===1?'paid':'free');
-    const price=Math.max(0,Number(row.price_vnd)||0);
+    const price=Math.max(0,Number(row.price_vnd)||0),storedMode=String(row.product_mode||'');
+    const mode=['free_or_unlock','free','unlock','paid','both'].includes(storedMode)?storedMode:(Number(row.sale_enabled)===1?'paid':'free');
     const out={...row,product_mode:mode,price_vnd:price,sale_enabled:['paid','both'].includes(mode)&&price>=1000?1:0,
       download_link:safeHttpUrl(row.download_link,10000),original_link:safeHttpUrl(row.original_link,10000),thumb:row.thumb?safeImageValue(row.thumb,1500000):''};
-    // Public Share list must never serialize the paid/original URL. A client-side hide is not protection.
-    // Admin API gets full URLs for editing; public mode returns only the link appropriate to the sale mode.
-    if(!admin){
-      if(mode==='paid'){out.download_link='';out.original_link='';}
-      else if(mode==='both'||mode==='unlock'){out.original_link='';}
-      else {out.original_link='';}
-    }
+    // Public cards expose metadata only; the detail endpoint controls which links are available.
+    if(!admin){out.download_link='';out.original_link='';}
     return out;
   });
 }
@@ -1372,14 +1374,16 @@ async function handleTenantPublic(r,e){
     const pk=tenantInSql(t);const p=await e.DB.prepare(`SELECT * FROM tenant_products WHERE ${pk.clause} AND id=? AND visible=1 ORDER BY updated_at DESC LIMIT 1`).bind(...pk.vals,id).first();
     if(!p)return J({ok:false,error:'NOT_FOUND'},404);
     await tenantBump(e,t,'product',id,r);
-    const mode=['free','unlock','paid','both'].includes(String(p.product_mode||''))?String(p.product_mode):(Number(p.sale_enabled)===1?'paid':'free');
-    const paid=['paid','both'].includes(mode)&&Number(p.price_vnd)>0;
-    const pub={...p,download_link:safeHttpUrl(p.download_link,10000),original_link:safeHttpUrl(p.original_link,10000),thumb:p.thumb?safeImageValue(p.thumb,1500000):'',product_mode:mode,price_vnd:Number(p.price_vnd)||0,sale_enabled:paid?1:0};
-    // Never disclose a paid original URL before the order is paid. In `both`, only the bypass URL is public.
+    const price=Math.max(0,Number(p.price_vnd)||0),storedMode=String(p.product_mode||'');
+    const mode=['free_or_unlock','free','unlock','paid','both'].includes(storedMode)?storedMode:(Number(p.sale_enabled)===1?'paid':'free');
+    const paid=['paid','both'].includes(mode)&&price>=1000;
+    const pub={...p,download_link:safeHttpUrl(p.download_link,10000),original_link:safeHttpUrl(p.original_link,10000),thumb:p.thumb?safeImageValue(p.thumb,1500000):'',product_mode:mode,price_vnd:price,sale_enabled:paid?1:0};
+    // Only the selected free destinations are public; purchase-only links remain private until payment.
     if(mode==='paid'){delete pub.download_link;delete pub.original_link;}
-    else if(mode==='both'){delete pub.original_link;}
+    else if(mode==='both'){pub.download_link=safeHttpUrl(p.download_link,10000);delete pub.original_link;}
+    else if(mode==='free_or_unlock'){pub.download_link=safeHttpUrl(p.download_link,10000);pub.original_link=safeHttpUrl(p.original_link,10000);}
     else if(mode==='unlock'){delete pub.original_link;}
-    else {pub.download_link=p.original_link||p.download_link;delete pub.original_link;}
+    else {delete pub.original_link;}
     return J({ok:true,product:pub,tenant:tenantInfo(t),settings:await tenantSettings(e,t),tags:await tenantTags(e,t)});
   }
   if(parts[3]==='track-outbound'&&parts[4]&&r.method==='POST'){
@@ -1461,17 +1465,20 @@ async function handleTenantAdmin(r,e){
   if(p==='/api/tenant/products'&&r.method==='POST'){
     const b=await r.json().catch(()=>({}));
     if(!clean(b.title,200))return J({ok:false,error:'title_required'},400);
-    const mode=['free','unlock','paid','both'].includes(String(b.product_mode))?String(b.product_mode):'free';
+    const requestedMode=String(b.product_mode||'free_or_unlock');
+    const allowedModes=['free_or_unlock','both','paid','free','unlock'];
+    if(!allowedModes.includes(requestedMode))return J({ok:false,error:'INVALID_PRODUCT_MODE'},400);
+    const price=Math.max(0,Math.min(100000000,Math.floor(Number(b.price_vnd)||0))),mode=requestedMode;
     if(String(t.plan_type||'paid')==='free'&&['paid','both'].includes(mode))return J({ok:false,error:'VIP_REQUIRED',message:'Gói Free chỉ được chia sẻ file miễn phí. Nâng VIP để bật bán file.'},403);
     const downloadLink=safeHttpUrl(b.download_link,10000),originalLink=safeHttpUrl(b.original_link,10000);
-    if(!downloadLink)return J({ok:false,error:'INVALID_DOWNLOAD_URL',message:'Link lấy file phải là URL http:// hoặc https:// hợp lệ.'},400);
-    if(mode==='both'&&!originalLink)return J({ok:false,error:'INVALID_ORIGINAL_URL',message:'Chế độ miễn phí hoặc mua cần link gốc http(s) riêng.'},400);
-    const price=Math.max(0,Math.min(100000000,Math.floor(Number(b.price_vnd)||0)));
+    if(!downloadLink)return J({ok:false,error:'INVALID_DOWNLOAD_URL',message:'Nhập link tải/vượt hợp lệ bắt đầu bằng http:// hoặc https://.'},400);
+    if(mode==='free_or_unlock'&&!originalLink)return J({ok:false,error:'FREE_AND_UNLOCK_LINKS_REQUIRED',message:'Chế độ FREE/Vượt link cần cả link tải trực tiếp và link vượt.'},400);
+    if(mode==='both'&&!originalLink)return J({ok:false,error:'FREE_AND_PAID_LINKS_REQUIRED',message:'Chế độ Vượt link/Mua cần link vượt và link gốc trả phí.'},400);
     if(['paid','both'].includes(mode)&&price<1000)return J({ok:false,error:'PRICE_TOO_LOW',message:'Giá file trả phí tối thiểu là 1.000đ.'},400);
-    const sale=['paid','both'].includes(mode)&&price>0?1:0;
+    const sale=['paid','both'].includes(mode)&&price>=1000?1:0;
     const thumb=safeImageValue(b.thumb,1500000);if(b.thumb&&!thumb)return J({ok:false,error:'INVALID_THUMB_URL'},400);
     const id=crypto.randomUUID();
-    await e.DB.prepare('INSERT INTO tenant_products(id,tenant_id,title,game,description,thumb,download_link,warning,visible,price_vnd,sale_enabled,product_mode,original_link) VALUES(?,?,?,?,?,?,?,?,1,?,?,?,?)').bind(id,t.id,clean(b.title,200),clean(b.game,100),clean(b.description),thumb,downloadLink,clean(b.warning),price,sale,mode,mode==='both'?originalLink:'').run();
+    await e.DB.prepare('INSERT INTO tenant_products(id,tenant_id,title,game,description,thumb,download_link,warning,visible,price_vnd,sale_enabled,product_mode,original_link) VALUES(?,?,?,?,?,?,?,?,1,?,?,?,?)').bind(id,t.id,clean(b.title,200),clean(b.game,100),clean(b.description),thumb,downloadLink,clean(b.warning),price,sale,mode,['free_or_unlock','both'].includes(mode)?originalLink:'').run();
     await tenantLog(e,t.id,t.id,'product_create',id);
     return J({ok:true,id},201)
   }
@@ -1483,16 +1490,20 @@ async function handleTenantAdmin(r,e){
       const b=await r.json().catch(()=>({}));
       if(Object.keys(b).length===1&&typeof b.visible==='boolean'){await e.DB.prepare('UPDATE tenant_products SET visible=?,updated_at=datetime(\'now\') WHERE tenant_id=? AND id=?').bind(b.visible?1:0,t.id,id).run();await tenantLog(e,t.id,t.id,b.visible?'product_show':'product_hide',id);return J({ok:true,visible:b.visible})}
       if(!clean(b.title,200))return J({ok:false,error:'title_required'},400);
-      const mode=['free','unlock','paid','both'].includes(String(b.product_mode))?String(b.product_mode):'free';
+      const requestedMode=String(b.product_mode||'free_or_unlock');
+      const allowedModes=['free_or_unlock','both','paid','free','unlock'];
+      if(!allowedModes.includes(requestedMode))return J({ok:false,error:'INVALID_PRODUCT_MODE'},400);
+      const price=Math.max(0,Math.min(100000000,Math.floor(Number(b.price_vnd)||0))),mode=requestedMode;
       if(String(t.plan_type||'paid')==='free'&&['paid','both'].includes(mode))return J({ok:false,error:'VIP_REQUIRED',message:'Gói Free chỉ được chia sẻ file miễn phí. Nâng VIP để bật bán file.'},403);
       const downloadLink=safeHttpUrl(b.download_link,10000),originalLink=safeHttpUrl(b.original_link,10000);
-      if(!downloadLink)return J({ok:false,error:'INVALID_DOWNLOAD_URL',message:'Link lấy file phải là URL http:// hoặc https:// hợp lệ.'},400);
-      if(mode==='both'&&!originalLink)return J({ok:false,error:'INVALID_ORIGINAL_URL',message:'Chế độ miễn phí hoặc mua cần link gốc http(s) riêng.'},400);
-      const price=Math.max(0,Math.min(100000000,Math.floor(Number(b.price_vnd)||0)));
+      if(!downloadLink)return J({ok:false,error:'INVALID_DOWNLOAD_URL',message:'Nhập link tải/vượt hợp lệ bắt đầu bằng http:// hoặc https://.'},400);
+      if(mode==='free_or_unlock'&&!originalLink)return J({ok:false,error:'FREE_AND_UNLOCK_LINKS_REQUIRED',message:'Chế độ FREE/Vượt link cần cả link tải trực tiếp và link vượt.'},400);
+      if(mode==='both'&&!originalLink)return J({ok:false,error:'FREE_AND_PAID_LINKS_REQUIRED',message:'Chế độ Vượt link/Mua cần link vượt và link gốc trả phí.'},400);
       if(['paid','both'].includes(mode)&&price<1000)return J({ok:false,error:'PRICE_TOO_LOW',message:'Giá file trả phí tối thiểu là 1.000đ.'},400);
-      const sale=['paid','both'].includes(mode)&&price>0?1:0;
+      const sale=['paid','both'].includes(mode)&&price>=1000?1:0;
       const thumb=safeImageValue(b.thumb,1500000);if(b.thumb&&!thumb)return J({ok:false,error:'INVALID_THUMB_URL'},400);
-      await e.DB.prepare('UPDATE tenant_products SET title=?,game=?,description=?,thumb=?,download_link=?,warning=?,visible=?,price_vnd=?,sale_enabled=?,product_mode=?,original_link=?,updated_at=datetime(\'now\') WHERE tenant_id=? AND id=?').bind(clean(b.title,200),clean(b.game,100),clean(b.description),thumb,downloadLink,clean(b.warning),b.visible===false?0:1,price,sale,mode,mode==='both'?originalLink:'',t.id,id).run();
+      const originalToStore=['free_or_unlock','both'].includes(mode)?originalLink:'';
+      await e.DB.prepare("UPDATE tenant_products SET title=?,game=?,description=?,thumb=?,download_link=?,warning=?,visible=?,price_vnd=?,sale_enabled=?,product_mode=?,original_link=?,updated_at=datetime('now') WHERE tenant_id=? AND id=?").bind(clean(b.title,200),clean(b.game,100),clean(b.description),thumb,downloadLink,clean(b.warning),b.visible===false?0:1,price,sale,mode,originalToStore,t.id,id).run();
       return J({ok:true})
     }
   }
@@ -1500,6 +1511,19 @@ async function handleTenantAdmin(r,e){
   if(p==='/api/tenant/tags'&&r.method==='POST'){const b=await r.json().catch(()=>({})),name=clean(b.name,100),rawVideo=clean(b.video_url||'',1000),video=safeYouTubeUrl(rawVideo)||null;if(!name)return J({ok:false,error:'name_required'},400);if(rawVideo&&!video)return J({ok:false,error:'INVALID_YOUTUBE_URL',message:'Link video phải là URL YouTube hợp lệ.'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO tenant_tags(id,tenant_id,name,parent_id,video_url) VALUES(?,?,?,?,?)').bind(id,t.id,name,clean(b.parent_id,100)||null,video).run();return J({ok:true,id},201)}
   let tg=p.match(/^\/api\/tenant\/tags\/([^/]+)$/);
   if(tg&&r.method==='PUT'){const b=await r.json().catch(()=>({})),name=clean(b.name,100),rawVideo=clean(b.video_url||'',1000),video=safeYouTubeUrl(rawVideo)||null;if(!name)return J({ok:false,error:'name_required'},400);if(rawVideo&&!video)return J({ok:false,error:'INVALID_YOUTUBE_URL',message:'Link video phải là URL YouTube hợp lệ.'},400);const k=tenantInSql(t);const result=await e.DB.prepare(`UPDATE tenant_tags SET name=?,parent_id=?,video_url=? WHERE ${k.clause} AND id=?`).bind(name,clean(b.parent_id,100)||null,video,...k.vals,tg[1]).run();if(!result.meta?.changes)return J({ok:false,error:'TAG_NOT_FOUND'},404);return J({ok:true})}
+  if(tg&&r.method==='DELETE'){
+    const id=decodeURIComponent(tg[1]);
+    const parent=await e.DB.prepare('SELECT id,name FROM tenant_tags WHERE tenant_id=? AND id=? LIMIT 1').bind(String(t.id),id).first();
+    if(!parent)return J({ok:false,error:'TAG_NOT_FOUND',message:'Không tìm thấy tag trong Studio này.'},404);
+    const kids=(await e.DB.prepare('SELECT id,name FROM tenant_tags WHERE tenant_id=? AND parent_id=?').bind(String(t.id),id).all()).results||[];
+    const names=[parent.name,...kids.map(x=>x.name)].filter(Boolean);
+    await e.DB.batch([
+      e.DB.prepare('DELETE FROM tenant_tags WHERE tenant_id=? AND (id=? OR parent_id=?)').bind(String(t.id),id,id),
+      e.DB.prepare(`UPDATE tenant_products SET game='' WHERE tenant_id=? AND game IN (${names.map(()=>'?').join(',')})`).bind(String(t.id),...names)
+    ]);
+    await tenantLog(e,t.id,t.id,'tag_delete',String(parent.name||id).slice(0,100));
+    return J({ok:true,deleted:1+kids.length});
+  }
   if(p==='/api/tenant/comments'&&r.method==='GET')return J({ok:true,comments:await tenantComments(e,t,true)});
   let tc=p.match(/^\/api\/tenant\/comments\/([^/]+)$/);
   if(tc){const id=decodeURIComponent(tc[1]);if(r.method==='DELETE'){{const k=tenantInSql(t);await e.DB.prepare(`DELETE FROM tenant_comments WHERE ${k.clause} AND id=?`).bind(...k.vals,id).run()};return J({ok:true})}if(r.method==='PUT'){const b=await r.json().catch(()=>({}));if(typeof b.visible!=='boolean')return J({ok:false,error:'VISIBLE_REQUIRED'},400);{const k=tenantInSql(t);await e.DB.prepare(`UPDATE tenant_comments SET visible=? WHERE ${k.clause} AND id=?`).bind(b.visible?1:0,...k.vals,id).run()};await tenantLog(e,t.id,t.id,b.visible?'comment_show':'comment_hide',id);return J({ok:true,visible:b.visible})}}

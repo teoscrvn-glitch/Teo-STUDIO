@@ -3,12 +3,14 @@ main = "worker.js"
 compatibility_date = "2026-09-18"
 
 # Keep existing non-secret Production variables in sync with Cloudflare Builds.
-# Secrets (ADMIN_KEY, SEPAY_API_KEY, TURNSTILE_SECRET, OXMAIL_SMTP_PASS) stay in Cloudflare Secret storage.
+# Secrets (ADMIN_KEY, AI_API_KEY, SEPAY_API_KEY, TURNSTILE_SECRET, OXMAIL_SMTP_PASS, TELEGRAM_BOT_TOKEN) stay in Cloudflare Secret storage.
+# Keep non-secret Production settings in sync here; never put secret values in this file.
 [vars]
-AI_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-AI_MODEL = "gemini-3.8-flash"
+AI_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+AI_MODEL = "openrouter/free"
 SEPAY_ACCOUNT_NUMBER = "0979498243"
 SEPAY_BANK_CODE = "MB"
+TELEGRAM_CHAT_ID = "-5376839466"
 TURNSTILE_SITE_KEY = "0x4AAAAAAFM6DoL2w6HDogkC"
 
 [assets]

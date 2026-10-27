@@ -9,7 +9,7 @@ echo '[2/9] Frontend JavaScript syntax'
 find frontend/assets/js -type f -name '*.js' -exec node --check '{}' \;
 echo '[3/9] Version and image asset'
 grep -q "ensureAssistantActivitySchema" cloudflare/worker.js
-grep -q "v56.44-ai-web-search-activity-tenant-isolation" frontend/assets/js/config.js
+grep -q "v56.45-tenant-purchase-comments-stats-avatar" frontend/assets/js/config.js
 test -s frontend/assets/img/teo-linh.webp
 grep -q "new URL('../img/teo-linh.webp',SCRIPT_URL)" frontend/assets/js/assistant.js
 grep -q 'safeYouTubeUrl' cloudflare/worker.js
@@ -52,6 +52,15 @@ if grep -Eq 'function banIp|function activeBan|IP_TEMPORARILY_BLOCKED|banIp\(' c
 grep -q 'searchAssistantWeb' cloudflare/worker.js
 grep -q 'TAVILY_API_KEY' cloudflare/worker.js
 grep -q 'recordBuyerActivity' cloudflare/worker.js
+grep -q "if(tenant)loadRecentSalesFeed('/api/public-tenant/'" frontend/assets/js/account.js
+grep -q "window.addEventListener('teo:auth-changed'" frontend/assets/js/main.js
+grep -q "if(tg&&r.method==='DELETE')" cloudflare/worker.js
+grep -q 'TELEGRAM_CHAT_ID = "-5376839466"' cloudflare/wrangler.toml
+grep -q 'AI_MODEL = "openrouter/free"' cloudflare/wrangler.toml
+[ "$(grep -o '<option value="free"' frontend/tenant-admin.html | wc -l | tr -d ' ')" -eq 1 ]
+[ "$(grep -o '<option value="unlock"' frontend/tenant-admin.html | wc -l | tr -d ' ')" -eq 1 ]
+[ "$(grep -o '<option value="paid"' frontend/tenant-admin.html | wc -l | tr -d ' ')" -eq 1 ]
+! grep -q '<option value="both"' frontend/tenant-admin.html
 grep -q 'tp.tenant_id=p.tenant_id' cloudflare/worker.js
 grep -q 'TAVILY_API_KEY' DEPLOY_V56.44_AI_WEB_ACTIVITY.md
 echo '[9/9] AI guardrail behavior'
