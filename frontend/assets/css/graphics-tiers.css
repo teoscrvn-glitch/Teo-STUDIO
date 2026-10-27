@@ -1,0 +1,91 @@
+/* TeoStudio Graphics Tiers — Lite / Balanced / Premium. No effect hides content by default. */
+.teo-graphics-control{position:relative;z-index:100;flex:0 0 auto;font-family:inherit}
+.teo-graphics-toggle{display:inline-flex;align-items:center;gap:6px;min-height:35px;padding:7px 10px;border:1px solid var(--border,#292934);border-radius:10px;background:var(--surface,#111118);color:var(--text,#f4f4f7);font-family:inherit;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap;transition:transform .16s ease,border-color .16s ease}
+.teo-graphics-toggle:hover,.teo-graphics-toggle[aria-expanded="true"]{border-color:#7ebbc3;background:#172126}
+.teo-graphics-toggle:active{transform:scale(.97)}
+.teo-graphics-panel{position:fixed;z-index:10050;top:calc(62px + 10px);right:12px;width:min(350px,calc(100vw - 24px));padding:14px;border:1px solid #31434a;border-radius:15px;background:rgba(13,19,23,.97);color:#edf4f5;box-shadow:0 18px 48px rgba(0,0,0,.38);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.teo-graphics-panel[hidden]{display:none!important}
+.teo-graphics-title{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:12px;border-bottom:1px solid #28363c}
+.teo-graphics-title b{display:block;font-size:14px}.teo-graphics-title small,.teo-graphics-options small{display:block;margin-top:3px;color:#95aab0;font-size:11px}
+#teoGraphicsClose{width:30px;height:30px;border:1px solid #304149;border-radius:9px;background:#151f24;color:#eaf6f7;font-size:20px}
+.teo-graphics-options{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.teo-graphics-options button{position:relative;display:block;min-height:76px;text-align:left;padding:11px;border:1px solid #2c3c43;border-radius:11px;background:#11191e;color:#edf4f5}
+.teo-graphics-options button:last-child{grid-column:1/-1;min-height:62px}
+.teo-graphics-options button.active{border-color:#9bdce2;background:rgba(125,189,197,.10);box-shadow:inset 0 0 0 1px rgba(155,220,226,.10)}
+.teo-graphics-options button>span{position:absolute;right:9px;top:8px;color:#9bdce2}
+.teo-graphics-sound{display:flex;align-items:center;gap:7px;padding:9px 0;font-size:12px}.teo-graphics-sound input{accent-color:#9bdce2}.teo-graphics-sound small{margin-left:auto;color:#95aab0;font-size:10px}
+.teo-graphics-note{margin:6px 0 0;padding-top:10px;border-top:1px solid #28363c;color:#95aab0;font-size:11px;line-height:1.5}
+.teo-graphics-fallback{position:fixed;z-index:10049;top:74px;right:10px}
+
+/* Static baseline. Stop the legacy full-screen body animations in every tier. */
+html[data-teo-graphics] body{animation:none!important;background-attachment:scroll!important}
+html[data-teo-graphics] body::before,html[data-teo-graphics] body::after{animation:none!important;filter:none!important;box-shadow:none!important}
+html[data-teo-graphics] .hero-glow{filter:none!important;will-change:auto!important}
+html[data-teo-graphics] .brand-mark::after,html[data-teo-graphics] .notice-pill,html[data-teo-graphics] .studio-avatar{animation:none!important}
+html[data-teo-graphics] .site-header,html[data-teo-graphics] .admin-topbar{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+html[data-teo-graphics] .product-card,html[data-teo-graphics] .support-box{transition:transform .18s ease-out,border-color .18s ease-out!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 8px 24px rgba(0,0,0,.20)!important}
+html[data-teo-graphics] .product-card:hover,html[data-teo-graphics] .support-box:hover{transform:translate3d(0,-2px,0)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 8px 24px rgba(0,0,0,.20)!important}
+html[data-teo-graphics] .search-box{transition:border-color .18s ease-out!important}
+html[data-teo-graphics] .search-box:focus-within{transform:none!important}
+html[data-teo-graphics] .btn,html[data-teo-graphics] .icon-btn,html[data-teo-graphics] .mini-btn,html[data-teo-graphics] .header-tag,html[data-teo-graphics] .tag{transition:transform .16s ease-out,border-color .16s ease-out!important}
+html[data-teo-graphics] .btn:active,html[data-teo-graphics] .icon-btn:active,html[data-teo-graphics] .mini-btn:active,html[data-teo-graphics] .header-tag:active,html[data-teo-graphics] .tag:active{transform:scale(.975)}
+
+/* GPU-only one-time reveals. The JS adds the pending class only to off-screen cards. */
+html.teo-motion-enabled .teo-reveal-pending{opacity:0;transform:translate3d(0,10px,0) scale(.99)!important;transition:opacity .28s cubic-bezier(.22,1,.36,1),transform .28s cubic-bezier(.22,1,.36,1)!important;transition-delay:var(--teo-stagger-delay,0ms)}
+html.teo-motion-enabled .teo-reveal-visible{opacity:1;transform:translate3d(0,0,0) scale(1);transition:opacity .28s cubic-bezier(.22,1,.36,1),transform .28s cubic-bezier(.22,1,.36,1);transition-delay:var(--teo-stagger-delay,0ms)}
+.hero-glow.teo-offscreen{animation-play-state:paused!important}
+html.teo-tab-hidden *,html.teo-tab-hidden *::before,html.teo-tab-hidden *::after{animation-play-state:paused!important}
+
+/* Balanced: crisp, static lighting and small interactions; no continuously moving page background. */
+html[data-teo-graphics="balanced"] .hero-glow{opacity:.34!important;filter:none!important;animation:none!important}
+html[data-teo-graphics="balanced"] .hero::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(to right,rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,.022) 1px,transparent 1px);background-size:36px 36px;mask-image:radial-gradient(ellipse 75% 65% at 50% 35%,#000 20%,transparent 100%);-webkit-mask-image:radial-gradient(ellipse 75% 65% at 50% 35%,#000 20%,transparent 100%)}
+html[data-teo-graphics="balanced"] .product-card,html[data-teo-graphics="balanced"] .support-box{isolation:isolate}
+html[data-teo-graphics="balanced"] .product-card::after,html[data-teo-graphics="balanced"] .support-box::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 0 24px rgba(139,119,247,.13);transition:opacity .18s ease-out;z-index:2}
+@media(hover:hover) and (pointer:fine){html[data-teo-graphics="balanced"] .product-card:hover::after,html[data-teo-graphics="balanced"] .support-box:hover::after{opacity:1}}
+
+/* Lite: for low-memory devices and users who prefer zero decoration movement. */
+html[data-teo-graphics="lite"] .hero-glow{opacity:.13!important;animation:none!important;filter:none!important}
+html[data-teo-graphics="lite"] body::before{opacity:0!important}
+html[data-teo-graphics="lite"] .site-header,html[data-teo-graphics="lite"] .admin-topbar{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+html[data-teo-graphics="lite"] .hero::after{display:none!important}
+html[data-teo-graphics="lite"] .hero h1{animation:none!important;text-shadow:none!important}
+html[data-teo-graphics="lite"] .product-card::before,html[data-teo-graphics="lite"] .product-card::after,html[data-teo-graphics="lite"] .support-box::before,html[data-teo-graphics="lite"] .support-box::after{display:none!important}
+html[data-teo-graphics="lite"] .teo-ai-panel,html[data-teo-graphics="lite"] .teo-graphics-panel{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+html[data-teo-graphics="lite"] .teo-ai-wrap.open .teo-ai-panel{animation:none!important}
+
+/* Native cross-document transitions are progressive enhancement; unsupported browsers ignore them. */
+@view-transition{navigation:auto}
+@media(prefers-reduced-motion:no-preference){
+  ::view-transition-old(root){animation:teoViewOut .10s ease-in both}
+  ::view-transition-new(root){animation:teoViewIn .16s cubic-bezier(.22,1,.36,1) both}
+  @keyframes teoViewOut{to{opacity:.82}}
+  @keyframes teoViewIn{from{opacity:.82}to{opacity:1}}
+}
+html[data-teo-graphics="lite"]::view-transition-old(root),html[data-teo-graphics="lite"]::view-transition-new(root){animation:none!important}
+
+@media(max-width:768px){
+  .teo-graphics-in-header .teo-graphics-toggle span{display:none}
+  .teo-graphics-in-header .teo-graphics-toggle{width:36px;justify-content:center;padding:6px}
+  .teo-graphics-panel{top:72px;right:8px;width:calc(100vw - 16px);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+  html[data-teo-graphics] .site-header,html[data-teo-graphics] .admin-topbar{backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+  html[data-teo-graphics] .product-card:hover,html[data-teo-graphics] .support-box:hover{transform:none!important}
+  html[data-teo-graphics="balanced"] .hero::after{background-size:30px 30px;opacity:.8}
+}
+@media(prefers-reduced-motion:reduce){
+  html[data-teo-graphics] *,html[data-teo-graphics] *::before,html[data-teo-graphics] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+  html.teo-motion-enabled .teo-reveal-pending{opacity:1!important;transform:none!important}
+  ::view-transition-old(root),::view-transition-new(root){animation:none!important}
+}
+
+/* API skeletons reserve the card grid while data is fetched; only opacity is animated. */
+.teo-skeleton-card{position:relative;overflow:hidden;min-width:0;min-height:230px;border:1px solid var(--border,#2a2d3a);border-radius:18px;background:rgba(17,21,33,.82);isolation:isolate}
+.teo-skeleton-media{aspect-ratio:16/9;background:rgba(148,163,184,.10);border-bottom:1px solid rgba(255,255,255,.035)}
+.teo-skeleton-lines{display:grid;gap:10px;padding:15px}
+.teo-skeleton-lines i{display:block;height:10px;width:80%;border-radius:999px;background:rgba(148,163,184,.13)}
+.teo-skeleton-lines i:nth-child(2){width:58%}.teo-skeleton-lines i:nth-child(3){width:36%;margin-top:7px}
+.teo-skeleton-card::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:2;background:linear-gradient(110deg,transparent 20%,rgba(255,255,255,.07) 48%,transparent 72%);opacity:.12;animation:teoSkeletonPulse 1.05s ease-in-out infinite alternate}
+@keyframes teoSkeletonPulse{from{opacity:.08}to{opacity:.24}}
+html[data-teo-graphics="lite"] .teo-skeleton-card::after{animation:none;opacity:.08}
+html[data-teo-graphics] body::after{background-attachment:scroll!important}
+/* Static specular inner edge on major surfaces; no animated box-shadow. */
+html[data-teo-graphics] .search-box,html[data-teo-graphics] .drawer,html[data-teo-graphics] .teo-graphics-panel{box-shadow:inset 0 1px 0 rgba(255,255,255,.065),0 12px 32px -8px rgba(0,0,0,.38)}
