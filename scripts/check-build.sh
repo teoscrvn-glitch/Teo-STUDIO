@@ -8,8 +8,8 @@ node --check cloudflare/worker.js
 echo '[2/9] Frontend JavaScript syntax'
 find frontend/assets/js -type f -name '*.js' -exec node --check '{}' \;
 echo '[3/9] Version and image asset'
-grep -q "v56.39-ai-history-report-image-tag-video-guard" cloudflare/worker.js
-grep -q "v56.39-ai-history-report-image-tag-video-guard" frontend/assets/js/config.js
+grep -q "ensureAssistantActivitySchema" cloudflare/worker.js
+grep -q "v56.44-ai-web-search-activity-tenant-isolation" frontend/assets/js/config.js
 test -s frontend/assets/img/teo-linh.webp
 grep -q "new URL('../img/teo-linh.webp',SCRIPT_URL)" frontend/assets/js/assistant.js
 grep -q 'safeYouTubeUrl' cloudflare/worker.js
@@ -22,12 +22,14 @@ grep -q 'teoAiNew' frontend/assets/js/assistant.js
 grep -q 'history:prior' frontend/assets/js/assistant.js
 grep -q 'safeAssistantHistory' cloudflare/worker.js
 grep -q "scope='tenant' AND tenant_id=?" cloudflare/worker.js
-grep -q 'Không tiết lộ dữ liệu riêng tư' cloudflare/worker.js
+grep -q 'Không tiết lộ đơn hàng, khách hàng' cloudflare/worker.js
+grep -q 'tenantRecentActivity' cloudflare/worker.js
+grep -q 'accountRecentPurchases' cloudflare/worker.js
 grep -q 'compressReportImage' frontend/assets/js/assistant.js
 echo '[5/9] Sales isolation'
 grep -q "bp.scope='main' AND (bp.tenant_id IS NULL OR bp.tenant_id='') AND bp.status='paid'" cloudflare/worker.js
 grep -q "p.scope='tenant' AND p.status='paid'" cloudflare/worker.js
-grep -q 'JOIN tenant_products tp ON tp.id=p.product_id AND tp.tenant_id IN' cloudflare/worker.js
+grep -q 'JOIN tenant_products tp ON tp.id=p.product_id AND tp.tenant_id=p.tenant_id AND tp.tenant_id IN' cloudflare/worker.js
 echo '[6/9] Tenant detail social preview'
 grep -q "p==='/tenant-detail'||p==='/tenant-detail.html'" cloudflare/worker.js
 grep -q 'tenantDetailShareUrl' frontend/assets/js/tenant-detail.js
@@ -47,6 +49,11 @@ grep -q 'IDEMPOTENCY_KEY_REQUIRED' cloudflare/worker.js
 grep -q 'content-security-policy' cloudflare/worker.js
 grep -q 'https://www.youtube-nocookie.com' cloudflare/worker.js
 if grep -Eq 'function banIp|function activeBan|IP_TEMPORARILY_BLOCKED|banIp\(' cloudflare/worker.js; then echo 'ERROR: unexpected automatic IP-ban code'; exit 1; fi
+grep -q 'searchAssistantWeb' cloudflare/worker.js
+grep -q 'TAVILY_API_KEY' cloudflare/worker.js
+grep -q 'recordBuyerActivity' cloudflare/worker.js
+grep -q 'tp.tenant_id=p.tenant_id' cloudflare/worker.js
+grep -q 'TAVILY_API_KEY' DEPLOY_V56.44_AI_WEB_ACTIVITY.md
 echo '[9/9] AI guardrail behavior'
 node scripts/test-ai-guardrails.mjs
 echo 'PASS: syntax, local helper behavior and static checks only. Live Cloudflare, D1, social preview crawlers and phone UI are NOT tested here.'

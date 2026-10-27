@@ -1,5 +1,5 @@
 window.TEO_CONFIG={
-  BUILD_VERSION:'v56.39-ai-history-report-image-tag-video-guard',
+  BUILD_VERSION:'v56.44-ai-web-search-activity-tenant-isolation',
   API_BASE_URL:(window.location?.origin||'https://teostudio.top'),
   RENT_ZALO_URL:'',
   AVATAR_VIDEO_URL:'https://raw.githubusercontent.com/teoscrvn-glitch/-nh-video/refs/heads/main/snaptik.vn_7684570630439685384.mp4'
