@@ -3,7 +3,10 @@ main = "worker.js"
 compatibility_date = "2026-09-18"
 
 # Keep existing non-secret Production variables in sync with Cloudflare Builds.
-# Secrets (ADMIN_KEY, AI_API_KEY, SEPAY_API_KEY, TURNSTILE_SECRET, OXMAIL_SMTP_PASS, TELEGRAM_BOT_TOKEN) stay in Cloudflare Secret storage.
+# Secrets (ADMIN_KEY, AI_API_KEY, SEPAY_API_KEY, TURNSTILE_SECRET, OXMAIL_SMTP_PASS,
+# TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET) stay in Cloudflare Secret storage.
+# For per-tenant Telegram linking, set the non-secret TELEGRAM_BOT_USERNAME in Cloudflare Variables.
+# Then POST /api/admin/telegram/webhook/setup as the authenticated master admin once.
 # Keep non-secret Production settings in sync here; never put secret values in this file.
 [vars]
 AI_API_URL = "https://openrouter.ai/api/v1/chat/completions"

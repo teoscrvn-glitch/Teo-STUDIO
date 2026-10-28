@@ -283,6 +283,54 @@ async function telegramSend(e,text){
     return {ok:r.ok&&data?.ok===true,status:r.status,reason:description||(!r.ok?'Telegram HTTP '+r.status:'')};
   }catch(err){return {ok:false,reason:err?.name==='TimeoutError'?'Telegram phản hồi quá thời gian chờ.':'Worker không gọi được Telegram API.'}}
 }
+
+async function ensureTenantTelegramSchema(e){
+  await ensureTenantSchema(e);
+  await e.DB.prepare(`CREATE TABLE IF NOT EXISTS tenant_telegram_links(
+    tenant_id TEXT PRIMARY KEY, chat_id TEXT NOT NULL, linked_at TEXT NOT NULL DEFAULT(datetime('now'))
+  )`).run();
+  await e.DB.prepare(`CREATE TABLE IF NOT EXISTS tenant_telegram_pair_codes(
+    code_hash TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, expires_at INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT(datetime('now'))
+  )`).run();
+  await e.DB.prepare('CREATE INDEX IF NOT EXISTS idx_tg_pair_expiry ON tenant_telegram_pair_codes(expires_at)').run();
+}
+async function tenantTelegramSend(e,tenantId,text){
+  if(!tenantId)return {ok:false,skipped:true};
+  try{
+    await ensureTenantTelegramSchema(e);
+    const link=await e.DB.prepare('SELECT chat_id FROM tenant_telegram_links WHERE tenant_id=? LIMIT 1').bind(String(tenantId)).first();
+    const token=String(e.TELEGRAM_BOT_TOKEN||'').trim(),chat=String(link?.chat_id||'').trim();
+    if(!token||!chat)return {ok:false,skipped:true,reason:'Tenant chưa liên kết Telegram.'};
+    const resp=await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:chat,text:String(text||'').slice(0,3900),disable_web_page_preview:true}),signal:AbortSignal.timeout(10000),cache:'no-store'});
+    const data=await resp.json().catch(()=>null);
+    return {ok:resp.ok&&data?.ok===true,status:resp.status};
+  }catch{return {ok:false}}
+}
+async function handleTelegramWebhook(r,e){
+  await ensureTenantTelegramSchema(e);
+  const expected=String(e.TELEGRAM_WEBHOOK_SECRET||'').trim();
+  const supplied=String(r.headers.get('x-telegram-bot-api-secret-token')||'').trim();
+  if(!expected||!supplied||!safeEq(expected,supplied))return J({ok:false,error:'UNAUTHORIZED'},401);
+  if(r.method!=='POST')return J({ok:false,error:'METHOD_NOT_ALLOWED'},405);
+  const update=await r.json().catch(()=>null),msg=update?.message;
+  if(!msg||!msg.chat||String(msg.chat.type||'')!=='private')return J({ok:true,ignored:true});
+  const chatId=String(msg.chat.id||''),text=String(msg.text||'').trim();
+  const match=text.match(/^\/start(?:@\w+)?\s+link_([A-Za-z0-9_-]{20,64})$/);
+  if(!match)return J({ok:true,ignored:true});
+  const code=match[1],hash=await sha256(code);
+  const pair=await e.DB.prepare('SELECT tenant_id FROM tenant_telegram_pair_codes WHERE code_hash=? AND expires_at>? LIMIT 1').bind(hash,Date.now()).first();
+  if(!pair){
+    const token=String(e.TELEGRAM_BOT_TOKEN||'').trim();
+    if(token)await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:chatId,text:'Mã liên kết không hợp lệ hoặc đã hết hạn. Hãy tạo mã mới trong trang quản trị tenant.'})}).catch(()=>{});
+    return J({ok:true,linked:false});
+  }
+  await e.DB.prepare('INSERT INTO tenant_telegram_links(tenant_id,chat_id,linked_at) VALUES(?,?,datetime(\'now\')) ON CONFLICT(tenant_id) DO UPDATE SET chat_id=excluded.chat_id,linked_at=excluded.linked_at').bind(String(pair.tenant_id),chatId).run();
+  await e.DB.prepare('DELETE FROM tenant_telegram_pair_codes WHERE code_hash=?').bind(hash).run();
+  const token=String(e.TELEGRAM_BOT_TOKEN||'').trim();
+  if(token)await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:chatId,text:'✅ Đã liên kết Telegram với TeoStudio. Bạn sẽ nhận thông báo đơn mua của studio này.'})}).catch(()=>{});
+  return J({ok:true,linked:true});
+}
+
 async function supportNotify(e,report){await telegramSend(e,`🚨 TeoStudio · Báo lỗi mới\nMã: ${report.id}\nLoại: ${report.category}\nTrang: ${report.page}\nIP: ${report.client_ip||'không xác định'}\nTài khoản: ${report.display_name||'Khách'} (${maskEmail(report.email)||'ẩn danh'})\nMô tả: ${report.message}`)}
 function safeBuilderLayout(input){
   let blocks=Array.isArray(input)?input:[];if(blocks.length>40)throw new Error('TOO_MANY_BLOCKS');
@@ -450,6 +498,7 @@ async function accountApi(r,e,p){
     await recordBuyerActivity(e,buyer.id,'purchase','/account/orders',`Mua file: ${title}; ${amount.toLocaleString('vi-VN')}đ; phạm vi ${scope==='tenant'?'Share File':'TeoStudio chính'}`).catch(()=>{});
     if(tenantId){await createNotification(e,{recipientType:'tenant',recipientId:tenantId,title:'Có đơn bán file mới',body:`${title} · ${amount.toLocaleString('vi-VN')}đ · số dư nhận ${seller.toLocaleString('vi-VN')}đ`,kind:'sale'});await createNotification(e,{recipientType:'admin',recipientId:'master',title:'Có đơn mua file qua ví',body:`Studio ${tenantId} · ${title} · hoa hồng ${fee.toLocaleString('vi-VN')}đ`,kind:'sale'});}
     await telegramSend(e,`🛒 TeoStudio · Mua file thành công\nĐơn: ${id}\nPhạm vi: ${scope}\nFile: ${title}\nGiá: ${amount.toLocaleString('vi-VN')}đ\nPhí nền tảng: ${fee.toLocaleString('vi-VN')}đ`);
+    if(tenantId)await tenantTelegramSend(e,tenantId,`🛒 TeoStudio · Có khách mua file\nFile: ${clean(title,180)}\nSố tiền: ${amount.toLocaleString('vi-VN')}đ\nNgười mua: ${maskEmail(buyer.email_normalized||buyer.email)||'ẩn danh'}\nThời gian: ${new Date().toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}\nMã đơn: ${id}`);
     await notifyEmail(e,{to:buyer.email,subject:'TeoStudio: mua file thành công',text:`Xin chào ${buyer.display_name||buyer.login_id||'bạn'},\n\nĐã ghi nhận đơn mua file qua ví.\nFile: ${title}\nSố tiền: ${amount.toLocaleString('vi-VN')}đ\nMã đơn: ${id}\nSố dư còn lại: ${(await buyerBalance(e,buyer.id)).toLocaleString('vi-VN')}đ\nMở Tài khoản → Đơn mua để xem liên kết tải. Nếu bạn không thực hiện giao dịch này, hãy báo hỗ trợ ngay.`});
     if(tenantId){const sellerRow=await e.DB.prepare('SELECT email,slug FROM tenant_accounts WHERE id=? OR slug=? LIMIT 1').bind(tenantId,tenantId).first().catch(()=>null);if(validEmail(sellerRow?.email))await notifyEmail(e,{to:sellerRow.email,subject:'TeoStudio: có khách mua file của bạn',text:`Studio: ${sellerRow.slug||tenantId}\nFile: ${title}\nGiá bán: ${amount.toLocaleString('vi-VN')}đ\nSố dư ghi có (95%): ${seller.toLocaleString('vi-VN')}đ\nPhí nền tảng 5%: ${fee.toLocaleString('vi-VN')}đ\nMã đơn: ${id}.`});}
     return J({ok:true,purchase:{id,title,amountVnd:amount,sellerAmountVnd:seller,commissionVnd:fee,scope},balanceVnd:await buyerBalance(e,buyer.id),downloadUrl},201);
@@ -1186,6 +1235,13 @@ async function handleSePayWebhook(r,e){
     }
   }
   try{await tenantLog(e,order.tenant_id,'system','payment_paid',`${order.id}:${code}:${amount}`)}catch{}
+  try{
+    const prod=await e.DB.prepare('SELECT title FROM tenant_products WHERE id=? AND (tenant_id=? OR tenant_id=(SELECT slug FROM tenant_accounts WHERE id=? LIMIT 1)) LIMIT 1').bind(String(order.product_id),String(order.tenant_id),String(order.tenant_id)).first();
+    const tenant=await tenantByIdentifier(e,String(order.tenant_id)).catch(()=>null);
+    const buyerRow=order.buyer_ref?await e.DB.prepare('SELECT email,display_name FROM buyer_accounts WHERE id=? OR email_normalized=? LIMIT 1').bind(String(order.buyer_ref),String(order.buyer_ref).toLowerCase()).first().catch(()=>null):null;
+    const maskedBuyer=buyerRow?`${clean(buyerRow.display_name||'Khách',80)} (${maskEmail(buyerRow.email)})`: 'Khách thanh toán trực tiếp';
+    await tenantTelegramSend(e,order.tenant_id,`🛒 TeoStudio · Có khách mua file\nStudio: ${tenant?.slug||order.tenant_id}\nFile: ${clean(prod?.title||order.product_id,180)}\nSố tiền: ${Number(order.amount_vnd||amount).toLocaleString('vi-VN')}đ\nNgười mua: ${maskedBuyer}\nThời gian: ${new Date().toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}\nMã đơn: ${order.id}`);
+  }catch{}
   return J({success:true,paid:true,order_id:order.id,kind:'file'});
 }
 
@@ -1437,6 +1493,30 @@ async function handleTenantAdmin(r,e){
   if(status==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);
   if(status==='expired'&&!(String(t.plan_type||'paid')==='free'&&Number(t.free_admin_unlocked)!==1))return J({ok:false,error:'TENANT_EXPIRED'},403);
   const u=new URL(r.url),p=u.pathname;
+
+  if(p==='/api/tenant/telegram/link-code'&&r.method==='POST'){
+    await ensureTenantTelegramSchema(e);
+    const username=String(e.TELEGRAM_BOT_USERNAME||'').trim().replace(/^@/,'');
+    const botToken=String(e.TELEGRAM_BOT_TOKEN||'').trim(),webhookSecret=String(e.TELEGRAM_WEBHOOK_SECRET||'').trim();
+    if(!botToken||!username||!webhookSecret)return J({ok:false,error:'TELEGRAM_BOT_NOT_CONFIGURED',message:'Admin cần cấu hình TELEGRAM_BOT_USERNAME, Secret TELEGRAM_BOT_TOKEN và TELEGRAM_WEBHOOK_SECRET trước.'},503);
+    const hook=await fetch(`https://api.telegram.org/bot${botToken}/setWebhook`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:'https://teostudio.top/api/telegram/webhook',secret_token:webhookSecret,allowed_updates:['message']}),signal:AbortSignal.timeout(10000)}).then(x=>x.json()).catch(()=>null);
+    if(!hook?.ok)return J({ok:false,error:'TELEGRAM_WEBHOOK_SETUP_FAILED',message:clean(hook?.description||'Không cấu hình được webhook Telegram.',300)},502);
+    const code=Array.from(crypto.getRandomValues(new Uint8Array(24)),b=>b.toString(16).padStart(2,'0')).join('').slice(0,40);
+    const hash=await sha256(code),expires=Date.now()+10*60*1000;
+    await e.DB.prepare('DELETE FROM tenant_telegram_pair_codes WHERE expires_at<=?').bind(Date.now()).run();
+    await e.DB.prepare('INSERT INTO tenant_telegram_pair_codes(code_hash,tenant_id,expires_at) VALUES(?,?,?)').bind(hash,String(t.id),expires).run();
+    return J({ok:true,expiresAt:expires,botUsername:username,deepLink:`https://t.me/${encodeURIComponent(username)}?start=link_${code}`,message:'Mở bot qua link này và nhấn Start trong vòng 10 phút để liên kết studio.'});
+  }
+  if(p==='/api/tenant/telegram/status'&&r.method==='GET'){
+    await ensureTenantTelegramSchema(e);
+    const row=await e.DB.prepare('SELECT linked_at FROM tenant_telegram_links WHERE tenant_id=? LIMIT 1').bind(String(t.id)).first();
+    return J({ok:true,linked:!!row,linkedAt:row?.linked_at||null});
+  }
+  if(p==='/api/tenant/telegram/unlink'&&r.method==='POST'){
+    await ensureTenantTelegramSchema(e);
+    await e.DB.prepare('DELETE FROM tenant_telegram_links WHERE tenant_id=?').bind(String(t.id)).run();
+    return J({ok:true,unlinked:true});
+  }
   if(String(t.plan_type||'paid')==='free'&&Number(t.free_admin_unlocked)!==1){return J({ok:false,error:'FREE_BYPASS_REQUIRED',message:'Gói Free cần hoàn thành 2 lần vượt link được máy chủ xác minh để mở Admin.',tenant:tenantInfo(t),bypassConfigured:!!(e.FREE_BYPASS_TEMPLATE_1&&e.FREE_BYPASS_TEMPLATE_2&&e.FREE_BYPASS_VERIFY_URL&&e.FREE_BYPASS_API_KEY)},403)}
   if(String(t.plan_type||'paid')==='free'&&(/^\/api\/tenant\/(wallet|payout-profile|withdrawals)(?:\/|$)/.test(p)||p.includes('/orders/'))){return J({ok:false,error:'VIP_REQUIRED',message:'Tính năng kiếm tiền, bán file và rút tiền chỉ có ở gói VIP.'},403)}
   if(p==='/api/tenant/notifications'&&r.method==='GET'){
@@ -2086,6 +2166,20 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   if(mainProductMedia&&r.method==='GET'){await ensureSchema(e);const product=await productById(e,clean(decodeURIComponent(mainProductMedia[1]),100));return await servePublicImage(e,r,product?.thumb||'/assets/img/default-avatar.svg',1500000)}
   const tenantProductMedia=p.match(/^\/media\/tenant-product\/([^/]+)\/([^/]+)$/);
   if(tenantProductMedia&&r.method==='GET'){await ensureTenantSchema(e);const slug=clean(decodeURIComponent(tenantProductMedia[1]),80),id=clean(decodeURIComponent(tenantProductMedia[2]),100);const raw=await tenantBySlug(e,slug);const tenant=await normalizeTenantRow(e,raw);if(!tenant)return await servePublicImage(e,r,'/assets/img/default-avatar.svg');const scope=tenantInSql(tenant);const row=await e.DB.prepare(`SELECT thumb FROM tenant_products WHERE ${scope.clause} AND id=? LIMIT 1`).bind(...scope.vals,id).first();return await servePublicImage(e,r,row?.thumb||'/assets/img/default-avatar.svg',1500000)}
+
+  if(p==='/api/telegram/webhook'){
+    if(r.method!=='POST')return J({ok:false,error:'METHOD_NOT_ALLOWED'},405);
+    return await handleTelegramWebhook(r,e);
+  }
+  if(p==='/api/admin/telegram/webhook/setup'&&r.method==='POST'){
+    if(!(await isAdmin(r,e)))return J({ok:false,error:'ADMIN_REQUIRED'},401);
+    const token=String(e.TELEGRAM_BOT_TOKEN||'').trim(),secret=String(e.TELEGRAM_WEBHOOK_SECRET||'').trim();
+    if(!token||!secret)return J({ok:false,error:'TELEGRAM_WEBHOOK_CONFIG_REQUIRED',message:'Cần Secret TELEGRAM_BOT_TOKEN và TELEGRAM_WEBHOOK_SECRET.'},400);
+    const resp=await fetch(`https://api.telegram.org/bot${token}/setWebhook`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:'https://teostudio.top/api/telegram/webhook',secret_token:secret,allowed_updates:['message']}),signal:AbortSignal.timeout(10000)});
+    const result=await resp.json().catch(()=>null);
+    if(!resp.ok||!result?.ok)return J({ok:false,error:'TELEGRAM_WEBHOOK_SETUP_FAILED',message:clean(result?.description||'Không cấu hình được Telegram webhook.',300)},502);
+    return J({ok:true,message:'Đã cấu hình webhook Telegram.'});
+  }
   if(p.startsWith('/api/public-tenant/'))return await handleTenantPublic(r,e);
   if(p==='/api/admin/notifications'||p==='/api/admin/notifications/read'){
     if(!(await isAdmin(r,e)))return J({ok:false,error:'ADMIN_REQUIRED'},401);
