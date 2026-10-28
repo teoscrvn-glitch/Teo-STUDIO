@@ -2,15 +2,20 @@ name = "teo-studio"
 main = "worker.js"
 compatibility_date = "2026-09-18"
 
-# Keep existing non-secret Production variables in sync with Cloudflare Builds.
-# Secrets (ADMIN_KEY, AI_API_KEY, SEPAY_API_KEY, TURNSTILE_SECRET, OXMAIL_SMTP_PASS,
-# TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET) stay in Cloudflare Secret storage.
+# Keep non-secret Production variables in sync with Cloudflare Builds.
+# Secret values are intentionally NOT stored in this file; retain them in Cloudflare
+# Settings > Variables and Secrets (Production). Do not delete/recreate existing Secrets.
+# Known Secrets include ADMIN_KEY, AI_API_KEY, BUMX_API_KEY, LINK4M_API_KEY,
+# OXMAIL_SMTP_PASS, SEPAY_API_KEY, TELEGRAM_BOT_TOKEN, TURNSTILE_SECRET, and any
+# additional Telegram/Turnstile secrets configured in the dashboard.
 # For per-tenant Telegram linking, set the non-secret TELEGRAM_BOT_USERNAME in Cloudflare Variables.
 # Then POST /api/admin/telegram/webhook/setup as the authenticated master admin once.
 # Keep non-secret Production settings in sync here; never put secret values in this file.
 [vars]
 AI_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 AI_MODEL = "openrouter/free"
+BUMX_API_URL = "https://linkfree.click/s/link/shorten"
+LINK4M_API_URL = "https://link4m.co/api-shorten/v2"
 SEPAY_ACCOUNT_NUMBER = "0979498243"
 SEPAY_BANK_CODE = "MB"
 TELEGRAM_CHAT_ID = "-5376839466"

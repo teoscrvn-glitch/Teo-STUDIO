@@ -50,7 +50,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v56.43-ai-capability-actions-support';
+const BUILD_VERSION='v56.50-provider-config-preserve';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -60,7 +60,7 @@ function runtimeConfigStatus(e){
   const emailMissing=[];if(!has('OXMAIL_SMTP_PASS'))emailMissing.push('OXMAIL_SMTP_PASS');if(Number(e?.OXMAIL_SMTP_PORT||465)!==465)emailMissing.push('OXMAIL_SMTP_PORT (must be 465)');const smtpHost=String(e?.OXMAIL_SMTP_HOST||'mail.teostudio.top');if(!/^[a-z0-9.-]+$/i.test(smtpHost)||smtpHost.startsWith('.')||smtpHost.endsWith('.'))emailMissing.push('OXMAIL_SMTP_HOST');const smtpUser=String(e?.OXMAIL_SMTP_USER||'teostudio@teostudio.top'),smtpFrom=String(e?.EMAIL_FROM||smtpUser);if(!EMAIL_RE.test(smtpUser))emailMissing.push('OXMAIL_SMTP_USER');if(!EMAIL_RE.test(smtpFrom))emailMissing.push('EMAIL_FROM');const email={configured:emailMissing.length===0,missing:emailMissing,hostUsesDefault:!has('OXMAIL_SMTP_HOST'),userUsesDefault:!has('OXMAIL_SMTP_USER'),fromUsesDefault:!has('EMAIL_FROM')};
   const telegramChatId=String(e?.TELEGRAM_CHAT_ID||e?.ID_CHAT_TELEGRAM||'').trim();
   const telegramMissing=[];if(!has('TELEGRAM_BOT_TOKEN'))telegramMissing.push('TELEGRAM_BOT_TOKEN');if(!telegramChatId)telegramMissing.push('TELEGRAM_CHAT_ID (or legacy ID_CHAT_TELEGRAM)');
-  return {database:{configured:!!e?.DB},ai,email,telegram:{configured:telegramMissing.length===0,missing:telegramMissing},turnstile:check(['TURNSTILE_SITE_KEY','TURNSTILE_SECRET']),sepay:check(['SEPAY_API_KEY','SEPAY_BANK_CODE','SEPAY_ACCOUNT_NUMBER'])};
+  const tenantTelegramMissing=[];if(!has('TELEGRAM_BOT_TOKEN'))tenantTelegramMissing.push('TELEGRAM_BOT_TOKEN (Secret)');if(!has('TELEGRAM_WEBHOOK_SECRET'))tenantTelegramMissing.push('TELEGRAM_WEBHOOK_SECRET (Secret)');if(!has('TELEGRAM_BOT_USERNAME'))tenantTelegramMissing.push('TELEGRAM_BOT_USERNAME (Variable, không có @)');return {database:{configured:!!e?.DB},ai,email,telegram:{configured:telegramMissing.length===0,missing:telegramMissing},tenantTelegram:{configured:tenantTelegramMissing.length===0,missing:tenantTelegramMissing},freeBypass:{configured:!!(e?.FREE_BYPASS_TEMPLATE_1&&e?.FREE_BYPASS_TEMPLATE_2&&e?.FREE_BYPASS_VERIFY_URL&&e?.FREE_BYPASS_API_KEY),missing:['FREE_BYPASS_TEMPLATE_1','FREE_BYPASS_TEMPLATE_2','FREE_BYPASS_VERIFY_URL','FREE_BYPASS_API_KEY'].filter(k=>!has(k))},turnstile:check(['TURNSTILE_SITE_KEY','TURNSTILE_SECRET']),sepay:check(['SEPAY_API_KEY','SEPAY_BANK_CODE','SEPAY_ACCOUNT_NUMBER'])};
 }
 const C={"content-type":"application/json;charset=utf-8","access-control-allow-origin":"https://teostudio.top","access-control-allow-methods":"GET,POST,PUT,DELETE,OPTIONS","access-control-allow-headers":"Content-Type,Authorization,X-Requested-With,X-Tenant-Slug","vary":"Origin","cache-control":"no-store","x-content-type-options":"nosniff","x-frame-options":"SAMEORIGIN","referrer-policy":"strict-origin-when-cross-origin","permissions-policy":"camera=(),microphone=(),geolocation=()","x-permitted-cross-domain-policies":"none","cross-origin-opener-policy":"same-origin","strict-transport-security":"max-age=31536000","content-security-policy":"default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://challenges.cloudflare.com; frame-src 'self' https://challenges.cloudflare.com https://www.youtube-nocookie.com https://www.youtube.com; worker-src 'self' blob: https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"};
 const J=(x,s=200,extra={})=>new Response(JSON.stringify(x),{status:s,headers:{...C,...extra}});
@@ -1474,12 +1474,12 @@ async function handleTenantPublic(r,e){
   if(parts[3]==='comments'&&r.method==='POST'){
     const rl=commentRateResponse(r);if(rl)return rl;const buyer=await buyerFromRequest(r,e);if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED',message:'Đăng nhập tài khoản TeoStudio để bình luận.'},401);if(Number(buyer.email_verified)!==1)return J({ok:false,error:'EMAIL_VERIFICATION_REQUIRED',message:'Hãy xác minh email trước khi bình luận.'},403);if(await tenantSecurityBlocked(e,t.id,'email',buyer.email_normalized||buyer.email))return J({ok:false,error:'NOT_FOUND',message:'Tài khoản không thể bình luận tại Studio này.'},404);
     try{const b=await r.json().catch(()=>({})),cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi bình luận.'},400);const text=clean(b.text,700),image=b.image?safeCommentImage(b.image):'';if(b.image&&!image)return J({ok:false,error:'INVALID_COMMENT_IMAGE',message:'Ảnh không hợp lệ hoặc quá lớn. Chỉ nhận ảnh JPEG/PNG/WebP đã nén.'},400);if(!text&&!image)return J({ok:false,error:'COMMENT_EMPTY'},400);
-      const id=crypto.randomUUID(),eventId=crypto.randomUUID(),ip=clientIp(r)||'unknown',email=String(buyer.email_normalized||buyer.email).toLowerCase(),visible=image?0:1,withImage=image?1:0;
+      const id=crypto.randomUUID(),eventId=crypto.randomUUID(),ip=clientIp(r)||'unknown',email=String(buyer.email_normalized||buyer.email).toLowerCase(),visible=1,withImage=image?1:0;
       await e.DB.batch([
         e.DB.prepare(`INSERT INTO comment_rate_events(id,buyer_id,client_ip,has_image) SELECT ?,?,?,? WHERE (SELECT COUNT(*) FROM comment_rate_events WHERE buyer_id=? AND created_at>=datetime('now','-60 seconds'))<2 AND (SELECT COUNT(*) FROM comment_rate_events WHERE client_ip=? AND created_at>=datetime('now','-60 seconds'))<5 AND (SELECT COUNT(*) FROM comment_rate_events WHERE buyer_id=? AND created_at>=datetime('now','+7 hours','start of day','-7 hours'))<10 AND (?=0 OR (SELECT COUNT(*) FROM comment_rate_events WHERE buyer_id=? AND has_image=1 AND created_at>=datetime('now','+7 hours','start of day','-7 hours'))<5)`).bind(eventId,buyer.id,ip,withImage,buyer.id,ip,buyer.id,withImage,buyer.id),
         e.DB.prepare(`INSERT INTO tenant_comments(id,tenant_id,name,text,image,visible,buyer_id,email_normalized,client_ip) SELECT ?,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM comment_rate_events WHERE id=?)`).bind(id,t.id,clean(buyer.display_name,80),text,image,visible,buyer.id,email,ip,eventId)
       ]);
-      const ev=await e.DB.prepare('SELECT id FROM comment_rate_events WHERE id=?').bind(eventId).first();if(!ev)return J({ok:false,error:'COMMENT_RATE_LIMITED',message:'Giới hạn 2 bình luận/phút, 10 bình luận/ngày và tối đa 5 ảnh/ngày.'},429);const saved=await e.DB.prepare('SELECT id FROM tenant_comments WHERE id=?').bind(id).first();if(!saved)return J({ok:false,error:'COMMENT_SAVE_FAILED'},500);return J({ok:true,id,requiresModeration:!!image,message:image?'Đã nhận bình luận; ảnh đang chờ chủ studio/Admin duyệt trước khi công khai.':'Đã đăng bình luận.'},201)
+      const ev=await e.DB.prepare('SELECT id FROM comment_rate_events WHERE id=?').bind(eventId).first();if(!ev)return J({ok:false,error:'COMMENT_RATE_LIMITED',message:'Giới hạn 2 bình luận/phút, 10 bình luận/ngày và tối đa 5 ảnh/ngày.'},429);const saved=await e.DB.prepare('SELECT id FROM tenant_comments WHERE id=?').bind(id).first();if(!saved)return J({ok:false,error:'COMMENT_SAVE_FAILED'},500);return J({ok:true,id,requiresModeration:false,message:'Đã đăng bình luận và hiển thị công khai.'},201)
     }catch{return J({ok:false,error:'TENANT_COMMENT_DB_ERROR',message:'Chưa lưu được bình luận. Hãy thử lại sau.'},500)}
   }
   return J({ok:false,error:'NOT_FOUND'},404)
@@ -1506,6 +1506,24 @@ async function handleTenantAdmin(r,e){
     await e.DB.prepare('DELETE FROM tenant_telegram_pair_codes WHERE expires_at<=?').bind(Date.now()).run();
     await e.DB.prepare('INSERT INTO tenant_telegram_pair_codes(code_hash,tenant_id,expires_at) VALUES(?,?,?)').bind(hash,String(t.id),expires).run();
     return J({ok:true,expiresAt:expires,botUsername:username,deepLink:`https://t.me/${encodeURIComponent(username)}?start=link_${code}`,message:'Mở bot qua link này và nhấn Start trong vòng 10 phút để liên kết studio.'});
+  }
+  if(p==='/api/tenant/telegram/test'&&r.method==='POST'){
+    await ensureTenantTelegramSchema(e);
+    const link=await e.DB.prepare('SELECT chat_id FROM tenant_telegram_links WHERE tenant_id=? LIMIT 1').bind(String(t.id)).first();
+    if(!e.TELEGRAM_BOT_TOKEN)return J({ok:false,error:'TELEGRAM_BOT_NOT_CONFIGURED',message:'Thiếu Secret TELEGRAM_BOT_TOKEN.'},503);
+    if(!link?.chat_id)return J({ok:false,error:'TELEGRAM_NOT_LINKED',message:'Studio chưa liên kết Telegram. Nhấn Kết nối bot Telegram trước.'},409);
+    const sent=await tenantTelegramSend(e,t.id,`🧪 TeoStudio · Tin nhắn kiểm tra
+Studio: ${clean(t.studio_name||t.slug,100)}
+Kết nối Telegram hoạt động bình thường.`);
+    if(!sent.ok)return J({ok:false,error:'TELEGRAM_TEST_FAILED',message:sent.reason||'Không gửi được tin kiểm tra. Kiểm tra bot và quyền nhắn tin.'},502);
+    return J({ok:true,message:'✅ Đã gửi tin kiểm tra đến Telegram của Studio này.'});
+  }
+  if(p==='/api/tenant/bypass/test'&&r.method==='POST'){
+    const required=['FREE_BYPASS_TEMPLATE_1','FREE_BYPASS_TEMPLATE_2','FREE_BYPASS_VERIFY_URL','FREE_BYPASS_API_KEY'];
+    const missing=required.filter(k=>!String(e[k]||'').trim());
+    let verifyUrlValid=false;try{const u=new URL(String(e.FREE_BYPASS_VERIFY_URL||''));verifyUrlValid=u.protocol==='https:'&&!u.username&&!u.password}catch{}
+    if(!missing.length&&!verifyUrlValid)missing.push('FREE_BYPASS_VERIFY_URL (phải là HTTPS hợp lệ)');
+    return J({ok:true,configured:missing.length===0,missing,message:missing.length?'Thiếu hoặc sai cấu hình API vượt link.':'Đã đủ biến cấu hình; cần thử luồng vượt link thật để xác nhận nhà cung cấp hoạt động.'});
   }
   if(p==='/api/tenant/telegram/status'&&r.method==='GET'){
     await ensureTenantTelegramSchema(e);
@@ -2078,14 +2096,14 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
     const rl=commentRateResponse(r);if(rl)return rl;const buyer=await buyerFromRequest(r,e);if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED',message:'Đăng nhập tài khoản TeoStudio để bình luận.'},401);if(Number(buyer.email_verified)!==1)return J({ok:false,error:'EMAIL_VERIFICATION_REQUIRED',message:'Hãy xác minh email trước khi bình luận.'},403);
     const b=await r.json().catch(()=>({})),cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi bình luận.'},400);
     const text=clean(b.text,700),image=b.image?safeCommentImage(b.image):'';if(b.image&&!image)return J({ok:false,error:'INVALID_COMMENT_IMAGE',message:'Ảnh không hợp lệ hoặc quá lớn. Chỉ nhận ảnh JPEG/PNG/WebP đã nén, tối đa khoảng 330 KB.'},400);if(!text&&!image)return J({ok:false,error:'COMMENT_EMPTY'},400);
-    const id=crypto.randomUUID(),eventId=crypto.randomUUID(),ip=clientIp(r)||'unknown',email=String(buyer.email_normalized||buyer.email).toLowerCase(),visible=image?0:1,withImage=image?1:0;
+    const id=crypto.randomUUID(),eventId=crypto.randomUUID(),ip=clientIp(r)||'unknown',email=String(buyer.email_normalized||buyer.email).toLowerCase(),visible=1,withImage=image?1:0;
     try{await e.DB.batch([
       e.DB.prepare(`INSERT INTO comment_rate_events(id,buyer_id,client_ip,has_image) SELECT ?,?,?,? WHERE (SELECT COUNT(*) FROM comment_rate_events WHERE buyer_id=? AND created_at>=datetime('now','-60 seconds'))<2 AND (SELECT COUNT(*) FROM comment_rate_events WHERE client_ip=? AND created_at>=datetime('now','-60 seconds'))<5 AND (SELECT COUNT(*) FROM comment_rate_events WHERE buyer_id=? AND created_at>=datetime('now','+7 hours','start of day','-7 hours'))<10 AND (?=0 OR (SELECT COUNT(*) FROM comment_rate_events WHERE buyer_id=? AND has_image=1 AND created_at>=datetime('now','+7 hours','start of day','-7 hours'))<5)`).bind(eventId,buyer.id,ip,withImage,buyer.id,ip,buyer.id,withImage,buyer.id),
       e.DB.prepare(`INSERT INTO comments(id,name,text,image,visible,buyer_id,email_normalized,client_ip) SELECT ?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM comment_rate_events WHERE id=?)`).bind(id,clean(buyer.display_name,80),text,image,visible,buyer.id,email,ip,eventId)
     ]);
     const ev=await e.DB.prepare('SELECT id FROM comment_rate_events WHERE id=?').bind(eventId).first();if(!ev)return J({ok:false,error:'COMMENT_RATE_LIMITED',message:image?'Mỗi tài khoản được đăng tối đa 5 ảnh/ngày, 2 bình luận/phút và 10 bình luận/ngày.':'Bạn đã bình luận quá nhiều. Hãy thử lại sau.'},429);
     const exists=await e.DB.prepare('SELECT id FROM comments WHERE id=?').bind(id).first();if(!exists)return J({ok:false,error:'COMMENT_SAVE_FAILED'},500);
-    return J({ok:true,id,requiresModeration:!!image,message:image?'Đã nhận bình luận; ảnh đang chờ Admin kiểm duyệt trước khi công khai.':'Đã đăng bình luận.'},201)
+    return J({ok:true,id,requiresModeration:false,message:'Đã đăng bình luận và hiển thị công khai.'},201)
     }catch{return J({ok:false,error:'COMMENT_SAVE_FAILED',message:'Chưa lưu được bình luận. Hãy thử lại sau.'},500)}
   }
   if(p==='/api/track/site'&&r.method==='POST'){await bumpView(e,'site','',u.searchParams.get('source')||'');return J({ok:true})}
