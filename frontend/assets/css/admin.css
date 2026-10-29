@@ -57,3 +57,41 @@ body::before{content:"";position:fixed;inset:-30%;pointer-events:none;z-index:-1
 #fileMore #moreFilesBtn,#commentMore #moreCommentsBtn{background:linear-gradient(135deg,#8b5cf6,#4f46e5);border-color:rgba(196,181,253,.55);color:#fff;box-shadow:0 8px 24px rgba(79,70,229,.24)}
 #fileMore #lessFilesBtn,#commentMore #lessCommentsBtn{background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.55);color:#ddd6fe}
 #dashboardMsg{overflow-wrap:anywhere}
+
+/* V56.51 mobile settings hardening: prevent settings cards from clipping on narrow screens. */
+@media (max-width: 760px) {
+  #tab-settings .settings-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100%;
+    max-width: 100%;
+    gap: 12px;
+    align-items: start;
+  }
+  #tab-settings .settings-grid > .admin-card,
+  #tab-settings .tenant-telegram-card,
+  #tab-settings .tenant-telegram-card > .admin-card {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+  #tab-settings .button-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  #tab-settings .button-row .btn {
+    max-width: 100%;
+    white-space: normal;
+  }
+  #tab-settings h2,
+  #tab-settings h3,
+  #tab-settings p,
+  #tab-settings .muted,
+  #tab-settings label {
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+}
