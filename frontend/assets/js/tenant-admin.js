@@ -51,7 +51,7 @@ async function load(){
   $('#planBadge').textContent=me.planType==='free'?'Free · Share cơ bản':'VIP · Bán file và ví/rút tiền';
   applyPlanUI();
   $('#fixedId').textContent=me.slug||'-';
-  $('#shareLink').href='/share.html?tenant='+encodeURIComponent(me.slug||slug);
+  $('#shareLink').href='/share?tenant='+encodeURIComponent(me.slug||slug);
   $('#brandName').textContent=x.settings?.siteName||'Lại Húp File';
   $('#title').textContent=x.settings?.heroTitle||x.settings?.siteName||'Quản lý Share File';
   $('#status').textContent=me.status==='active'?'Đang thuê':me.status==='expired_grace'?'⚠ Cần gia hạn':'Hết hạn';

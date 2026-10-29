@@ -50,7 +50,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v56.53-ai-knowledge-upgrade';
+const BUILD_VERSION='v56.56-share-og-preview-fix';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -467,7 +467,7 @@ async function accountApi(r,e,p){
       await createNotification(e,{recipientType:'tenant',recipientId:id,title:'Studio Free đã tạo',body:'Studio đã liên kết với tài khoản TeoStudio của bạn. Gói Free vẫn cần hoàn thành xác minh truy cập Admin theo chính sách hiện tại.',kind:'welcome'});
     }
     await tenantLog(e,id,'buyer:'+buyer.id,'studio_created',`plan=${plan};slug=${slug}`);
-    return J({ok:true,planType:plan,studio:{id,slug,studioName,planType:plan,adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(slug)}`},order,message:plan==='paid'?'Đã tạo đơn thuê VIP. Chỉ chuyển khoản theo QR này; studio sẽ mở khi SePay xác nhận.':'Đã tạo studio Free và liên kết với tài khoản hiện tại.'},201);
+    return J({ok:true,planType:plan,studio:{id,slug,studioName,planType:plan,adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share?tenant=${encodeURIComponent(slug)}`},order,message:plan==='paid'?'Đã tạo đơn thuê VIP. Chỉ chuyển khoản theo QR này; studio sẽ mở khi SePay xác nhận.':'Đã tạo studio Free và liên kết với tài khoản hiện tại.'},201);
   }
   if(p==='/api/account/studios/upgrade'&&method==='POST'){
     const rl=limited(r,'account-studio-upgrade',3,3600000);if(rl)return rl;if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi nâng cấp.'},400);
@@ -511,7 +511,7 @@ async function accountApi(r,e,p){
 }
 async function buyerStudios(e,buyer){
   await ensureTenantSchema(e);const rows=(await e.DB.prepare("SELECT id,slug,plan_type,starts_at,expires_at,created_at,studio_name FROM tenant_accounts WHERE lower(email)=lower(?) AND (deleted_at IS NULL OR deleted_at='') ORDER BY created_at DESC LIMIT 20").bind(buyer.email).all()).results||[];
-  return rows.map(t=>({id:t.id,slug:t.slug,studioName:t.studio_name||t.slug,planType:String(t.plan_type||'free'),startsAt:t.starts_at,expiresAt:t.expires_at,adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(t.slug)}`}));
+  return rows.map(t=>({id:t.id,slug:t.slug,studioName:t.studio_name||t.slug,planType:String(t.plan_type||'free'),startsAt:t.starts_at,expiresAt:t.expires_at,adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share?tenant=${encodeURIComponent(t.slug)}`}));
 }
 function aiProviderErrorMessage(status,detail=''){
   const n=Number(status)||0,provider=/openrouter\.ai/i.test(String(detail))?'OpenRouter':'nhà cung cấp AI';
@@ -1371,7 +1371,7 @@ async function handleRentalOrderCreate(r,e){
       const tenantId=String(normalized.id),pending=await e.DB.prepare("SELECT * FROM tenant_rental_orders WHERE id=? AND tenant_id=? AND operation='new' AND status='pending' LIMIT 1").bind(String(prior.pending_order_id),tenantId).first();
       if(pending&&Number(pending.expires_at)>Date.now()){
         await e.DB.prepare("UPDATE rental_email_verifications SET used_at=datetime('now') WHERE id=? AND used_at IS NULL").bind(verifiedEmail.id).run();
-        return J({ok:true,order:{id:pending.id,code:pending.payment_code,amount:Number(pending.amount_vnd),status:'pending',expiresAt:pending.expires_at,qrUrl:buildVietQr(e,pending.amount_vnd,pending.payment_code),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(slug)}`,tenantId:slug,operation:'new'},message:'Đơn đang còn hiệu lực; dùng QR và nội dung chuyển khoản cũ. Không chuyển tiền lần hai.'});
+        return J({ok:true,order:{id:pending.id,code:pending.payment_code,amount:Number(pending.amount_vnd),status:'pending',expiresAt:pending.expires_at,qrUrl:buildVietQr(e,pending.amount_vnd,pending.payment_code),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share?tenant=${encodeURIComponent(slug)}`,tenantId:slug,operation:'new'},message:'Đơn đang còn hiệu lực; dùng QR và nội dung chuyển khoản cũ. Không chuyển tiền lần hai.'});
       }
       if(pending)await e.DB.prepare("UPDATE tenant_rental_orders SET status='expired' WHERE id=? AND status='pending'").bind(pending.id).run();
       const referrer=String(normalized.referrer_tenant_id||''),orderId=crypto.randomUUID(),code='TEO'+crypto.randomUUID().replace(/-/g,'').slice(0,10).toUpperCase(),expires=Date.now()+20*60*1000;
@@ -1380,7 +1380,7 @@ async function handleRentalOrderCreate(r,e){
         e.DB.prepare(`UPDATE tenant_accounts SET pending_order_id=? WHERE ${key}=? AND locked=1 AND deleted_at IS NULL`).bind(orderId,tenantId),
         e.DB.prepare("UPDATE rental_email_verifications SET used_at=datetime('now') WHERE id=? AND used_at IS NULL").bind(verifiedEmail.id)
       ])}catch{return J({ok:false,error:'RENTAL_ORDER_RETRY_FAILED',message:'Không tạo lại được đơn. Liên hệ Admin và không chuyển tiền vào QR cũ.'},500)}
-      return J({ok:true,order:{id:orderId,code,amount:50000,status:'pending',expiresAt:expires,qrUrl:buildVietQr(e,50000,code),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(slug)}`,tenantId:slug,operation:'new'},message:'Đã tạo QR mới cho tài khoản đang chờ thanh toán. Chỉ chuyển tiền theo QR hiện tại.'},201);
+      return J({ok:true,order:{id:orderId,code,amount:50000,status:'pending',expiresAt:expires,qrUrl:buildVietQr(e,50000,code),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share?tenant=${encodeURIComponent(slug)}`,tenantId:slug,operation:'new'},message:'Đã tạo QR mới cho tài khoản đang chờ thanh toán. Chỉ chuyển tiền theo QR hiện tại.'},201);
     }
     const refSlug=tenantSlug(b.ref||b.referrer||''),refRaw=refSlug?await tenantBySlug(e,refSlug):null,ref=refRaw?await normalizeTenantRow(e,refRaw):null;
     const referrer=ref&&ref.status!=='deleted'&&String(ref.slug||'').toLowerCase()!==slug?String(ref.id):'';
@@ -1400,17 +1400,17 @@ async function handleRentalOrderCreate(r,e){
       ]);
     }catch(err){return J({ok:false,error:'RENTAL_ORDER_CREATE_FAILED',message:'Không tạo được đơn thuê. Kiểm tra ID/email và thử lại.'},500)}
     tenantId=id;account={id,slug,email,referrer_tenant_id:referrer,plan_type:'paid'};
-    return J({ok:true,order:{id:orderId,code,amount:50000,status:'pending',expiresAt:expires,qrUrl:buildVietQr(e,50000,code),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(slug)}`,tenantId:slug,operation:'new'},message:'Quét QR và chuyển đúng 50.000đ, nội dung chuyển khoản phải giữ nguyên. Tài khoản sẽ mở sau khi SePay xác nhận.'},201);
+    return J({ok:true,order:{id:orderId,code,amount:50000,status:'pending',expiresAt:expires,qrUrl:buildVietQr(e,50000,code),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share?tenant=${encodeURIComponent(slug)}`,tenantId:slug,operation:'new'},message:'Quét QR và chuyển đúng 50.000đ, nội dung chuyển khoản phải giữ nguyên. Tài khoản sẽ mở sau khi SePay xác nhận.'},201);
   }
   const match=await tenantByLogin(e,rawId,password);
   if(!match||!(await tenantPasswordMatches(e,await normalizeTenantRow(e,match),password)))return J({ok:false,error:'INVALID_LOGIN',message:'ID hoặc mật khẩu không đúng.'},401);
   account=await normalizeTenantRow(e,match);if(account.deleted_at||account.locked)return J({ok:false,error:'TENANT_LOCKED',message:'Tài khoản đã bị khóa hoặc xóa, không thể gia hạn tự động.'},403);if(String(account.email||'').toLowerCase()!==email.toLowerCase())return J({ok:false,error:'RENEW_EMAIL_MISMATCH',message:'Email phải trùng email đã xác minh của tài khoản thuê.'},400);
   tenantId=String(account.id);const referrer=String(account.referrer_tenant_id||'');
   const prior=await e.DB.prepare("SELECT id,payment_code,amount_vnd,status,expires_at FROM tenant_rental_orders WHERE tenant_id=? AND operation='renew' AND status='pending' AND expires_at>? ORDER BY created_at DESC LIMIT 1").bind(tenantId,Date.now()).first();
-  if(prior)return J({ok:true,order:{...prior,code:prior.payment_code,amount:prior.amount_vnd,qrUrl:buildVietQr(e,prior.amount_vnd,prior.payment_code),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(account.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(account.slug)}`,tenantId:account.slug,operation:'renew'}});
+  if(prior)return J({ok:true,order:{...prior,code:prior.payment_code,amount:prior.amount_vnd,qrUrl:buildVietQr(e,prior.amount_vnd,prior.payment_code),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(account.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share?tenant=${encodeURIComponent(account.slug)}`,tenantId:account.slug,operation:'renew'}});
   const orderId=crypto.randomUUID(),code='TEO'+crypto.randomUUID().replace(/-/g,'').slice(0,10).toUpperCase(),expires=Date.now()+20*60*1000;
   await e.DB.batch([e.DB.prepare("INSERT INTO tenant_rental_orders(id,tenant_id,payment_code,amount_vnd,days,operation,referrer_tenant_id,status,expires_at) VALUES(?,?,?,?,30,'renew',?,'pending',?)").bind(orderId,tenantId,code,50000,referrer||null,expires),e.DB.prepare("UPDATE rental_email_verifications SET used_at=datetime('now') WHERE id=? AND used_at IS NULL").bind(verifiedEmail.id)]);
-  return J({ok:true,order:{id:orderId,code,amount:50000,status:'pending',expiresAt:expires,qrUrl:buildVietQr(e,50000,code),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(account.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(account.slug)}`,tenantId:account.slug,operation:'renew'},message:'Quét QR, chuyển đúng 50.000đ và giữ nguyên nội dung chuyển khoản. Hạn thuê được cộng dồn sau khi SePay xác nhận.'},201);
+  return J({ok:true,order:{id:orderId,code,amount:50000,status:'pending',expiresAt:expires,qrUrl:buildVietQr(e,50000,code),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(account.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share?tenant=${encodeURIComponent(account.slug)}`,tenantId:account.slug,operation:'renew'},message:'Quét QR, chuyển đúng 50.000đ và giữ nguyên nội dung chuyển khoản. Hạn thuê được cộng dồn sau khi SePay xác nhận.'},201);
 }
 async function handleRentalOrderStatus(r,e,id){
   await ensureTenantSchema(e);const order=await e.DB.prepare('SELECT * FROM tenant_rental_orders WHERE id=?').bind(clean(id,100)).first();if(!order)return J({ok:false,error:'ORDER_NOT_FOUND'},404);
@@ -1419,7 +1419,7 @@ async function handleRentalOrderStatus(r,e,id){
     if(order.operation==='new')try{await e.DB.prepare("UPDATE tenant_accounts SET locked=1,deleted_at=datetime('now') WHERE pending_order_id=? AND locked=1").bind(order.id).run()}catch{}
     order.status='expired';
   }
-  let links=null;if(order.status==='paid'){const row=await tenantByIdentifier(e,order.tenant_id);if(row){const t=await normalizeTenantRow(e,row);links={tenantId:t.slug,adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(t.slug)}`,expiresAt:t.expires_at,planType:t.plan_type||'paid'}}}
+  let links=null;if(order.status==='paid'){const row=await tenantByIdentifier(e,order.tenant_id);if(row){const t=await normalizeTenantRow(e,row);links={tenantId:t.slug,adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share?tenant=${encodeURIComponent(t.slug)}`,expiresAt:t.expires_at,planType:t.plan_type||'paid'}}}
   return J({ok:true,order:{id:order.id,amount:Number(order.amount_vnd),status:order.status,expiresAt:order.expires_at,paidAt:order.paid_at,operation:order.operation,links}});
 }
 async function handleTenantPublic(r,e){
@@ -1831,11 +1831,11 @@ async function handleMasterTenant(r,e){
 Tài khoản Share File của bạn đã được tạo.
 ID: ${slug}
 Admin riêng: ${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(slug)}
-Trang Share: ${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(slug)}
+Trang Share: ${PUBLIC_ORIGIN}/share?tenant=${encodeURIComponent(slug)}
 Thời hạn: ${days} ngày.
 
 Vì lý do bảo mật, mật khẩu ban đầu được gửi riêng bởi quản trị viên; email này không chứa mật khẩu.`});}
-      const adminUrl=`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(slug)}`,shareUrl=`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(slug)}`;
+      const adminUrl=`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(slug)}`,shareUrl=`${PUBLIC_ORIGIN}/share?tenant=${encodeURIComponent(slug)}`;
       return J({ok:true,tenant:tenantInfo(row),adminUrl,shareUrl,emailSent:welcomeEmail?.ok===true,emailWarning:welcomeEmail&&!welcomeEmail.ok?'Không gửi được email chào mừng; kiểm tra cấu hình SMTP.':undefined},201);
     }catch(x){return J({ok:false,error:'TENANT_CREATE_DB_ERROR',detail:String(x?.message||x)},500)}
   }
@@ -1873,7 +1873,7 @@ async function bumpView(e,kind,productId='',source=''){
 }
 async function comments(e){return ((await e.DB.prepare('SELECT id,name,text,image,created_at FROM comments WHERE visible=1 ORDER BY created_at DESC LIMIT 50').all()).results||[]).map(x=>({...x,image:x.image?safeImageValue(x.image,1000000):''}))}
 async function stats(e,days=30){const n=Math.max(1,Math.min(Number(days)||30,365));const today=dayVN(),month=today.slice(0,7),from=today;const rows=(await e.DB.prepare(`SELECT day,kind,product_id,views FROM view_daily WHERE day>=date(?, '-'||?||' days') ORDER BY day ASC`).bind(today,n-1).all()).results||[];const prods=await e.DB.prepare('SELECT id,title,views,sale_mode,price_vnd FROM products ORDER BY views DESC,updated_at DESC').all();let daily={orders:0,revenueVnd:0,views:0},monthly={orders:0,revenueVnd:0,byDay:[]};try{daily=await e.DB.prepare("SELECT COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenueVnd FROM product_payment_orders WHERE status='paid' AND date(paid_at,'+7 hours')=?").bind(today).first()||daily;monthly=await e.DB.prepare("SELECT COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenueVnd FROM product_payment_orders WHERE status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<date(?,'+1 month')").bind(month+'-01',month+'-01').first()||monthly;monthly.byDay=(await e.DB.prepare("SELECT date(paid_at,'+7 hours') AS day,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenueVnd FROM product_payment_orders WHERE status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<date(?,'+1 month') GROUP BY date(paid_at,'+7 hours') ORDER BY day").bind(month+'-01',month+'-01').all()).results||[]}catch{}let referrers=[],paidViewsByDay=[];try{referrers=(await e.DB.prepare(`SELECT domain,SUM(views) AS views FROM view_referrers_daily WHERE day>=date(?, '-'||?||' days') GROUP BY domain ORDER BY views DESC LIMIT 50`).bind(today,n-1).all()).results||[]}catch{}try{paidViewsByDay=(await e.DB.prepare(`SELECT v.day,v.product_id,p.title,SUM(v.views) AS views FROM view_daily v JOIN products p ON p.id=v.product_id WHERE v.day>=date(?, '-'||?||' days') AND p.sale_mode IN ('paid','both') AND v.kind IN ('product','outbound') GROUP BY v.day,v.product_id,p.title ORDER BY v.day DESC,views DESC`).bind(today,Math.max(n-1,29)).all()).results||[]}catch{}return {days:n,rows,products:prods.results||[],referrers,paidViewsByDay,today:rows.filter(x=>x.day===today).reduce((a,x)=>a+Number(x.views||0),0),sales:{today:{orders:Number(daily.orders||0),revenueVnd:Number(daily.revenueVnd||0)},month:{orders:Number(monthly.orders||0),revenueVnd:Number(monthly.revenueVnd||0),byDay:monthly.byDay||[]}}} }
-export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}},async fetch(r,e){const u=new URL(r.url),p=u.pathname.replace(/\/$/,'');const host=u.hostname.toLowerCase();const wrongHost=host.endsWith('.workers.dev')||host==='www.teostudio.top';if(wrongHost&&p!=='/api/webhook/sepay'){const canonical=PUBLIC_ORIGIN+(p||'/')+u.search;if(!p.startsWith('/api/')&&['GET','HEAD'].includes(r.method))return Response.redirect(canonical,302);if(p.startsWith('/api/'))return J({ok:false,error:'CANONICAL_HOST_REQUIRED',message:'Bạn đang mở địa chỉ thử nghiệm hoặc tên miền phụ. Hãy mở https://teostudio.top để đăng nhập và sử dụng các chức năng.'},421);return J({ok:false,error:'CANONICAL_HOST_REQUIRED',message:'Hãy mở https://teostudio.top.'},421)}if(r.method==='OPTIONS')return new Response(null,{headers:C});try{
+export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}},async fetch(r,e){const u=new URL(r.url);if(u.pathname==='/share'){u.pathname='/share.html';r=new Request(u.toString(),r)}const p=u.pathname.replace(/\/$/,'');const host=u.hostname.toLowerCase();const wrongHost=host.endsWith('.workers.dev')||host==='www.teostudio.top';if(wrongHost&&p!=='/api/webhook/sepay'){const canonical=PUBLIC_ORIGIN+(p||'/')+u.search;if(!p.startsWith('/api/')&&['GET','HEAD'].includes(r.method))return Response.redirect(canonical,302);if(p.startsWith('/api/'))return J({ok:false,error:'CANONICAL_HOST_REQUIRED',message:'Bạn đang mở địa chỉ thử nghiệm hoặc tên miền phụ. Hãy mở https://teostudio.top để đăng nhập và sử dụng các chức năng.'},421);return J({ok:false,error:'CANONICAL_HOST_REQUIRED',message:'Hãy mở https://teostudio.top.'},421)}if(r.method==='OPTIONS')return new Response(null,{headers:C});try{
   if(u.pathname.length>2048||u.search.length>4096)return J({ok:false,error:'URI_TOO_LARGE'},414);
   // Reject cross-site browser writes to cookie/session-backed APIs. SePay server webhook is exempt.
   if(p.startsWith('/api/')&&!['GET','HEAD','OPTIONS'].includes(r.method)&&p!='/api/webhook/sepay'){
@@ -1894,6 +1894,33 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   }
   const ua=r.headers.get('user-agent')||'';
   const crawler=/facebookexternalhit|Facebot|Twitterbot|TelegramBot|WhatsApp|Discordbot|Slackbot|Googlebot|Zalo(?:Bot)?|ZaloPC|LinkedInBot|Pinterestbot|Viber|Line\//i.test(ua);
+  // V56.56: Tenant Share pages need server-rendered OG metadata for Messenger/Zalo.
+  // Social preview bots do not execute client-side JavaScript, so build metadata in the Worker.
+  if(crawler&&(p==='/share.html'||p==='/share')&&r.method==='GET'&&e.ASSETS){
+    try{
+      await ensureTenantSchema(e);
+      const slug=clean(u.searchParams.get('tenant')||'',80);
+      const raw=slug?await tenantBySlug(e,slug):null;
+      const tenant=raw?await normalizeTenantRow(e,raw):null;
+      if(tenant){
+        const settings=await tenantSettings(e,tenant);
+        const escMeta=v=>String(v??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const studioName=String(settings.siteName||settings.studio||tenant.studio_name||tenant.slug||'Share File').trim();
+        const title=escMeta(studioName+' — Share File riêng');
+        const desc=escMeta(String(settings.heroText||('Kho Share File riêng của '+studioName+'.')).replace(/\s+/g,' ').slice(0,220));
+        const shareUrl=PUBLIC_ORIGIN+'/share?tenant='+encodeURIComponent(tenant.slug||slug);
+        const img=PUBLIC_ORIGIN+'/media/tenant-avatar/'+encodeURIComponent(tenant.slug||slug);
+        const target=new URL('/share',r.url);target.search=u.search;
+        const asset=await e.ASSETS.fetch(new Request(target,r));
+        if(asset.ok&&String(asset.headers.get('content-type')||'').toLowerCase().includes('text/html')){
+          let html=await asset.text();
+          const meta=`<meta name="description" content="${desc}"><meta property="og:type" content="website"><meta property="og:site_name" content="${title}"><meta property="og:title" content="${title}"><meta property="og:description" content="${desc}"><meta property="og:image" content="${img}"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:url" content="${shareUrl}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${title}"><meta name="twitter:description" content="${desc}"><meta name="twitter:image" content="${img}"><link rel="canonical" href="${shareUrl}">`;
+          html=html.replace(/<title>.*?<\/title>/i,`<title>${title}</title>`).replace(/<meta\s+(?:name="description"|property="og:[^"]+"|name="twitter:[^"]+")[^>]*>/gi,'').replace(/<link\s+rel="canonical"[^>]*>/gi,'').replace('</head>',meta+'</head>');
+          return new Response(html,{status:asset.status,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'public, max-age=60','x-content-type-options':'nosniff','x-teostudio-version':BUILD_VERSION}});
+        }
+      }
+    }catch{}
+  }
   // Tenant product share previews: social crawlers need server-rendered Open Graph metadata.
   // Browser users still receive the normal static shell and load product data client-side.
   if(crawler&&(p==='/tenant-detail'||p==='/tenant-detail.html')&&r.method==='GET'&&e.ASSETS){
@@ -2145,7 +2172,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
       const sessionTenantId=clean(t?.id??t?.tenant_id??t?.slug,100);
       if(!sessionTenantId)return J({ok:false,error:'TENANT_KEY_MISSING'},500);
       await e.DB.prepare('INSERT INTO tenant_sessions(token,tenant_id,expires_at) VALUES(?,?,?)').bind(token,sessionTenantId,Date.now()+7*86400000).run();
-      return J({ok:true,token,tenant:tenantInfo(t),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(t.slug)}`});
+      return J({ok:true,token,tenant:tenantInfo(t),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share?tenant=${encodeURIComponent(t.slug)}`});
     }catch(x){return J({ok:false,error:'TENANT_SECURITY_LOGIN_DB_ERROR',detail:String(x?.message||x)},500)}
   }
   if(p==='/api/tenant/login'&&r.method==='POST'){const rl=limited(r,'tenant-login',8,60000);if(rl)return rl;
@@ -2164,7 +2191,7 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
       const sessionTenantId=clean(t?.id??t?.tenant_id??t?.slug,100);
       if(!sessionTenantId)return J({ok:false,error:'TENANT_KEY_MISSING'},500);
       await e.DB.prepare('INSERT INTO tenant_sessions(token,tenant_id,expires_at) VALUES(?,?,?)').bind(token,sessionTenantId,Date.now()+7*86400000).run();
-      return J({ok:true,token,tenant:tenantInfo(t),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share.html?tenant=${encodeURIComponent(t.slug)}`});
+      return J({ok:true,token,tenant:tenantInfo(t),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share?tenant=${encodeURIComponent(t.slug)}`});
     }catch(x){return J({ok:false,error:'TENANT_LOGIN_DB_ERROR',detail:String(x?.message||x)},500)}
   }
   if(p.match(/^\/api\/og\/tenant\/[^/]+$/)&&r.method==='GET'){
@@ -2201,6 +2228,16 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   if(buyerAvatarMedia&&r.method==='GET'){await ensureV55Schema(e);const buyerId=clean(decodeURIComponent(buyerAvatarMedia[1]),100);const row=await e.DB.prepare('SELECT avatar FROM buyer_accounts WHERE id=? LIMIT 1').bind(buyerId).first();return await servePublicImage(e,r,row?.avatar||'/assets/img/default-avatar.svg',800000)}
   const mainProductMedia=p.match(/^\/media\/product\/([^/]+)$/);
   if(mainProductMedia&&r.method==='GET'){await ensureSchema(e);const product=await productById(e,clean(decodeURIComponent(mainProductMedia[1]),100));return await servePublicImage(e,r,product?.thumb||'/assets/img/default-avatar.svg',1500000)}
+  const tenantAvatarMedia=p.match(/^\/media\/tenant-avatar\/([^/]+)$/);
+  if(tenantAvatarMedia&&r.method==='GET'){
+    await ensureTenantSchema(e);
+    const slug=clean(decodeURIComponent(tenantAvatarMedia[1]),80);
+    const raw=await tenantBySlug(e,slug);
+    const tenant=raw?await normalizeTenantRow(e,raw):null;
+    if(!tenant)return await servePublicImage(e,r,'/assets/img/default-avatar.svg',800000);
+    const settings=await tenantSettings(e,tenant);
+    return await servePublicImage(e,r,settings.avatar||'/assets/img/default-avatar.svg',800000);
+  }
   const tenantProductMedia=p.match(/^\/media\/tenant-product\/([^/]+)\/([^/]+)$/);
   if(tenantProductMedia&&r.method==='GET'){await ensureTenantSchema(e);const slug=clean(decodeURIComponent(tenantProductMedia[1]),80),id=clean(decodeURIComponent(tenantProductMedia[2]),100);const raw=await tenantBySlug(e,slug);const tenant=await normalizeTenantRow(e,raw);if(!tenant)return await servePublicImage(e,r,'/assets/img/default-avatar.svg');const scope=tenantInSql(tenant);const row=await e.DB.prepare(`SELECT thumb FROM tenant_products WHERE ${scope.clause} AND id=? LIMIT 1`).bind(...scope.vals,id).first();return await servePublicImage(e,r,row?.thumb||'/assets/img/default-avatar.svg',1500000)}
 
