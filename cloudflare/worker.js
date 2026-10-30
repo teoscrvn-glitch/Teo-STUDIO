@@ -50,7 +50,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v56.57-free-bypass-link4m-bumx-fix';
+const BUILD_VERSION='v56.58-free-gate-login-api-diagnostics';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -1343,9 +1343,11 @@ async function createBypassShortUrl(e,step,destination){
       const raw=await resp.text();
       if(!resp.ok)throw new Error('SHORTENER_HTTP_'+resp.status);
       let data;try{data=JSON.parse(raw)}catch{throw new Error('SHORTENER_BAD_JSON')}
-      const candidate=data?.shortenedUrl||data?.shortened_url||data?.short_url||data?.shortUrl||data?.shortened||data?.url;
-      const status=String(data?.status||data?.success||'').toLowerCase();
-      if(!(candidate&&['success','true','1','ok'].includes(status)))throw new Error(String(data?.message||data?.error||'SHORTENER_REJECTED'));
+      const payload=data?.data&&typeof data.data==='object'?data.data:data?.result&&typeof data.result==='object'?data.result:data;
+      const candidate=payload?.shortenedUrl||payload?.shortened_url||payload?.short_url||payload?.shortUrl||payload?.shortened||payload?.short_link||payload?.shortLink||payload?.link||payload?.url||data?.shortenedUrl||data?.shortened_url||data?.short_url||data?.shortUrl||data?.short_link||data?.shortLink||data?.link||data?.url;
+      const status=String(data?.status??data?.success??payload?.status??payload?.success??'').toLowerCase();
+      const statusOk=!status||['success','true','1','ok','200'].includes(status);
+      if(!(candidate&&statusOk))throw new Error(String(data?.message||data?.error||payload?.message||payload?.error||('SHORTENER_REJECTED_'+(status||'NO_URL'))));
       const result=safeHttpUrl(candidate,2000);
       if(!result||new URL(result).protocol!=='https:')throw new Error('SHORTENER_RESULT_INVALID');
       return {url:result,provider};
