@@ -5,6 +5,8 @@
   const qs=new URLSearchParams(location.search),slug=qs.get('tenant')||'',id=qs.get('id')||'';
   const incomingRef=qs.get('ref')||'';if(/^[a-z0-9_-]{2,60}$/i.test(incomingRef)){try{localStorage.setItem('TEO_REFERRER',incomingRef)}catch{}}
   const referrer=(()=>{try{return localStorage.getItem('TEO_REFERRER')||''}catch{return ''}})();
+  if(qs.get('seller')&&id&&slug){const code=qs.get('seller'),key='TEO_SELLER_ATTR_tenant_'+slug+'_'+id;try{const old=JSON.parse(localStorage.getItem(key)||'null');if(!old||Number(old.expiresAt)<=Date.now()||old.code!==code)fetch(api('/api/seller/attribute'),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code}),cache:'no-store'}).then(r=>r.json()).then(x=>{if(x.ok&&x.token)localStorage.setItem(key,JSON.stringify({code,token:x.token,expiresAt:x.expiresAt}))}).catch(()=>{})}catch{}}
+
   const back=`/share?tenant=${encodeURIComponent(slug)}`;$('#backShare').href=back;$('#detailBrand').href=back;let poll=null,turnstileToken='',publicConfig=null;
   async function getPublicConfig(){if(publicConfig)return publicConfig;try{const r=await fetch(api('/api/public-config'),{cache:'no-store'});publicConfig=await r.json()}catch{publicConfig={}}return publicConfig}
   function trackTenantOutbound(productId){try{const source=sessionStorage.getItem('TEO_SHARE_REFERRER_'+slug)||'';fetch(api('/api/public-tenant/'+encodeURIComponent(slug)+'/track-outbound/'+encodeURIComponent(productId)+'?source='+encodeURIComponent(source)),{method:'POST',headers:{'content-type':'application/json'},body:'{}',keepalive:true}).catch(()=>{})}catch{}}

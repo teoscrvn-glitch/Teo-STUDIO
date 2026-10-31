@@ -6,10 +6,10 @@ compatibility_date = "2026-09-18"
 # Secret values are intentionally NOT stored in this file; retain them in Cloudflare
 # Settings > Variables and Secrets (Production). Do not delete/recreate existing Secrets.
 # Known Secrets include ADMIN_KEY, AI_API_KEY, BUMX_API_KEY, LINK4M_API_KEY,
-# OXMAIL_SMTP_PASS, SEPAY_API_KEY, TELEGRAM_BOT_TOKEN, TURNSTILE_SECRET, and any
+# OXMAIL_SMTP_PASS, SEPAY_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, TURNSTILE_SECRET, and any
 # additional Telegram/Turnstile secrets configured in the dashboard.
 # For per-tenant Telegram linking, set the non-secret TELEGRAM_BOT_USERNAME in Cloudflare Variables.
-# Then POST /api/admin/telegram/webhook/setup as the authenticated master admin once.
+# The tenant pairing endpoint configures the webhook with TELEGRAM_WEBHOOK_SECRET automatically.
 # Keep non-secret Production settings in sync here; never put secret values in this file.
 [vars]
 AI_API_URL = "https://openrouter.ai/api/v1/chat/completions"
