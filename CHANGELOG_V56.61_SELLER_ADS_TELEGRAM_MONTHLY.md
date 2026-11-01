@@ -1,4 +1,4 @@
-# TeoStudio V56.61 — Seller, Ads, Telegram Studio & Monthly Analytics
+# TeoStudio V56.63 — Seller, Ads, Telegram Studio & Monthly Analytics
 
 ## Added
 - Tenant Telegram pairing now returns a one-time 40-character code, a `link_<code>` command and the bot deep link. The tenant page displays the code, copy action, expiry countdown and polls link status until it is connected.

@@ -9,7 +9,7 @@ echo '[2/10] Frontend JavaScript syntax'
 find frontend/assets/js -type f -name '*.js' -exec node --check '{}' \;
 echo '[3/10] Version and image asset'
 grep -q "ensureAssistantActivitySchema" cloudflare/worker.js
-grep -q "v56.61-seller-ads-monthly-telegram" frontend/assets/js/config.js
+grep -q "v56.63-seller-ads-settlement-audit" frontend/assets/js/config.js
 test -s frontend/assets/img/teo-linh.webp
 grep -q "new URL('../img/teo-linh.webp',SCRIPT_URL)" frontend/assets/js/assistant.js
 grep -q 'safeYouTubeUrl' cloudflare/worker.js

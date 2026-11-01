@@ -1,4 +1,4 @@
-# Deploy TeoStudio V56.61
+# Deploy TeoStudio V56.63
 
 ## 1. Before deploy
 1. Export/backup the production D1 database `teo-studio` in Cloudflare.
@@ -44,7 +44,7 @@ After deploy, sign in as Admin, open the Admin dashboard and wait for the analyt
 8. Roll out to other tenants only after checking D1 ledger entries and Worker logs.
 
 ## 6. Discount note
-V56.60 does not contain a coupon/discount workflow for wallet purchases. V56.61 allocates using the server-validated amount charged and stored on the purchase. If a discount feature is introduced later, it must calculate the final discounted amount on the server before the split; never accept a client-provided amount.
+V56.60 does not contain a coupon/discount workflow for wallet purchases. V56.63 allocates using the server-validated amount charged and stored on the purchase. If a discount feature is introduced later, it must calculate the final discounted amount on the server before the split; never accept a client-provided amount.
 
 ## 7. Verification boundary
-This ZIP has static JavaScript syntax checks and local SQLite simulation checks documented in `TEST_REPORT_V56.61.md`. It has not been deployed to Cloudflare from this environment and no production D1 data has been inspected or changed. Complete the live tests above before enabling payouts or Ads.
+This ZIP has static JavaScript syntax checks and local SQLite simulation checks documented in `TEST_REPORT_V56.63.md`. It has not been deployed to Cloudflare from this environment and no production D1 data has been inspected or changed. Complete the live tests above before enabling payouts or Ads.
