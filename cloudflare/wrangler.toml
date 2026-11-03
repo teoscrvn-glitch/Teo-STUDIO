@@ -7,7 +7,8 @@ compatibility_date = "2026-09-18"
 # Settings > Variables and Secrets (Production). Do not delete/recreate existing Secrets.
 # Known Secrets include ADMIN_KEY, AI_API_KEY, BUMX_API_KEY, LINK4M_API_KEY,
 # OXMAIL_SMTP_PASS, SEPAY_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, TURNSTILE_SECRET, and any
-# additional Telegram/Turnstile secrets configured in the dashboard.
+# additional Telegram/Turnstile secrets configured in the dashboard. Card exchange: THECAOSIEUTOC_PARTNER_ID,
+# THECAOSIEUTOC_PARTNER_KEY, THECAOSIEUTOC_TOKEN, CARD_DATA_ENCRYPTION_KEY (treat all as sensitive Secrets).
 # For per-tenant Telegram linking, set the non-secret TELEGRAM_BOT_USERNAME in Cloudflare Variables.
 # The tenant pairing endpoint configures the webhook with TELEGRAM_WEBHOOK_SECRET automatically.
 # Keep non-secret Production settings in sync here; never put secret values in this file.
@@ -33,6 +34,36 @@ run_worker_first = true
 binding = "DB"
 database_name = "teo-studio"
 database_id = "567f1c65-c144-414e-8bc4-26a3a0d276ca"
+
+# Edge request controls. Namespace IDs must be unique within the Cloudflare account.
+# Limits are approximate per Cloudflare location; pair these with zone-level WAF rate-limit rules.
+[[ratelimits]]
+name = "API_EDGE_LIMITER"
+namespace_id = "5667001"
+  [ratelimits.simple]
+  limit = 600
+  period = 60
+
+[[ratelimits]]
+name = "AUTH_EDGE_LIMITER"
+namespace_id = "5667002"
+  [ratelimits.simple]
+  limit = 18
+  period = 60
+
+[[ratelimits]]
+name = "FINANCE_EDGE_LIMITER"
+namespace_id = "5667003"
+  [ratelimits.simple]
+  limit = 12
+  period = 60
+
+[[ratelimits]]
+name = "BYPASS_EDGE_LIMITER"
+namespace_id = "5667004"
+  [ratelimits.simple]
+  limit = 8
+  period = 60
 
 [triggers]
 crons = ["0 * * * *"]
