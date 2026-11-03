@@ -399,7 +399,6 @@ async function handleTelegramWebhook(r,e){
   }
   await e.DB.prepare('INSERT INTO tenant_telegram_links(tenant_id,chat_id,linked_at) VALUES(?,?,datetime(\'now\')) ON CONFLICT(tenant_id) DO UPDATE SET chat_id=excluded.chat_id,linked_at=excluded.linked_at').bind(String(pair.tenant_id),chatId).run();
   await e.DB.prepare('DELETE FROM tenant_telegram_pair_codes WHERE code_hash=?').bind(hash).run();
-  const token=String(e.TELEGRAM_BOT_TOKEN||'').trim();
   if(token)await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:chatId,text:'✅ Đã liên kết Telegram với TeoStudio. Bot sẽ gửi thông báo đơn mua và báo lỗi thuộc Studio này.'})}).catch(()=>{});
   return J({ok:true,linked:true});
 }
