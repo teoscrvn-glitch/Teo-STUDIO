@@ -9,7 +9,8 @@ echo '[2/15] Frontend JavaScript syntax'
 find frontend/assets/js -type f -name '*.js' -exec node --check '{}' \;
 echo '[3/15] Version and image asset'
 grep -q "ensureAssistantActivitySchema" cloudflare/worker.js
-grep -q "v56.67-payment-security-hardening" frontend/assets/js/config.js
+grep -q "v56.68-account-analytics-manual-card-withdrawal" cloudflare/worker.js
+grep -q "v56.68-account-analytics-manual-card-withdrawal" frontend/assets/js/config.js
 test -s frontend/assets/img/teo-linh.webp
 grep -q "new URL('../img/teo-linh.webp',SCRIPT_URL)" frontend/assets/js/assistant.js
 grep -q 'safeYouTubeUrl' cloudflare/worker.js
@@ -69,12 +70,12 @@ echo '[10/15] Unified tenant session regression checks'
 node scripts/test-unified-tenant-session.mjs
 echo '[11/15] V56.64 Seller hardening and responsive UI checks'
 python scripts/test-v56.64-security-polish.py
-echo '[12/15] V56.67 card exchange and security checks'
+echo '[12/15] V56.68 manual card exchange and security checks'
 python scripts/test-v56.67-card-security.py
-echo '[13/15] V56.67 tariff normalization tests'
+echo '[13/15] Card tariff normalization tests'
 node scripts/test-v56.67-card-rates.mjs
-echo '[14/15] V56.67 SQLite wallet and bypass tests'
+echo '[14/15] V56.68 SQLite wallet and bypass tests'
 python scripts/test-v56.67-ledger.py
-echo '[15/15] V56.67 callback signature helper tests'
+echo '[15/15] Card callback signature helper tests'
 node scripts/test-v56.67-md5.mjs
 echo 'PASS: syntax, local helper behavior and static checks only. Live Cloudflare, D1, social preview crawlers and phone UI are NOT tested here.'

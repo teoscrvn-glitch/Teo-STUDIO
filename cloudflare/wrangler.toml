@@ -8,7 +8,7 @@ compatibility_date = "2026-09-18"
 # Known Secrets include ADMIN_KEY, AI_API_KEY, BUMX_API_KEY, LINK4M_API_KEY,
 # OXMAIL_SMTP_PASS, SEPAY_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, TURNSTILE_SECRET, and any
 # additional Telegram/Turnstile secrets configured in the dashboard. Card exchange: THECAOSIEUTOC_PARTNER_ID,
-# THECAOSIEUTOC_PARTNER_KEY, THECAOSIEUTOC_TOKEN, CARD_DATA_ENCRYPTION_KEY (treat all as sensitive Secrets).
+# THECAOSIEUTOC_PARTNER_KEY (for card top-ups), CARD_DATA_ENCRYPTION_KEY (for encrypting manually delivered withdrawal card codes/serials). No card-purchase API token is used for withdrawals.
 # For per-tenant Telegram linking, set the non-secret TELEGRAM_BOT_USERNAME in Cloudflare Variables.
 # The tenant pairing endpoint configures the webhook with TELEGRAM_WEBHOOK_SECRET automatically.
 # Keep non-secret Production settings in sync here; never put secret values in this file.

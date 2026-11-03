@@ -1,14 +1,14 @@
 <!doctype html>
 <html lang="vi">
 <head>
-  <meta name="teo-frontend-version" content="v56.67-payment-security-hardening">
+  <meta name="teo-frontend-version" content="v56.68-account-analytics-manual-card-withdrawal">
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#090b18"><meta name="robots" content="noindex,nofollow">
   <title>Seller Center — TeoStudio</title>
   <link rel="icon" type="image/png" href="assets/img/favicon.png">
   <link rel="preload" as="image" href="assets/img/teo/seller-hero.webp">
-  <link rel="stylesheet" href="assets/css/style.css?v=56.67">
-  <link rel="stylesheet" href="assets/css/seller-premium.css?v=56.67">
+  <link rel="stylesheet" href="assets/css/style.css?v=56.68">
+  <link rel="stylesheet" href="assets/css/seller-premium.css?v=56.68">
 </head>
 <body class="seller-body">
   <header class="seller-topbar">
@@ -70,7 +70,7 @@
               <p class="seller-form-note">Mức rút tối thiểu 100.000đ. Yêu cầu cần Admin kiểm tra và xác nhận; hệ thống chưa tự chuyển tiền.</p>
             </form>
             <div id="sellerWithdrawals" class="seller-history-list"></div>
-            <div class="seller-card-withdraw"><h3>🎟 Rút bằng thẻ cào</h3><p>Đổi thẻ số lượng 1. Số dư bị giữ bằng 105% mệnh giá; nếu nhà cung cấp từ chối rõ ràng, hệ thống hoàn lại. Không gửi lặp khi trạng thái chưa rõ.</p><form id="sellerCardWithdraw" class="seller-form"><label>Nhà mạng<select name="telco" required><option value="VINAPHONE">Vinaphone</option><option value="VIETTEL">Viettel</option><option value="MOBIFONE">Mobifone</option><option value="GARENA">Garena</option><option value="ZING">Zing</option></select></label><label>Mệnh giá<select name="amountVnd" required><option value="10000">10.000đ</option><option value="20000">20.000đ</option><option value="30000">30.000đ</option><option value="50000">50.000đ</option><option value="100000">100.000đ</option><option value="200000">200.000đ</option></select></label><p id="sellerCardDebitPreview">Số dư cần có: 10.500đ</p><label class="seller-terms"><input name="termsAccepted" type="checkbox" required> Tôi xác nhận đổi thẻ và đồng ý trừ 105% mệnh giá.</label><button class="seller-btn seller-btn-primary" id="sellerCardWithdrawSubmit" type="submit">Đổi thẻ ngay</button></form><div id="sellerCardWithdrawResult" class="seller-history-list"></div></div>
+            <div class="seller-card-withdraw"><h3>🎟 Rút bằng thẻ cào</h3><p>Gửi yêu cầu tới Admin chính để duyệt. Số dư tạm giữ 105% mệnh giá; Admin tự kiểm tra và gửi mã thẻ/serial thủ công. Không có thao tác mua thẻ tự động.</p><form id="sellerCardWithdraw" class="seller-form"><label>Nhà mạng<select name="telco" required><option value="VINAPHONE">Vinaphone</option><option value="VIETTEL">Viettel</option><option value="MOBIFONE">Mobifone</option><option value="GARENA">Garena</option><option value="ZING">Zing</option><option value="VCOIN">Vcoin</option></select></label><label>Mệnh giá<select name="amountVnd" required><option value="10000">10.000đ</option><option value="20000">20.000đ</option><option value="30000">30.000đ</option><option value="50000">50.000đ</option><option value="100000">100.000đ</option><option value="200000">200.000đ</option></select></label><p id="sellerCardDebitPreview">Số dư cần có: 10.500đ</p><label class="seller-terms"><input name="termsAccepted" type="checkbox" required> Tôi xác nhận gửi yêu cầu Admin duyệt và đồng ý tạm giữ 105% mệnh giá.</label><button class="seller-btn seller-btn-primary" id="sellerCardWithdrawSubmit" type="submit">Gửi yêu cầu Admin duyệt</button></form><div id="sellerCardWithdrawResult" class="seller-history-list"></div></div>
           </section>
         </div>
       </div>
@@ -84,7 +84,7 @@
     <div id="sellerToast" class="seller-toast" role="status" aria-live="polite"></div>
     <footer class="seller-footer"><span>TeoStudio · Seller Program</span><span>Chỉ ghi nhận đơn hợp lệ được máy chủ xác nhận.</span></footer>
   </main>
-  <script src="assets/js/config.js?v=56.67"></script>
-  <script src="assets/js/seller.js?v=56.67"></script>
+  <script src="assets/js/config.js?v=56.68"></script>
+  <script src="assets/js/seller.js?v=56.68"></script>
 </body>
 </html>
