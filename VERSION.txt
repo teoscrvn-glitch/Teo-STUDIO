@@ -1,2 +1,2 @@
-v57.3-free-key-one-time
-Base: TeoStudio V57.2 Mobile Share Grid Fix (V57.0-prepublic-design-legal-security)
+v57.8-free-bypass-cycle-security
+Base: TeoStudio V57.7 Free bypass tenant-session fix.

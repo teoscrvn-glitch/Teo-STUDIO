@@ -9,8 +9,8 @@ echo '[2/19] Frontend JavaScript syntax'
 find frontend/assets/js -type f -name '*.js' -exec node --check '{}' \;
 echo '[3/19] Version and image asset'
 grep -q "ensureAssistantActivitySchema" cloudflare/worker.js
-grep -q "v57.4-dual-bypass-topup" cloudflare/worker.js
-grep -q "v57.4-dual-bypass-topup" frontend/assets/js/config.js
+grep -q "v57.8-free-bypass-cycle-security" cloudflare/worker.js
+grep -q "v57.8-free-bypass-cycle-security" frontend/assets/js/config.js
 test -s frontend/assets/img/teo-linh.webp
 grep -q "new URL('../img/teo-linh.webp',SCRIPT_URL)" frontend/assets/js/assistant.js
 grep -q 'safeYouTubeUrl' cloudflare/worker.js
@@ -84,6 +84,6 @@ echo '[17/19] V57 legal, privacy and design checks'
 node scripts/test-v57-legal-design.mjs
 echo '[18/19] V57 D1 migration smoke test'
 python scripts/test-v57-migration.py
-echo '[19/19] V57.4 dual bypass and standalone top-up checks'
-python scripts/test-v57.4-dual-bypass-topup.py
+echo '[19/19] V57.8 two-cycle Free bypass security and standalone top-up checks'
+python scripts/test-v57.8-free-bypass-cycles.py
 echo 'PASS: syntax, local helper behavior and static checks only. Live Cloudflare, D1, social preview crawlers and phone UI are NOT tested here.'
