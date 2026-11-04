@@ -66,4 +66,4 @@ namespace_id = "5667004"
   period = 60
 
 [triggers]
-crons = ["0 * * * *"]
+crons = ["0 * * * *", "*/5 * * * *"]

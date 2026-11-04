@@ -50,7 +50,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v57.0-prepublic-design-legal-security';
+const BUILD_VERSION='v57.7-free-bypass-session-fix';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -60,7 +60,7 @@ function runtimeConfigStatus(e){
   const emailMissing=[];if(!has('OXMAIL_SMTP_PASS'))emailMissing.push('OXMAIL_SMTP_PASS');if(Number(e?.OXMAIL_SMTP_PORT||465)!==465)emailMissing.push('OXMAIL_SMTP_PORT (must be 465)');const smtpHost=String(e?.OXMAIL_SMTP_HOST||'mail.teostudio.top');if(!/^[a-z0-9.-]+$/i.test(smtpHost)||smtpHost.startsWith('.')||smtpHost.endsWith('.'))emailMissing.push('OXMAIL_SMTP_HOST');const smtpUser=String(e?.OXMAIL_SMTP_USER||'teostudio@teostudio.top'),smtpFrom=String(e?.EMAIL_FROM||smtpUser);if(!EMAIL_RE.test(smtpUser))emailMissing.push('OXMAIL_SMTP_USER');if(!EMAIL_RE.test(smtpFrom))emailMissing.push('EMAIL_FROM');const email={configured:emailMissing.length===0,missing:emailMissing,hostUsesDefault:!has('OXMAIL_SMTP_HOST'),userUsesDefault:!has('OXMAIL_SMTP_USER'),fromUsesDefault:!has('EMAIL_FROM')};
   const telegramChatId=String(e?.TELEGRAM_CHAT_ID||e?.ID_CHAT_TELEGRAM||'').trim();
   const telegramMissing=[];if(!has('TELEGRAM_BOT_TOKEN'))telegramMissing.push('TELEGRAM_BOT_TOKEN');if(!telegramChatId)telegramMissing.push('TELEGRAM_CHAT_ID (or legacy ID_CHAT_TELEGRAM)');
-  const tenantTelegramMissing=[];if(!has('TELEGRAM_BOT_TOKEN'))tenantTelegramMissing.push('TELEGRAM_BOT_TOKEN (Secret)');if(!has('TELEGRAM_WEBHOOK_SECRET'))tenantTelegramMissing.push('TELEGRAM_WEBHOOK_SECRET (Secret)');if(!has('TELEGRAM_BOT_USERNAME'))tenantTelegramMissing.push('TELEGRAM_BOT_USERNAME (Variable, không có @)');return {database:{configured:!!e?.DB},ai,email,telegram:{configured:telegramMissing.length===0,missing:telegramMissing},tenantTelegram:{configured:tenantTelegramMissing.length===0,missing:tenantTelegramMissing},freeBypass:(()=>{const shortener=has('BUMX_API_KEY'),approved=String(e?.FREE_BYPASS_REWARDED_TRAFFIC_APPROVED||'')==='1',verify=has('FREE_BYPASS_VERIFY_URL')&&has('FREE_BYPASS_API_KEY');const missing=[];if(!shortener)missing.push('BUMX_API_KEY');if(!approved)missing.push('FREE_BYPASS_REWARDED_TRAFFIC_APPROVED=1 (chỉ sau khi BumX xác nhận cho phép traffic có thưởng)');if(!has('FREE_BYPASS_VERIFY_URL'))missing.push('FREE_BYPASS_VERIFY_URL');if(!has('FREE_BYPASS_API_KEY'))missing.push('FREE_BYPASS_API_KEY (Secret)');return {configured:shortener&&approved&&verify,shortenerConfigured:shortener,rewardTrafficApproved:approved,verificationConfigured:verify,missing}})(),turnstile:check(['TURNSTILE_SITE_KEY','TURNSTILE_SECRET']),sepay:check(['SEPAY_API_KEY','SEPAY_BANK_CODE','SEPAY_ACCOUNT_NUMBER']),cardExchange:{partnerConfigured:!!(e?.THECAOSIEUTOC_PARTNER_ID&&e?.THECAOSIEUTOC_PARTNER_KEY),withdrawalMode:'manual',withdrawalEncryptionConfigured:String(e?.CARD_DATA_ENCRYPTION_KEY||'').length>=32}};
+  const tenantTelegramMissing=[];if(!has('TELEGRAM_BOT_TOKEN'))tenantTelegramMissing.push('TELEGRAM_BOT_TOKEN (Secret)');if(!has('TELEGRAM_WEBHOOK_SECRET'))tenantTelegramMissing.push('TELEGRAM_WEBHOOK_SECRET (Secret)');if(!has('TELEGRAM_BOT_USERNAME'))tenantTelegramMissing.push('TELEGRAM_BOT_USERNAME (Variable, không có @)');return {database:{configured:!!e?.DB},ai,email,telegram:{configured:telegramMissing.length===0,missing:telegramMissing},tenantTelegram:{configured:tenantTelegramMissing.length===0,missing:tenantTelegramMissing},freeBypass:(()=>{const bumx=has('BUMX_API_KEY')&&has('BUMX_API_URL'),link4m=has('LINK4M_API_KEY')&&has('LINK4M_API_URL'),link4mApproved=String(e?.LINK4M_REWARDED_TRAFFIC_APPROVED||'')==='1';return {configured:bumx&&link4m&&link4mApproved,bumxConfigured:bumx,link4mConfigured:link4m,link4mRewardTrafficApproved:link4mApproved,verificationMode:'one-time-key',missing:[...(!bumx?['BUMX_API_KEY / BUMX_API_URL']:[]),...(!link4m?['LINK4M_API_KEY / LINK4M_API_URL']:[]),...(!link4mApproved?['LINK4M_REWARDED_TRAFFIC_APPROVED=1 (chỉ bật sau khi Link4M cho phép bằng văn bản)']:[])]}})(),turnstile:check(['TURNSTILE_SITE_KEY','TURNSTILE_SECRET']),sepay:check(['SEPAY_API_KEY','SEPAY_BANK_CODE','SEPAY_ACCOUNT_NUMBER']),cardExchange:{partnerConfigured:!!(e?.THECAOSIEUTOC_PARTNER_ID&&e?.THECAOSIEUTOC_PARTNER_KEY),withdrawalMode:'manual',withdrawalEncryptionConfigured:String(e?.CARD_DATA_ENCRYPTION_KEY||'').length>=32}};
 }
 const C={"content-type":"application/json;charset=utf-8","access-control-allow-origin":"https://teostudio.top","access-control-allow-methods":"GET,POST,PUT,DELETE,OPTIONS","access-control-allow-headers":"Content-Type,Authorization,X-Requested-With,X-Tenant-Slug","vary":"Origin","cache-control":"no-store","x-content-type-options":"nosniff","x-frame-options":"SAMEORIGIN","referrer-policy":"strict-origin-when-cross-origin","permissions-policy":"camera=(),microphone=(),geolocation=()","x-permitted-cross-domain-policies":"none","cross-origin-opener-policy":"same-origin","strict-transport-security":"max-age=31536000","content-security-policy":"default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://challenges.cloudflare.com; frame-src 'self' https://challenges.cloudflare.com https://www.youtube-nocookie.com https://www.youtube.com; worker-src 'self' blob: https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"};
 const J=(x,s=200,extra={})=>new Response(JSON.stringify(x),{status:s,headers:{...C,...extra}});
@@ -133,7 +133,7 @@ async function cloudflareEdgeRateResponse(r,e,path){
   const rules=[['API_EDGE_LIMITER','api',600],
     [/^\/api\/(?:account\/(?:login|register|verify-email|password\/(?:reset|change))|tenant\/(?:login|password)|rental\/email\/(?:start|verify))/.test(path)?'AUTH_EDGE_LIMITER':'','auth',18],
     [/^\/api\/(?:account\/(?:topups\/create|card-topups|seller\/(?:withdrawals|payout-profile|card-withdrawals))|tenant\/(?:withdrawals|payout-profile|card-withdrawals))/.test(path)?'FINANCE_EDGE_LIMITER':'','finance',12],
-    [/^\/api\/rental\/free\/bypass\/(?:start|complete)$/.test(path)?'BYPASS_EDGE_LIMITER':'','free-bypass',8]];
+    [/^\/api\/rental\/free\/bypass\/(?:start|issue|redeem|complete)$/.test(path)?'BYPASS_EDGE_LIMITER':'','free-bypass',8]];
   for(const [bindingName,bucket] of rules){if(!bindingName)continue;const binding=e?.[bindingName];if(!binding||typeof binding.limit!=='function')continue;
     try{const result=await binding.limit({key:`${ip}:${bucket}`});if(result?.success===false){const retry=60;return J({ok:false,error:'EDGE_RATE_LIMITED',message:'Yêu cầu đang vượt giới hạn bảo vệ tại Cloudflare. Vui lòng chờ một phút rồi thử lại.',retryAfter:retry},429,{'retry-after':String(retry),'cache-control':'no-store','x-teostudio-protection':bucket})}}catch(err){
       // Keep the site available if a binding is not provisioned yet; external WAF rules are still required.
@@ -726,7 +726,7 @@ async function accountApi(r,e,p){
   }
   if(p==='/api/account/wallet'&&method==='GET'){if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);const bal=await buyerBalance(e,buyer.id);const rows=(await e.DB.prepare('SELECT id,amount_vnd,kind,ref_type,ref_id,note,created_at FROM buyer_wallet_ledger WHERE buyer_id=? ORDER BY created_at DESC LIMIT 100').bind(buyer.id).all()).results||[];const pending=(await e.DB.prepare("SELECT id,amount_vnd,status,created_at,expires_at FROM buyer_wallet_topups WHERE buyer_id=? ORDER BY created_at DESC LIMIT 30").bind(buyer.id).all()).results||[];return J({ok:true,balanceVnd:bal,ledger:rows,topups:pending})}
   if(p==='/api/account/card-topups'&&method==='POST'){
-    if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);const rl=limitedForAccount('wallet-card-topup',buyer.id,3,60000);if(rl)return rl;if(Number(buyer.email_verified)!==1)return J({ok:false,error:'EMAIL_VERIFICATION_REQUIRED'},403);
+    if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);const rl=limitedForAccount('wallet-card-topup',buyer.id,3,60000);if(rl)return rl;if(Number(buyer.email_verified)!==1)return J({ok:false,error:'EMAIL_VERIFICATION_REQUIRED'},403);if(b.guardianConsent!==true)return J({ok:false,error:'GUARDIAN_CONSENT_REQUIRED',message:'Hãy xác nhận giao dịch được cha mẹ/người giám hộ đồng ý nếu bạn dưới 18 tuổi.'},400);
     if(!e.THECAOSIEUTOC_PARTNER_ID||!e.THECAOSIEUTOC_PARTNER_KEY)return J({ok:false,error:'CARD_EXCHANGE_NOT_CONFIGURED',message:'Thiếu THECAOSIEUTOC_PARTNER_ID hoặc THECAOSIEUTOC_PARTNER_KEY trong Cloudflare Secrets.'},503);
     const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi gửi thẻ.'},400);
     const telco=String(b.telco||'').toLowerCase(),face=Math.floor(Number(b.amountVnd)||0),code=clean(b.code||'',40).replace(/\s/g,''),serial=clean(b.serial||'',40).replace(/\s/g,'');if(!CARD_VENDOR_TYPES[telco]||!CARD_DENOMINATIONS.includes(face)||!/^[A-Za-z0-9]{6,32}$/.test(code)||!/^[A-Za-z0-9]{6,32}$/.test(serial))return J({ok:false,error:'INVALID_CARD_DATA',message:'Kiểm tra nhà mạng, mệnh giá, mã thẻ và serial.'},400);
@@ -749,7 +749,7 @@ async function accountApi(r,e,p){
     if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);await ensureCardExchangeSchema(e);const rows=(await e.DB.prepare('SELECT * FROM card_redemptions WHERE actor_type=\'seller\' AND actor_id=? ORDER BY created_at DESC LIMIT 30').bind(buyer.id).all()).results||[];const out=[];for(const row of rows){let cards=null;if(['paid','delivered'].includes(row.status)&&row.cards_ciphertext){try{cards=await decryptCardData(e,row.cards_ciphertext)}catch{}}out.push({id:row.id,telco:row.telco,faceVnd:Number(row.face_vnd),debitVnd:Number(row.debit_vnd),status:row.status,providerOrderCode:row.provider_order_code,cards,error:row.error_note,adminNote:row.admin_note||'',reviewedAt:row.reviewed_at||null,paidAt:row.paid_at||null,createdAt:row.created_at})}return J({ok:true,redemptions:out});
   }
   if(p==='/api/account/topups/create'&&method==='POST'){
-    const rl=limited(r,'wallet-topup-create',5,60000);if(rl)return rl;if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);if(Number(buyer.email_verified)!==1)return J({ok:false,error:'EMAIL_VERIFICATION_REQUIRED',message:'Hãy xác minh email trước khi nạp ví.'},403);const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi nạp.'},400);const amount=Math.floor(Number(b.amountVnd)||0);if(amount<10000||amount>5000000||amount%1000!==0)return J({ok:false,error:'INVALID_TOPUP_AMOUNT',message:'Số tiền nạp từ 10.000đ đến 5.000.000đ, bội số 1.000đ.'},400);const cfg=paymentConfig(e);if(!cfg.paymentsEnabled)return J({ok:false,error:'PAYMENT_NOT_CONFIGURED',missing:cfg.missing},503);const id=crypto.randomUUID(),code='TEO'+crypto.randomUUID().replace(/-/g,'').slice(0,10).toUpperCase(),expires=Date.now()+10*60*1000;await e.DB.prepare("INSERT INTO buyer_wallet_topups(id,buyer_id,payment_code,amount_vnd,status,expires_at) VALUES(?,?,?,?,'pending',?)").bind(id,buyer.id,code,amount,expires).run();return J({ok:true,topup:{id,code,amountVnd:amount,status:'pending',expiresAt:expires,qrUrl:buildVietQr(e,amount,code)}},201);
+    const rl=limited(r,'wallet-topup-create',5,60000);if(rl)return rl;if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);if(Number(buyer.email_verified)!==1)return J({ok:false,error:'EMAIL_VERIFICATION_REQUIRED',message:'Hãy xác minh email trước khi nạp ví.'},403);if(b.guardianConsent!==true)return J({ok:false,error:'GUARDIAN_CONSENT_REQUIRED',message:'Hãy xác nhận giao dịch được cha mẹ/người giám hộ đồng ý nếu bạn dưới 18 tuổi.'},400);const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi nạp.'},400);const amount=Math.floor(Number(b.amountVnd)||0);if(amount<10000||amount>5000000||amount%1000!==0)return J({ok:false,error:'INVALID_TOPUP_AMOUNT',message:'Số tiền nạp từ 10.000đ đến 5.000.000đ, bội số 1.000đ.'},400);const cfg=paymentConfig(e);if(!cfg.paymentsEnabled)return J({ok:false,error:'PAYMENT_NOT_CONFIGURED',missing:cfg.missing},503);const id=crypto.randomUUID(),code='TEO'+crypto.randomUUID().replace(/-/g,'').slice(0,10).toUpperCase(),expires=Date.now()+10*60*1000;await e.DB.prepare("INSERT INTO buyer_wallet_topups(id,buyer_id,payment_code,amount_vnd,status,expires_at) VALUES(?,?,?,?,'pending',?)").bind(id,buyer.id,code,amount,expires).run();return J({ok:true,topup:{id,code,amountVnd:amount,status:'pending',expiresAt:expires,qrUrl:buildVietQr(e,amount,code)}},201);
   }
   const topupStatus=p.match(/^\/api\/account\/topups\/([^/]+)$/);if(topupStatus&&method==='GET'){if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);const row=await e.DB.prepare('SELECT id,amount_vnd,status,expires_at,paid_at FROM buyer_wallet_topups WHERE id=? AND buyer_id=?').bind(clean(topupStatus[1],100),buyer.id).first();if(!row)return J({ok:false,error:'TOPUP_NOT_FOUND'},404);return J({ok:true,topup:{id:row.id,amountVnd:Number(row.amount_vnd),status:row.status,expiresAt:row.expires_at,paidAt:row.paid_at},balanceVnd:await buyerBalance(e,buyer.id)})}
   if(p==='/api/account/orders'&&method==='GET'){
@@ -1141,6 +1141,7 @@ async function ensureTenantSchema(e){
     await tenantAddColumn(e,'tenant_accounts','referrer_tenant_id','TEXT DEFAULT NULL');
     await tenantAddColumn(e,'tenant_accounts','pending_order_id','TEXT DEFAULT NULL');
     await tenantAddColumn(e,'tenant_accounts','free_bypass_count','INTEGER DEFAULT 0');
+    await tenantAddColumn(e,'tenant_accounts','free_bypass_last_at','INTEGER DEFAULT NULL');
     await tenantAddColumn(e,'tenant_accounts','free_admin_unlocked','INTEGER DEFAULT 0');
     await tenantAddColumn(e,'tenant_accounts','email_verified_at','TEXT DEFAULT NULL');
     await tenantExec(e,`CREATE TABLE IF NOT EXISTS rental_email_verifications (
@@ -1154,6 +1155,16 @@ async function ensureTenantSchema(e){
       expires_at INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT(datetime('now')),
       verified_at TEXT DEFAULT NULL
     )`);
+    await tenantAddColumn(e,'free_bypass_attempts','session_hash','TEXT DEFAULT NULL');
+    await tenantAddColumn(e,'free_bypass_attempts','provider',"TEXT DEFAULT 'bumx'");
+    await tenantAddColumn(e,'free_bypass_attempts','key_issued_at','INTEGER DEFAULT NULL');
+    await tenantExec(e,`CREATE TABLE IF NOT EXISTS free_bypass_keys (
+      id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, attempt_id TEXT NOT NULL UNIQUE,
+      key_hash TEXT NOT NULL UNIQUE, session_hash TEXT NOT NULL, expires_at INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT(datetime('now')), used_at TEXT DEFAULT NULL,
+      redemption_id TEXT DEFAULT NULL
+    )`);
+    await tenantExec(e,`CREATE INDEX IF NOT EXISTS idx_free_bypass_keys_tenant_expiry ON free_bypass_keys(tenant_id,expires_at)`);
     if(!tenantAccountHasId){
       await tenantAddColumn(e,'tenant_accounts','id','TEXT');
       if(tenantAccountHasTenantId){
@@ -1187,6 +1198,8 @@ async function ensureTenantSchema(e){
     try{await tenantExec(e,"UPDATE tenant_accounts SET deleted_at=NULL WHERE deleted_at IS NULL")}catch{}
     try{await tenantExec(e,"UPDATE tenant_accounts SET created_at=datetime('now') WHERE created_at IS NULL")}catch{}
     try{await tenantExec(e,"UPDATE tenant_accounts SET free_bypass_count=0 WHERE free_bypass_count IS NULL")}catch{}
+    // V57.3 legacy users who already completed the first Free-key step have no 24-hour anchor. Treat that first step as old enough once, so the V57.4 Link4M step can continue rather than dead-ending.
+    try{await tenantExec(e,"UPDATE tenant_accounts SET free_bypass_last_at=(CAST(strftime('%s','now') AS INTEGER)*1000)-86400000 WHERE free_bypass_count=1 AND free_bypass_last_at IS NULL")}catch{}
     try{await tenantExec(e,"UPDATE tenant_accounts SET free_admin_unlocked=0 WHERE free_admin_unlocked IS NULL")}catch{}
     try{await tenantExec(e,"UPDATE tenant_products SET views=0 WHERE views IS NULL")}catch{}
     try{await tenantExec(e,"UPDATE tenant_products SET visible=1 WHERE visible IS NULL")}catch{}
@@ -1227,7 +1240,8 @@ function tenantDaysLeft(x){
   const ex=tenantDateMs(x?.expires_at);
   return Number.isFinite(ex)?Math.max(0,Math.ceil((ex-Date.now())/86400000)):0;
 }
-function tenantInfo(x){const freeGate=String(x?.plan_type||'paid')==='free'&&Number(x?.free_admin_unlocked||0)!==1&&!x?.deleted_at&&!Number(x?.locked);return {id:x?.id??x?.tenant_id,slug:x?.slug??x?.tenant_id??x?.id,startsAt:x?.starts_at,expiresAt:x?.expires_at,daysLeft:tenantDaysLeft(x),status:freeGate?'free_bypass_required':tenantStatus(x),locked:!!x?.locked,deleted:!!x?.deleted_at,planType:String(x?.plan_type||'paid'),freeBypassCount:Number(x?.free_bypass_count||0),freeAdminUnlocked:Number(x?.free_admin_unlocked||0)===1,referralCode:String(x?.slug||x?.id||x?.tenant_id||''),createdAt:x?.created_at}}
+function tenantHasTimeLeft(x){const expiry=tenantDateMs(x?.expires_at);return Number.isFinite(expiry)&&expiry>Date.now()}
+function tenantInfo(x){const freeGate=String(x?.plan_type||'paid')==='free'&&!tenantHasTimeLeft(x)&&!x?.deleted_at&&!Number(x?.locked),lastAt=Number(x?.free_bypass_last_at||0),progress=Math.max(0,Math.min(1,Number(x?.free_bypass_count||0)));return {id:x?.id??x?.tenant_id,slug:x?.slug??x?.tenant_id??x?.id,startsAt:x?.starts_at,expiresAt:x?.expires_at,daysLeft:tenantDaysLeft(x),status:freeGate?'free_bypass_required':tenantStatus(x),locked:!!x?.locked,deleted:!!x?.deleted_at,planType:String(x?.plan_type||'paid'),freeBypassCount:progress,freeBypassLastAt:lastAt||null,freeBypassNextAt:lastAt?lastAt+86400000:null,freeBypassNextProvider:progress===0?'BumX':'Link4M',freeAdminUnlocked:Number(x?.free_admin_unlocked||0)===1,referralCode:String(x?.slug||x?.id||x?.tenant_id||''),createdAt:x?.created_at}}
 async function storeTenantPasswordHash(e,column,value,hash){
   if(!['id','tenant_id','slug'].includes(column))throw new Error('TENANT_PASSWORD_KEY_INVALID');
   const info=(await e.DB.prepare('PRAGMA table_info(tenant_accounts)').all()).results||[],byName=new Map(info.map(x=>[x.name,x]));
@@ -1348,6 +1362,32 @@ async function tenantFromSession(r,e){
     .bind(slug,String(buyer.id),String(buyer.email||''),Number(buyer.email_verified)===1?1:0,String(buyer.id)).first();
   if(!owner)return null;
   return normalizeTenantRow(e,owner);
+}
+
+// Resolve a Free-bypass tenant using the authenticated session plus the explicit
+// Studio identifier. Older clients did not always send x-tenant-slug; the ID in
+// the POST body is therefore also used as the owner-SSO lookup hint. A session is
+// never allowed to act on a tenant unless one of that tenant's canonical keys matches.
+async function tenantFromFreeBypassSession(r,e,identifier=''){
+  await ensureTenantSchema(e);
+  const requested=clean(identifier,100),requestedLower=requested.toLowerCase();
+  const originalHeaders=new Headers(r.headers);
+  // First resolve the tenant-scoped session without a possibly stale/missing UI slug.
+  const unscopedHeaders=new Headers(originalHeaders);unscopedHeaders.delete('x-tenant-slug');
+  const unscopedUrl=new URL(r.url);unscopedUrl.searchParams.delete('tenant');
+  let t=await tenantFromSession(new Request(unscopedUrl.toString(),{method:'GET',headers:unscopedHeaders}),e);
+  const matches=(candidate)=>!requested||tenantKeyValues(candidate).some(v=>String(v).toLowerCase()===requestedLower)||tenantSlug(candidate?.slug||'')===tenantSlug(requested);
+  if(t&&matches(t))return t;
+  // If this is an owner SSO session without a tenant_sessions row, resolve it using
+  // the supplied Studio slug. tenantFromSession enforces owner_user_id or verified email.
+  if(requested){
+    const slug=tenantSlug(requested),scopedHeaders=new Headers(originalHeaders);
+    scopedHeaders.set('x-tenant-slug',slug);
+    const scopedUrl=new URL(r.url);scopedUrl.searchParams.set('tenant',slug);
+    const scoped=await tenantFromSession(new Request(scopedUrl.toString(),{method:'GET',headers:scopedHeaders}),e);
+    if(scoped&&matches(scoped))return scoped;
+  }
+  return null;
 }
 
 async function tenantSettings(e,t){const k=tenantInSql(t);const rows=(await e.DB.prepare(`SELECT key,value FROM tenant_settings WHERE ${k.clause}`).bind(...k.vals).all()).results||[];const out={siteName:'Lại Húp File',studio:'Téo Studio',heroTitle:'Kho Share File riêng',heroText:'Kho file riêng của bạn.',avatar:'assets/img/default-avatar.svg',avatarVideoUrl:'',groupLink:'#',adminContact:'#',announcementEnabled:true,announcementTitle:'Thông báo từ Téo Studio',announcementText:'Hãy đọc kỹ thông báo trước khi vào web.',donateTitle:'Ủng hộ Téo',donateText:'Nếu thấy web hữu ích, bạn có thể donate để Téo có thêm động lực duy trì và nâng cấp web.',donateQr:'',ownerName:'Téo Studio',ownerText:'Kho Share File được vận hành bởi Téo Studio.',adText:'',adLink:'#',heroBackground:''};for(const x of rows){try{out[x.key]=JSON.parse(x.value)}catch{out[x.key]=x.value}}for(const key of ['groupLink','adminContact','adLink','avatarVideoUrl','socialTikTokUrl','socialYoutubeUrl'])if(out[key]&&out[key]!=='#')out[key]=safeHttpUrl(out[key],4000)||'#';for(const key of ['avatar','donateQr'])if(out[key])out[key]=safeImageValue(out[key],1500000)||'';out.ownerName='Téo Studio';out.ownerText='Kho Share File được vận hành bởi Téo Studio.';return out}
@@ -1486,6 +1526,13 @@ async function tenantStats(e,tid,days=30,month=''){
   const sellerAnalytics={summary:sellerSummary,sellers:sellerRows.map(x=>({...x,orders:Number(x.orders||0),referredGrossVnd:Number(x.referred_gross_vnd||0),commissionVnd:Number(x.commission_gross_vnd||0),studioNetVnd:Number(x.studio_net_vnd||0),platformFeeVnd:Number(x.platform_fee_vnd||0),commissionRate:Number(x.referred_gross_vnd)?Math.round(Number(x.commission_gross_vnd||0)/Number(x.referred_gross_vnd)*10000)/100:0})),byDay:sellerDaily.map(x=>({...x,orders:Number(x.orders||0),referredGrossVnd:Number(x.referred_gross_vnd||0),commissionVnd:Number(x.commission_vnd||0)})),orders:sellerOrders};
   return {days:/^\d{4}-\d{2}$/.test(String(month||''))?rows.length:n,month:/^\d{4}-\d{2}$/.test(String(month||''))?month:undefined,start,end:endDate,rows,products:productRows,productPerformance,referrers,today,viewKinds,sales,sellerAnalytics,supportReports};
 }
+async function purgeExpiredBypassArtifacts(e){
+  await ensureTenantSchema(e);
+  const now=Date.now();
+  try{await e.DB.prepare('DELETE FROM free_bypass_keys WHERE expires_at<=? OR used_at IS NOT NULL').bind(now).run()}catch{}
+  try{await e.DB.prepare("UPDATE free_bypass_attempts SET status='expired' WHERE status='key_issued' AND expires_at<=?").bind(now).run()}catch{}
+  try{await e.DB.prepare("DELETE FROM free_bypass_attempts WHERE expires_at<=? OR (status='verified' AND verified_at < datetime('now','-30 days'))").bind(now).run()}catch{}
+}
 async function purgeExpired(e){
   // Expiry changes access/plan state; it must never erase user content or financial history.
   // Keep this maintenance path additive and limited to expired ephemeral sessions/verification attempts.
@@ -1494,7 +1541,7 @@ async function purgeExpired(e){
   try{await e.DB.prepare("DELETE FROM tenant_sessions WHERE typeof(expires_at)='integer' AND expires_at<=?").bind(now).run()}catch{}
   try{await e.DB.prepare("UPDATE tenant_rental_orders SET status='expired' WHERE status='pending' AND expires_at<=?").bind(now).run()}catch{}
   try{await e.DB.prepare("DELETE FROM rental_email_verifications WHERE expires_at<=? OR (used_at IS NOT NULL AND created_at < datetime('now', '-7 days'))").bind(now).run()}catch{}
-  try{await e.DB.prepare("DELETE FROM free_bypass_attempts WHERE expires_at<=? OR (status='verified' AND verified_at < datetime('now','-30 days'))").bind(now).run()}catch{}
+  await purgeExpiredBypassArtifacts(e);
   try{await e.DB.prepare('DELETE FROM tenant_view_dedup WHERE expires_at<=?').bind(now).run()}catch{}
   try{await e.DB.prepare("DELETE FROM comment_rate_events WHERE created_at < datetime('now','-7 days')").run()}catch{}
   try{await ensureV55Schema(e);await e.DB.prepare('DELETE FROM seller_attributions WHERE expires_at<=?').bind(now).run()}catch{}
@@ -1645,15 +1692,14 @@ function isoSqlDate(ms=Date.now()){return new Date(ms).toISOString().slice(0,19)
 async function refreshTenantPlan(e,t){
   if(!t)return t;const expiry=tenantDateMs(t.expires_at),now=Date.now(),key=await tenantAccountKeyColumn(e);if(!key)return t;
   if(String(t.plan_type||'paid')==='paid'&&Number.isFinite(expiry)&&expiry<=now){
-    // Paid rental automatically falls back to Free. The Free admin remains locked until the
-    // two server-verified bypass steps are completed; public Share links can remain addressable.
-    await e.DB.prepare(`UPDATE tenant_accounts SET plan_type='free',free_bypass_count=0,free_admin_unlocked=0,expires_at=? WHERE ${key}=? AND plan_type='paid'`).bind(isoSqlDate(now),t.id).run();
-    const raw=await tenantByIdentifier(e,t.id);return await normalizeTenantRow(e,raw)||{...t,plan_type:'free',free_bypass_count:0,free_admin_unlocked:0,expires_at:isoSqlDate(now)};
+    // Paid rental automatically falls back to Free. Admin access then follows the Free expiry/key gate; public Share links can remain addressable.
+    await e.DB.prepare(`UPDATE tenant_accounts SET plan_type='free',free_bypass_count=0,free_bypass_last_at=NULL,free_admin_unlocked=0,expires_at=? WHERE ${key}=? AND plan_type='paid'`).bind(isoSqlDate(now),t.id).run();
+    const raw=await tenantByIdentifier(e,t.id);return await normalizeTenantRow(e,raw)||{...t,plan_type:'free',free_bypass_count:0,free_bypass_last_at:null,free_admin_unlocked:0,expires_at:isoSqlDate(now)};
   }
   if(String(t.plan_type||'paid')==='free'&&Number(t.free_admin_unlocked)===1&&Number.isFinite(expiry)&&expiry<=now){
-    // A Free access period has ended: require both verification steps again before re-entering Admin.
-    await e.DB.prepare(`UPDATE tenant_accounts SET free_bypass_count=0,free_admin_unlocked=0,expires_at=? WHERE ${key}=? AND plan_type='free' AND free_admin_unlocked=1`).bind(isoSqlDate(now),t.id).run();
-    const raw=await tenantByIdentifier(e,t.id);return await normalizeTenantRow(e,raw)||{...t,free_bypass_count:0,free_admin_unlocked:0,expires_at:isoSqlDate(now)};
+    // A Free access period has ended: require a fresh one-time key before re-entering Admin.
+    await e.DB.prepare(`UPDATE tenant_accounts SET free_bypass_count=0,free_bypass_last_at=NULL,free_admin_unlocked=0,expires_at=? WHERE ${key}=? AND plan_type='free' AND free_admin_unlocked=1`).bind(isoSqlDate(now),t.id).run();
+    const raw=await tenantByIdentifier(e,t.id);return await normalizeTenantRow(e,raw)||{...t,free_bypass_count:0,free_bypass_last_at:null,free_admin_unlocked:0,expires_at:isoSqlDate(now)};
   }
   return t;
 }
@@ -1691,106 +1737,124 @@ async function createFreeRentalAccount(r,e){
 
 
 function bypassProviderConfig(e){
-  const link4mKey=String(e?.LINK4M_API_KEY||'').trim();
-  const bumxKey=String(e?.BUMX_API_KEY||'').trim();
-  const verifyUrl=String(e?.FREE_BYPASS_VERIFY_URL||'').trim();
-  const verifyKey=String(e?.FREE_BYPASS_API_KEY||'').trim();
-  let verificationEndpointValid=false;
-  try{const v=new URL(verifyUrl);verificationEndpointValid=v.protocol==='https:'&&!!v.hostname&&!v.username&&!v.password}catch{}
   return {
-    link4m:{key:link4mKey,url:String(e?.LINK4M_API_URL||'https://link4m.co/api-shorten/v2').trim()},
-    bumx:{key:bumxKey,url:String(e?.BUMX_API_URL||'https://linkfree.click/s/link/shorten').trim()},
-    rewardTrafficApproved:String(e?.FREE_BYPASS_REWARDED_TRAFFIC_APPROVED||'')==='1',
-    verification:{url:verifyUrl,key:verifyKey,endpointValid:verificationEndpointValid,configured:!!(verifyKey&&verificationEndpointValid)}
+    bumx:{key:String(e?.BUMX_API_KEY||'').trim(),url:String(e?.BUMX_API_URL||'https://linkfree.click/s/link/shorten').trim()},
+    link4m:{key:String(e?.LINK4M_API_KEY||'').trim(),url:String(e?.LINK4M_API_URL||'https://link4m.co/api-shorten/v2').trim()},
+    link4mApproved:String(e?.LINK4M_REWARDED_TRAFFIC_APPROVED||'')==='1'
   };
 }
-async function createBypassShortUrl(e,step,destination){
-  const cfg=bypassProviderConfig(e);
-  // Prefer one provider per step; if only one provider is configured, reuse it.
-  // Link4M is deliberately excluded from this rewarded Free-gate flow: its published rules disallow incentivized traffic.
-  // BumX is used only after an explicit publisher approval flag and server-side completion verification are configured.
-  const providers=[cfg.bumx].filter(x=>x.key&&x.url);
-  if(!providers.length)throw new Error('FREE_BYPASS_SHORTENER_NOT_CONFIGURED');
-  let last='SHORTENER_REQUEST_FAILED';
-  for(const provider of providers){
-    try{
-      const endpoint=new URL(provider.url);
-      if(endpoint.protocol!=='https:'||endpoint.username||endpoint.password)throw new Error('SHORTENER_ENDPOINT_INVALID');
-      endpoint.searchParams.set('api',provider.key);
-      endpoint.searchParams.set('url',destination);
-      const resp=await fetch(endpoint.toString(),{
-        method:'GET',
-        headers:{accept:'application/json'},
-        redirect:'manual',
-        signal:AbortSignal.timeout(10000)
-      });
-      if(resp.status>=300&&resp.status<400)throw new Error('SHORTENER_REDIRECT_BLOCKED');
-      const raw=await resp.text();
-      if(!resp.ok)throw new Error('SHORTENER_HTTP_'+resp.status);
-      let data;try{data=JSON.parse(raw)}catch{throw new Error('SHORTENER_BAD_JSON')}
-      const payload=data?.data&&typeof data.data==='object'?data.data:data?.result&&typeof data.result==='object'?data.result:data;
-      const candidate=payload?.shortenedUrl||payload?.shortened_url||payload?.short_url||payload?.shortUrl||payload?.shortened||payload?.short_link||payload?.shortLink||payload?.link||payload?.url||data?.shortenedUrl||data?.shortened_url||data?.short_url||data?.shortUrl||data?.short_link||data?.shortLink||data?.link||data?.url;
-      const status=String(data?.status??data?.success??payload?.status??payload?.success??'').toLowerCase();
-      const statusOk=!status||['success','true','1','ok','200'].includes(status);
-      if(!(candidate&&statusOk))throw new Error(String(data?.message||data?.error||payload?.message||payload?.error||('SHORTENER_REJECTED_'+(status||'NO_URL'))));
-      const result=safeHttpUrl(candidate,2000);
-      if(!result||new URL(result).protocol!=='https:')throw new Error('SHORTENER_RESULT_INVALID');
-      return {url:result,provider};
-    }catch(err){last=String(err?.message||err||'SHORTENER_REQUEST_FAILED')}
-  }
-  throw new Error(last);
+async function createBypassShortUrl(e,providerName,destination){
+  const cfg=bypassProviderConfig(e),provider=providerName==='link4m'?cfg.link4m:cfg.bumx;
+  if(!provider.key||!provider.url)throw new Error((providerName==='link4m'?'LINK4M':'BUMX')+'_API_NOT_CONFIGURED');
+  if(providerName==='link4m'&&!cfg.link4mApproved)throw new Error('LINK4M_REWARDED_TRAFFIC_NOT_APPROVED');
+  const endpoint=new URL(provider.url);
+  if(endpoint.protocol!=='https:'||endpoint.username||endpoint.password)throw new Error('SHORTENER_ENDPOINT_INVALID');
+  endpoint.searchParams.set('api',provider.key);
+  endpoint.searchParams.set('url',destination);
+  const resp=await fetch(endpoint.toString(),{method:'GET',headers:{accept:'application/json'},redirect:'manual',signal:AbortSignal.timeout(12000)});
+  if(resp.status>=300&&resp.status<400)throw new Error('SHORTENER_REDIRECT_BLOCKED');
+  const raw=await resp.text();if(!resp.ok)throw new Error('SHORTENER_HTTP_'+resp.status);
+  let data;try{data=JSON.parse(raw)}catch{throw new Error('SHORTENER_BAD_JSON')}
+  const payload=data?.data&&typeof data.data==='object'?data.data:data?.result&&typeof data.result==='object'?data.result:data;
+  const candidate=payload?.shortenedUrl||payload?.shortened_url||payload?.short_url||payload?.shortUrl||payload?.shortened||payload?.short_link||payload?.shortLink||payload?.link||payload?.url||data?.shortenedUrl||data?.shortened_url||data?.short_url||data?.shortUrl||data?.short_link||data?.shortLink||data?.link||data?.url;
+  const status=String(data?.status??data?.success??payload?.status??payload?.success??'').toLowerCase();
+  const statusOk=providerName==='link4m'?status==='success':(!status||['success','true','1','ok','200'].includes(status));
+  if(!(candidate&&statusOk))throw new Error(String(data?.message||data?.error||payload?.message||payload?.error||('SHORTENER_REJECTED_'+(status||'NO_URL'))));
+  const result=safeHttpUrl(candidate,2000);if(!result||new URL(result).protocol!=='https:')throw new Error('SHORTENER_RESULT_INVALID');
+  return {url:result,provider:providerName==='link4m'?'Link4M':'BumX'};
+}
+async function startFreeBypass(r,e){
+  const rl=limited(r,'free-bypass-start',6,60000);if(rl)return rl;
+  await ensureTenantSchema(e);
+  const b=await r.json().catch(()=>({})),identifier=clean(b.id||b.tenant||b.slug||b.tenantId||r.headers.get('x-tenant-slug')||'',100),sessionToken=tokenFrom(r);
+  if(!sessionToken)return J({ok:false,error:'TENANT_SESSION_REQUIRED',message:'Phiên đăng nhập đã hết. Hãy đăng nhập lại rồi bắt đầu vượt link.'},401);
+  let t=await tenantFromFreeBypassSession(r,e,identifier||r.headers.get('x-tenant-slug')||'');
+  if(!t)return J({ok:false,error:'TENANT_REQUIRED',message:'Không xác định được Studio thuộc phiên đăng nhập này. Hãy đăng nhập lại Admin.'},403);
+  t=await refreshTenantPlan(e,t);
+  if(String(t.plan_type||'paid')!=='free')return J({ok:false,error:'FREE_PLAN_REQUIRED'},400);
+  if(t.locked||t.deleted_at)return J({ok:false,error:'TENANT_LOCKED'},403);
+  if(tenantHasTimeLeft(t))return J({ok:true,active:true,complete:true,expiresAt:t.expires_at,adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,message:'Studio vẫn còn thời hạn thuê. Không cần vượt link.'});
+  const now=Date.now(),progress=Math.max(0,Math.min(1,Number(t.free_bypass_count||0))),lastAt=Number(t.free_bypass_last_at||0),nextAt=lastAt?lastAt+86400000:0;
+  if(nextAt&&now<nextAt)return J({ok:false,error:'FREE_BYPASS_COOLDOWN',progress,nextAllowedAt:nextAt,retryAfterMs:nextAt-now,nextProvider:progress===0?'BumX':'Link4M',message:`Bạn đã tạo key lượt trước. Lượt tiếp theo chỉ mở sau ${new Date(nextAt).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})} (đủ 24 giờ).`},429);
+  const cfg=bypassProviderConfig(e),step=progress+1,provider=step===1?'bumx':'link4m',selected=cfg[provider];
+  if(!selected?.key||!selected?.url)return J({ok:false,error:'FREE_BYPASS_PROVIDER_NOT_CONFIGURED',provider:provider==='bumx'?'BumX':'Link4M',message:`Chưa cấu hình đủ ${provider==='bumx'?'BUMX_API_KEY và BUMX_API_URL':'LINK4M_API_KEY và LINK4M_API_URL'} trong Cloudflare.`},503);
+  if(provider==='link4m'&&!cfg.link4mApproved)return J({ok:false,error:'LINK4M_REWARDED_TRAFFIC_NOT_APPROVED',provider:'Link4M',message:'Link4M cấm traffic khuyến khích trừ khi được cấp phép đặc biệt. Chỉ bật LINK4M_REWARDED_TRAFFIC_APPROVED=1 sau khi có chấp thuận bằng văn bản.'},403);
+  try{await e.DB.prepare("UPDATE free_bypass_attempts SET status='expired' WHERE tenant_id=? AND status IN ('pending','key_issued') AND expires_at<=?").bind(String(t.id),now).run()}catch{}
+  try{await e.DB.prepare('DELETE FROM free_bypass_keys WHERE tenant_id=? AND expires_at<=?').bind(String(t.id),now).run()}catch{}
+  const active=await e.DB.prepare("SELECT COUNT(*) AS n FROM free_bypass_attempts WHERE tenant_id=? AND status IN ('pending','key_issued') AND expires_at>? ").bind(String(t.id),now).first();
+  if(Number(active?.n||0)>0)return J({ok:false,error:'BYPASS_ATTEMPT_EXISTS',message:'Bạn đã có một lượt vượt đang chờ. Hãy mở link trước đó hoặc đợi link hết hạn.'},409);
+  const state=crypto.randomUUID()+crypto.randomUUID(),attemptId=crypto.randomUUID(),expires=now+15*60*1000,sessionHash=await sha256(sessionToken);
+  await e.DB.prepare("INSERT INTO free_bypass_attempts(id,tenant_id,step,state_hash,session_hash,provider,expires_at,status) VALUES(?,?,?,?,?,?,?,'pending')").bind(attemptId,String(t.id),step,await sha256(state),sessionHash,provider,expires).run();
+  const returnUrl=`${PUBLIC_ORIGIN}/free-key.html?tenant=${encodeURIComponent(t.slug)}&state=${encodeURIComponent(state)}`;
+  let short;try{short=await createBypassShortUrl(e,provider,returnUrl)}catch(err){try{await e.DB.prepare("UPDATE free_bypass_attempts SET status='failed' WHERE id=? AND status='pending'").bind(attemptId).run()}catch{}return J({ok:false,error:'FREE_BYPASS_SHORTENER_FAILED',provider:short?.provider||provider,message:`Không tạo được link ${provider==='bumx'?'BumX':'Link4M'}. Kiểm tra API URL/key và phản hồi nhà cung cấp.`,detail:clean(err?.message||'',160)},502)}
+  return J({ok:true,step,progress,provider:short.provider,redirectUrl:short.url,expiresAt:expires,nextAllowedAt:now+86400000,message:`Mở link ${short.provider}, hoàn tất luồng rồi quay về trang nhận key. Mỗi lượt cách nhau ít nhất 24 giờ; đủ 2 lượt sẽ nhận 7 ngày Free.`},201);
 }
 
-async function startFreeBypass(r,e){
-  const rl=limited(r,'free-bypass-start',6,60000);if(rl)return rl;await ensureTenantSchema(e);const b=await r.json().catch(()=>({})),identifier=clean(b.id||'',100),password=String(b.password||'');
-  const bypassCfg=bypassProviderConfig(e);
-  let t=await tenantFromSession(r,e);if(t&&identifier&&String(t.slug||'').toLowerCase()!==String(identifier).toLowerCase())t=null;
-  if(!t){
-    const buyer=await buyerFromRequest(r,e);const ownerRaw=buyer?await tenantBySlug(e,identifier):null;
-    if(ownerRaw&&String(ownerRaw.email||'').toLowerCase()===String(buyer.email||'').toLowerCase())t=await normalizeTenantRow(e,ownerRaw);
-    else {const raw=await tenantByLogin(e,identifier,password);if(!raw||!(await tenantPasswordMatches(e,await normalizeTenantRow(e,raw),password)))return J({ok:false,error:'INVALID_LOGIN',message:'ID hoặc mật khẩu không đúng.'},401);t=await normalizeTenantRow(e,raw)}
+async function issueFreeBypassKey(r,e){
+  const rl=limited(r,'free-bypass-key-issue',5,60000);if(rl)return rl;
+  await ensureTenantSchema(e);
+  const b=await r.json().catch(()=>({})),state=clean(b.state||'',200);
+  if(!state)return J({ok:false,error:'BYPASS_STATE_REQUIRED',message:'Thiếu mã phiên. Hãy bắt đầu từ nút Vượt link trong Admin Free.'},400);
+  const now=Date.now(),stateHash=await sha256(state);
+  const attempt=await e.DB.prepare("SELECT * FROM free_bypass_attempts WHERE state_hash=? AND status='pending' AND expires_at>? LIMIT 1").bind(stateHash,now).first();
+  if(!attempt)return J({ok:false,error:'BYPASS_STATE_EXPIRED_OR_USED',message:'Phiên vượt link không hợp lệ, đã dùng hoặc hết hạn. Hãy quay lại Admin và tạo lượt mới.'},400);
+  const returnSession=tokenFrom(r);
+  if(!returnSession||await sha256(returnSession)!==String(attempt.session_hash||''))return J({ok:false,error:'BYPASS_SESSION_MISMATCH',message:'Link nhận key phải được mở trong đúng phiên đăng nhập Studio đã bắt đầu lượt vượt.'},403);
+  const raw=await tenantByIdentifier(e,attempt.tenant_id),t=raw?await normalizeTenantRow(e,raw):null;
+  if(!t||String(t.plan_type||'paid')!=='free'||t.locked||t.deleted_at)return J({ok:false,error:'TENANT_NOT_AVAILABLE',message:'Studio không còn đủ điều kiện nhận key.'},403);
+  if(tenantHasTimeLeft(t))return J({ok:false,error:'RENTAL_ALREADY_ACTIVE',message:'Studio đã có thời hạn thuê. Không cần nhận key vượt link.'},409);
+  const step=Number(attempt.step||0),provider=String(attempt.provider||'bumx'),progress=Math.max(0,Math.min(1,Number(t.free_bypass_count||0))),lastAt=Number(t.free_bypass_last_at||0);
+  if(![1,2].includes(step)||step!==progress+1||(step===1&&provider!=='bumx')||(step===2&&provider!=='link4m'))return J({ok:false,error:'BYPASS_STEP_MISMATCH',message:'Lượt vượt không còn đúng thứ tự. Hãy tải lại Admin và kiểm tra tiến độ.'},409);
+  if(step===2&&(!lastAt||now<lastAt+86400000))return J({ok:false,error:'FREE_BYPASS_COOLDOWN',nextAllowedAt:lastAt?lastAt+86400000:null,message:'Lượt Link4M chỉ mở sau ít nhất 24 giờ kể từ khi hoàn tất lượt BumX.'},429);
+  if(step===2&&!bypassProviderConfig(e).link4mApproved)return J({ok:false,error:'LINK4M_REWARDED_TRAFFIC_NOT_APPROVED',message:'Link4M chưa có xác nhận cho phép traffic khuyến khích.'},403);
+  const sessionHash=String(attempt.session_hash||'');if(!sessionHash)return J({ok:false,error:'BYPASS_SESSION_INVALID',message:'Phiên vượt cũ không thể cấp key. Hãy tạo lượt vượt mới.'},403);
+  const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',bytes=crypto.getRandomValues(new Uint8Array(20));let key='TEO-';for(const byte of bytes)key+=alphabet[byte&31];
+  const keyId=crypto.randomUUID(),keyHash=await sha256(key),keyExpires=now+5*60*1000;
+  const claimed=await e.DB.prepare("UPDATE free_bypass_attempts SET status='key_issued',key_issued_at=? WHERE id=? AND status='pending' AND expires_at>?").bind(now,attempt.id,now).run();
+  if(Number(claimed?.meta?.changes||0)!==1)return J({ok:false,error:'BYPASS_KEY_ALREADY_ISSUED',message:'Phiên này đã được sử dụng. Mỗi lượt chỉ tạo một key.'},409);
+  try{await e.DB.prepare('INSERT INTO free_bypass_keys(id,tenant_id,attempt_id,key_hash,session_hash,expires_at) VALUES(?,?,?,?,?,?)').bind(keyId,String(attempt.tenant_id),String(attempt.id),keyHash,sessionHash,keyExpires).run()}catch{try{await e.DB.prepare("UPDATE free_bypass_attempts SET status='pending',key_issued_at=NULL WHERE id=? AND status='key_issued'").bind(attempt.id).run()}catch{}return J({ok:false,error:'BYPASS_KEY_CREATE_FAILED',message:'Không lưu được key. Hãy thử lại bằng lượt vượt mới.'},500)}
+  const accountKey=await tenantAccountKeyColumn(e);
+  // Record the first BumX key issuance as the 24-hour anchor. Do not overwrite it
+  // on the second Link4M key; redemption still needs to prove the full interval.
+  const gate=accountKey?(step===1
+    ?await e.DB.prepare(`UPDATE tenant_accounts SET free_bypass_last_at=? WHERE ${accountKey}=? AND plan_type='free' AND free_bypass_count=0 AND (free_bypass_last_at IS NULL OR free_bypass_last_at<=?) AND locked=0 AND (deleted_at IS NULL OR deleted_at='')`).bind(now,t.id,now-86400000).run()
+    :await e.DB.prepare(`UPDATE tenant_accounts SET free_bypass_last_at=free_bypass_last_at WHERE ${accountKey}=? AND plan_type='free' AND free_bypass_count=1 AND free_bypass_last_at IS NOT NULL AND free_bypass_last_at<=? AND locked=0 AND (deleted_at IS NULL OR deleted_at='')`).bind(t.id,now-86400000).run()):null;
+  if(Number(gate?.meta?.changes||0)!==1){try{await e.DB.batch([e.DB.prepare('DELETE FROM free_bypass_keys WHERE id=?').bind(keyId),e.DB.prepare("UPDATE free_bypass_attempts SET status='pending',key_issued_at=NULL WHERE id=? AND status='key_issued'").bind(attempt.id)])}catch{}return J({ok:false,error:'BYPASS_COOLDOWN_OR_STATE_CHANGED',message:'Tiến độ hoặc thời gian chờ vừa thay đổi. Tải lại Admin trước khi thử lại.'},409)}
+  return J({ok:true,key,step,provider:provider==='link4m'?'Link4M':'BumX',progress,expiresAt:keyExpires,expiresIn:300,message:`Key lượt ${step}/2 đã tạo. Copy và nhập trong vòng 5 phút.`},201);
+}
+
+async function redeemFreeBypassKey(r,e){
+  const rl=limited(r,'free-bypass-key-redeem',8,60000);if(rl)return rl;
+  await ensureTenantSchema(e);
+  const b=await r.json().catch(()=>({})),keyText=String(b.key||'').trim().toUpperCase().replace(/\s+/g,'');
+  if(!/^TEO-[A-HJ-NP-Z2-9]{20}$/.test(keyText))return J({ok:false,error:'BYPASS_KEY_INVALID',message:'Key không đúng định dạng hoặc đã hết hạn.'},400);
+  const sessionToken=tokenFrom(r);if(!sessionToken)return J({ok:false,error:'TENANT_SESSION_REQUIRED',message:'Hãy đăng nhập đúng tài khoản Studio trước khi nhập key.'},401);
+  const requestedTenant=clean(r.headers.get('x-tenant-slug')||new URL(r.url).searchParams.get('tenant')||'',100);
+  const t0=await tenantFromFreeBypassSession(r,e,requestedTenant);if(!t0)return J({ok:false,error:'TENANT_REQUIRED',message:'Phiên đăng nhập không thuộc Studio này. Hãy mở Admin đúng Studio rồi nhập key.'},403);
+  const t=await refreshTenantPlan(e,t0);if(String(t.plan_type||'paid')!=='free'||t.locked||t.deleted_at)return J({ok:false,error:'FREE_PLAN_REQUIRED',message:'Key này chỉ dùng cho Studio thuộc gói Free đang hoạt động.'},403);
+  const sessionHash=await sha256(sessionToken),keyHash=await sha256(keyText),now=Date.now();
+  const row=await e.DB.prepare('SELECT id,tenant_id,attempt_id,expires_at FROM free_bypass_keys WHERE key_hash=? AND tenant_id=? AND session_hash=? AND used_at IS NULL AND expires_at>? LIMIT 1').bind(keyHash,String(t.id),sessionHash,now).first();
+  if(!row)return J({ok:false,error:'BYPASS_KEY_INVALID',message:'Key sai, đã dùng, không thuộc phiên Studio này hoặc đã quá 5 phút.'},400);
+  const attempt=await e.DB.prepare('SELECT step,provider,status FROM free_bypass_attempts WHERE id=? AND tenant_id=? LIMIT 1').bind(row.attempt_id,String(t.id)).first();
+  const step=Number(attempt?.step||0),progress=Math.max(0,Math.min(1,Number(t.free_bypass_count||0))),lastAt=Number(t.free_bypass_last_at||0);
+  if(!attempt||attempt.status!=='key_issued'||step!==progress+1||!([1,2].includes(step))||(step===1&&attempt.provider!=='bumx')||(step===2&&attempt.provider!=='link4m'))return J({ok:false,error:'BYPASS_KEY_STEP_INVALID',message:'Key không khớp lượt vượt hiện tại. Hãy tải lại Admin.'},409);
+  if(step===2&&(!lastAt||now<lastAt+86400000))return J({ok:false,error:'FREE_BYPASS_COOLDOWN',nextAllowedAt:lastAt?lastAt+86400000:null,message:'Lượt thứ hai chỉ được đổi key sau ít nhất 24 giờ kể từ lượt BumX đầu tiên.'},429);
+  const accountKey=await tenantAccountKeyColumn(e);if(!accountKey)return J({ok:false,error:'TENANT_SCHEMA_KEY_MISSING'},500);
+  const redemptionId=crypto.randomUUID(),usedAt=isoSqlDate(now),newExpiry=now+7*86400000;
+  const keyClaim=e.DB.prepare('UPDATE free_bypass_keys SET used_at=?,redemption_id=? WHERE id=? AND key_hash=? AND tenant_id=? AND session_hash=? AND used_at IS NULL AND expires_at>?').bind(usedAt,redemptionId,row.id,keyHash,String(t.id),sessionHash,now);
+  const tenantUpdate=step===1
+    ?e.DB.prepare(`UPDATE tenant_accounts SET free_bypass_count=1,free_admin_unlocked=0 WHERE ${accountKey}=? AND plan_type='free' AND free_bypass_count=0 AND free_bypass_last_at IS NOT NULL AND free_bypass_last_at<=? AND locked=0 AND (deleted_at IS NULL OR deleted_at='') AND EXISTS(SELECT 1 FROM free_bypass_keys WHERE id=? AND redemption_id=? AND used_at=?)`).bind(t.id,now,row.id,redemptionId,usedAt)
+    :e.DB.prepare(`UPDATE tenant_accounts SET free_bypass_count=0,free_admin_unlocked=1,free_bypass_last_at=NULL,expires_at=?,starts_at=? WHERE ${accountKey}=? AND plan_type='free' AND free_bypass_count=1 AND free_bypass_last_at<=? AND locked=0 AND (deleted_at IS NULL OR deleted_at='') AND EXISTS(SELECT 1 FROM free_bypass_keys WHERE id=? AND redemption_id=? AND used_at=?)`).bind(isoSqlDate(newExpiry),isoSqlDate(now),t.id,now-86400000,row.id,redemptionId,usedAt);
+  const result=await e.DB.batch([keyClaim,tenantUpdate]);
+  if(Number(result?.[0]?.meta?.changes||0)!==1||Number(result?.[1]?.meta?.changes||0)!==1){try{await e.DB.prepare('UPDATE free_bypass_keys SET used_at=NULL,redemption_id=NULL WHERE id=? AND redemption_id=?').bind(row.id,redemptionId).run()}catch{}return J({ok:false,error:'BYPASS_KEY_REDEEM_RACE',message:'Key vừa được xử lý ở yêu cầu khác hoặc trạng thái Studio đã đổi. Hãy tải lại trang.'},409)}
+  await e.DB.batch([e.DB.prepare("UPDATE free_bypass_attempts SET status='redeemed',verified_at=? WHERE id=? AND status='key_issued'").bind(usedAt,row.attempt_id),e.DB.prepare('DELETE FROM free_bypass_keys WHERE id=? AND redemption_id=?').bind(row.id,redemptionId)]);
+  if(step===1){
+    const nextAllowedAt=Number(t.free_bypass_last_at||now)+86400000;
+    try{await tenantLog(e,t.id,'system','free_bypass_step_1','Đã hoàn tất lượt 1/2 qua BumX; key một lần đã bị xóa. Lượt Link4M mở sau 24 giờ.') }catch{}
+    return J({ok:true,complete:false,progress:1,step,provider:'BumX',addedDays:0,nextProvider:'Link4M',nextAllowedAt,message:'Đã ghi nhận lượt 1/2 qua BumX. Sau 24 giờ bạn có thể vượt Link4M; hoàn tất lượt thứ hai sẽ được cộng 7 ngày Free.'});
   }
-  t=await refreshTenantPlan(e,t);if(String(t.plan_type||'paid')!=='free')return J({ok:false,error:'FREE_PLAN_REQUIRED'},400);if(t.locked||t.deleted_at)return J({ok:false,error:'TENANT_LOCKED'},403);
-  if(!bypassCfg.bumx.key)return J({ok:false,error:'FREE_BYPASS_SHORTENER_NOT_CONFIGURED',message:'Luồng Free có thưởng cần API BumX đã được xác nhận; Link4M không được dùng cho lượt truy cập có thưởng theo điều khoản công bố.'},503);
-  if(!bypassCfg.rewardTrafficApproved)return J({ok:false,error:'FREE_BYPASS_PROVIDER_POLICY_NOT_CONFIRMED',message:'Chưa có xác nhận từ BumX rằng luồng vượt link nhận thêm ngày thuê được phép. Chưa tạo link để tránh nguy cơ vi phạm chính sách nhà cung cấp.'},403);
-  if(!bypassCfg.verification.configured)return J({ok:false,error:'BYPASS_VERIFICATION_NOT_CONFIGURED',message:'Cần API xác minh hoàn thành nhiệm vụ từ phía BumX (FREE_BYPASS_VERIFY_URL và FREE_BYPASS_API_KEY). Chỉ API rút gọn link chưa đủ để cộng ngày an toàn.'},503);
-  const count=Number(t.free_bypass_count||0);if(count>=2&&Number(t.free_admin_unlocked)===1)return J({ok:true,complete:true,count:2,adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`});
-  const step=count+1;if(step>2)return J({ok:false,error:'BYPASS_STATE_INVALID'},409);const activeAttempts=await e.DB.prepare("SELECT COUNT(*) AS n FROM free_bypass_attempts WHERE tenant_id=? AND status='pending' AND expires_at>?").bind(t.id,Date.now()).first();if(Number(activeAttempts?.n||0)>=2)return J({ok:false,error:'BYPASS_ATTEMPTS_LIMITED',message:'Tài khoản đang có quá nhiều lượt vượt link chờ xử lý. Hãy dùng link đã tạo hoặc chờ phiên cũ hết hạn.'},429);const state=crypto.randomUUID()+crypto.randomUUID(),attemptId=crypto.randomUUID(),expires=Date.now()+20*60*1000;
-  await e.DB.prepare("INSERT INTO free_bypass_attempts(id,tenant_id,step,state_hash,expires_at,status) VALUES(?,?,?,?,?,'pending')").bind(attemptId,t.id,step,await sha256(state),expires).run();
-  const returnUrl=`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}&bypass=${encodeURIComponent(state)}`;
-  let short;try{short=await createBypassShortUrl(e,step,returnUrl)}catch(err){try{await e.DB.prepare("UPDATE free_bypass_attempts SET status='failed' WHERE id=? AND status='pending'").bind(attemptId).run()}catch{}return J({ok:false,error:'FREE_BYPASS_SHORTENER_FAILED',message:'Không tạo được link vượt. Kiểm tra BUMX_API_KEY và BUMX_API_URL trong Cloudflare.',detail:clean(err?.message||'',160)},502)}
-  return J({ok:true,step,count,redirectUrl:short.url,provider:'BumX',expiresAt:expires,message:`Đã tạo link vượt bước ${step}/2. Sau khi hoàn tất luồng trên trang rút gọn và quay lại, hệ thống sẽ ghi nhận lượt này.`},201);
-}
-async function verifyFreeBypassWithProvider(e,attempt,state){
-  const cfg=bypassProviderConfig(e).verification;
-  if(!cfg.configured)return {ok:false,code:'BYPASS_VERIFICATION_NOT_CONFIGURED'};
-  let response;
-  try{response=await fetch(cfg.url,{method:'POST',headers:{'accept':'application/json','content-type':'application/json','authorization':'Bearer '+cfg.key},body:JSON.stringify({state,step:Number(attempt.step),attemptId:String(attempt.id)}),redirect:'manual',signal:AbortSignal.timeout(10000)});}
-  catch(err){return {ok:false,code:'BYPASS_VERIFICATION_UNREACHABLE',detail:clean(err?.message||'',120)}}
-  if(response.status>=300&&response.status<400)return {ok:false,code:'BYPASS_VERIFICATION_REDIRECT_BLOCKED'};
-  if(!response.ok)return {ok:false,code:'BYPASS_VERIFICATION_HTTP_'+response.status};
-  let data;try{const raw=await response.text();if(raw.length>12000)return {ok:false,code:'BYPASS_VERIFICATION_RESPONSE_TOO_LARGE'};data=JSON.parse(raw)}catch{return {ok:false,code:'BYPASS_VERIFICATION_BAD_JSON'}}
-  const payload=data?.data&&typeof data.data==='object'?data.data:data;
-  if(payload?.success!==true||payload?.completed!==true||String(payload?.state??'')!==String(state))return {ok:false,code:'BYPASS_TASK_NOT_CONFIRMED'};
-  return {ok:true};
-}
-async function completeFreeBypass(r,e){
-  const rl=limited(r,'free-bypass-complete',10,60000);if(rl)return rl;await ensureTenantSchema(e);const b=await r.json().catch(()=>({})),state=clean(b.state||'',200);if(!state)return J({ok:false,error:'BYPASS_STATE_REQUIRED'},400);
-  const hash=await sha256(state),attempt=await e.DB.prepare("SELECT * FROM free_bypass_attempts WHERE state_hash=? AND status='pending' AND expires_at>? LIMIT 1").bind(hash,Date.now()).first();if(!attempt)return J({ok:false,error:'BYPASS_STATE_EXPIRED_OR_USED',message:'Phiên vượt link hết hạn hoặc đã dùng. Hãy bắt đầu lại.'},400);
-  const providerCheck=await verifyFreeBypassWithProvider(e,attempt,state);
-  if(!providerCheck.ok)return J({ok:false,error:providerCheck.code,message:providerCheck.code==='BYPASS_VERIFICATION_NOT_CONFIGURED'?'Thiếu API xác minh hoàn thành nhiệm vụ phía nhà cung cấp. Có API rút gọn link thôi chưa đủ để mở Admin Free.':providerCheck.code==='BYPASS_TASK_NOT_CONFIRMED'?'Nhà cung cấp chưa xác nhận bạn đã hoàn thành nhiệm vụ. Chưa cộng lượt; hãy hoàn tất trang vượt link rồi quay lại.':'Không xác minh được trạng thái từ nhà cung cấp. Hãy thử lại hoặc liên hệ Admin.',detail:providerCheck.detail},providerCheck.code==='BYPASS_VERIFICATION_NOT_CONFIGURED'?503:providerCheck.code==='BYPASS_TASK_NOT_CONFIRMED'?403:502);
-  const raw=await tenantByIdentifier(e,attempt.tenant_id);if(!raw)return J({ok:false,error:'TENANT_NOT_FOUND'},404);const t=await normalizeTenantRow(e,raw);if(String(t.plan_type||'paid')!=='free')return J({ok:false,error:'FREE_PLAN_REQUIRED'},409);
-  const count=Number(t.free_bypass_count||0);if(Number(attempt.step)!==count+1)return J({ok:false,error:'BYPASS_STEP_MISMATCH',message:'Lượt này không còn đúng thứ tự. Hãy bắt đầu bước hiện tại từ Admin Free.'},409);
-  const expiry=tenantDateMs(t.expires_at),base=Math.max(Date.now(),Number.isFinite(expiry)?expiry:Date.now()),newExpiry=base+2*86400000,key=await tenantAccountKeyColumn(e);if(!key)return J({ok:false,error:'TENANT_SCHEMA_KEY_MISSING'},500);
-  // Claim the step and advance the tenant counter in one D1 batch. The count predicate
-  // makes parallel completions mutually exclusive even when requests arrive from new IPs.
-  const claim=await e.DB.batch([
-    e.DB.prepare(`UPDATE tenant_accounts SET free_bypass_count=?,free_admin_unlocked=?,expires_at=?,starts_at=COALESCE(starts_at,?) WHERE ${key}=? AND plan_type='free' AND COALESCE(free_bypass_count,0)=? AND EXISTS(SELECT 1 FROM free_bypass_attempts WHERE id=? AND tenant_id=? AND step=? AND status='pending' AND expires_at>?)`).bind(count+1,count+1>=2?1:0,isoSqlDate(newExpiry),isoSqlDate(Date.now()),t.id,count,attempt.id,t.id,Number(attempt.step),Date.now()),
-    e.DB.prepare(`UPDATE free_bypass_attempts SET status='verified',verified_at=datetime('now') WHERE id=? AND status='pending' AND EXISTS(SELECT 1 FROM tenant_accounts WHERE ${key}=? AND COALESCE(free_bypass_count,0)=?)`).bind(attempt.id,t.id,count+1)
-  ]);
-  if(Number(claim?.[0]?.meta?.changes||0)!==1||Number(claim?.[1]?.meta?.changes||0)!==1)return J({ok:false,error:'BYPASS_ALREADY_USED_OR_STEP_ADVANCED',message:'Lượt vượt này đã được dùng hoặc một lượt khác đã cập nhật tài khoản. Hãy tải lại Admin Free.'},409);
-  const next=count+1>=2,adminUrl=`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`;try{await tenantLog(e,t.id,'system','free_bypass_verified',`step=${attempt.step}; count=${count+1}`)}catch{};
-  return J({ok:true,step:Number(attempt.step),count:count+1,complete:next,expiresAt:isoSqlDate(newExpiry),adminUrl,message:next?'Nhà cung cấp đã xác nhận đủ 2/2 lượt. Admin Free được mở và cộng tổng cộng 4 ngày.':'Nhà cung cấp đã xác nhận 1/2 lượt, cộng 2 ngày. Tiếp tục vượt link lần 2.'});
+  const adminUrl=`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`;try{await tenantLog(e,t.id,'system','free_bypass_cycle_redeemed','Hoàn tất 2/2 lượt BumX + Link4M; cộng 7 ngày thuê. Key đã bị xóa.') }catch{}
+  return J({ok:true,complete:true,progress:0,step,provider:'Link4M',addedDays:7,expiresAt:isoSqlDate(newExpiry),adminUrl,message:'Hoàn tất cả hai lượt. Đã cộng 7 ngày Free và mở lại Admin.'});
 }
 
 async function handleRentalOrderCreate(r,e){
@@ -1988,15 +2052,15 @@ Kết nối Telegram hoạt động bình thường.`);
   }
   if(p==='/api/tenant/bypass/test'&&r.method==='POST'){
     const rl=limited(r,'tenant-bypass-api-test',2,60000);if(rl)return rl;
-    const cfg=bypassProviderConfig(e),missing=[];
-    if(!cfg.bumx.key)missing.push('BUMX_API_KEY');
-    if(!cfg.rewardTrafficApproved)missing.push('FREE_BYPASS_REWARDED_TRAFFIC_APPROVED=1 (chỉ sau khi BumX xác nhận cho phép)');
-    if(!cfg.verification.url)missing.push('FREE_BYPASS_VERIFY_URL');
-    if(!cfg.verification.key)missing.push('FREE_BYPASS_API_KEY (Secret)');
-    if(cfg.verification.url&&!cfg.verification.endpointValid)missing.push('FREE_BYPASS_VERIFY_URL phải là HTTPS hợp lệ');
-    let shortenerTest={ok:false,provider:'',error:''};
-    if(cfg.bumx.key){try{const test=await createBypassShortUrl(e,1,`${PUBLIC_ORIGIN}/rent.html`);shortenerTest={ok:true,provider:'BumX'};}catch(err){shortenerTest.error=clean(err?.message||'SHORTENER_TEST_FAILED',120)}}
-    return J({ok:true,configured:!!(shortenerTest.ok&&cfg.rewardTrafficApproved&&cfg.verification.configured),shortener:shortenerTest,verificationConfigured:cfg.verification.configured,missing,message:shortenerTest.ok?(cfg.rewardTrafficApproved&&cfg.verification.configured?'✅ API BumX, xác nhận cho traffic có thưởng và API xác minh đã sẵn sàng. Cần thử một lượt thật.':!cfg.rewardTrafficApproved?'✅ API BumX tạo link được; ⚠️ chưa có xác nhận chính sách cho traffic có thưởng.':'✅ API BumX tạo link được; ⚠️ chưa có API xác minh nhiệm vụ nên chưa mở Admin Free an toàn.'):'❌ API rút gọn chưa phản hồi thành công. Kiểm tra secret, URL API và phản hồi nhà cung cấp.',detail:shortenerTest.error||undefined});
+    const cfg=bypassProviderConfig(e),results=[],missing=[];
+    for(const [name,entry] of [['BumX',cfg.bumx],['Link4M',cfg.link4m]]){
+      if(!entry.key||!entry.url){missing.push(name==='BumX'?'BUMX_API_KEY / BUMX_API_URL':'LINK4M_API_KEY / LINK4M_API_URL');results.push({provider:name,ok:false,error:'API_NOT_CONFIGURED'});continue;}
+      if(name==='Link4M'&&!cfg.link4mApproved){missing.push('LINK4M_REWARDED_TRAFFIC_APPROVED=1 (chỉ bật sau khi Link4M cấp phép bằng văn bản)');results.push({provider:name,ok:false,error:'REWARDED_TRAFFIC_NOT_APPROVED'});continue;}
+      try{await createBypassShortUrl(e,name.toLowerCase()==='link4m'?'link4m':'bumx',`${PUBLIC_ORIGIN}/free-key.html?test=1`);results.push({provider:name,ok:true});}
+      catch(err){results.push({provider:name,ok:false,error:clean(err?.message||'SHORTENER_TEST_FAILED',120)});}
+    }
+    const configured=results.length===2&&results.every(x=>x.ok);
+    return J({ok:true,configured,providers:results,verificationMode:'TeoStudio one-time key',missing,message:configured?'✅ Cả BumX và Link4M tạo link được. Luồng key nội bộ dùng một lần, hết hạn sau 5 phút.':'Kiểm tra từng nền tảng bên dưới. Link4M chỉ hoạt động khi có chấp thuận traffic khuyến khích.'});
   }
   if(p==='/api/tenant/telegram/status'&&r.method==='GET'){
     await ensureTenantTelegramSchema(e);
@@ -2008,7 +2072,7 @@ Kết nối Telegram hoạt động bình thường.`);
     await e.DB.prepare('DELETE FROM tenant_telegram_links WHERE tenant_id=?').bind(String(t.id)).run();
     return J({ok:true,unlinked:true});
   }
-  if(String(t.plan_type||'paid')==='free'&&Number(t.free_admin_unlocked)!==1){return J({ok:false,error:'FREE_BYPASS_REQUIRED',message:'Gói Free cần hoàn thành 2 lượt và được API xác minh phía nhà cung cấp xác nhận để mở Admin.',tenant:tenantInfo(t),bypassConfigured:(()=>{const c=bypassProviderConfig(e);return !!(c.bumx.key&&c.rewardTrafficApproved&&c.verification.configured)})()},403)}
+  if(String(t.plan_type||'paid')==='free'&&!tenantHasTimeLeft(t)){const c=bypassProviderConfig(e),progress=Math.max(0,Math.min(1,Number(t.free_bypass_count||0))),nextProvider=progress===0?'BumX':'Link4M';return J({ok:false,error:'FREE_BYPASS_REQUIRED',message:progress===0?'Thời hạn Free đã hết. Vượt BumX để lấy key lượt 1/2; sau 24 giờ vượt Link4M lượt 2/2 để nhận 7 ngày.':'Đã hoàn tất lượt BumX 1/2. Sau đủ 24 giờ, vượt Link4M để nhận thêm 7 ngày Free.',tenant:tenantInfo(t),bypassConfigured:!!(c.bumx.key&&c.bumx.url&&(progress===0||(c.link4m.key&&c.link4m.url&&c.link4mApproved))),bypassProviders:{bumxConfigured:!!(c.bumx.key&&c.bumx.url),link4mConfigured:!!(c.link4m.key&&c.link4m.url),link4mApproved:c.link4mApproved}},403)}
   if(String(t.plan_type||'paid')==='free'&&(/^\/api\/tenant\/(wallet|payout-profile|withdrawals)(?:\/|$)/.test(p)||p.includes('/orders/'))){return J({ok:false,error:'VIP_REQUIRED',message:'Tính năng kiếm tiền, bán file và rút tiền chỉ có ở gói VIP.'},403)}
   if(p==='/api/tenant/notifications'&&r.method==='GET'){
     const notifications=await notificationList(e,'tenant',t.id);
@@ -2299,8 +2363,8 @@ async function handleMasterTenant(r,e){
       if(!row)return J({ok:false,error:'TENANT_CREATE_FAILED'},500);
       if(email){await e.DB.prepare(`UPDATE tenant_accounts SET email=?,email_verified_at=COALESCE(email_verified_at,datetime('now')) WHERE ${finalKey}=?`).bind(email,tid).run();row.email=email;row.email_verified_at=row.email_verified_at||starts;}
       try{await tenantLog(e,row.id,'master','create',`plan=${planType};days=${planType==='free'?4:days}`)}catch{}
-      await createNotification(e,{recipientType:'admin',recipientId:'master',title:'Đã tạo tenant mới',body:planType==='free'?`Tài khoản ${slug} thuộc gói Free. Admin cần xác minh 2 lượt vượt link; mỗi lượt cộng 2 ngày.`:`Tài khoản ${slug} đã được tạo với thời hạn ${days} ngày.`,kind:'tenant'});
-      await createNotification(e,{recipientType:'tenant',recipientId:row.id,title:'Chào mừng đến với Téo Studio',body:planType==='free'?'Tài khoản Free đã được tạo. Hãy hoàn thành 2 lượt vượt link được máy chủ xác minh để mở Admin trong 4 ngày.':`Tài khoản ${slug} đã được tạo. Hãy đăng nhập trang quản trị tenant để bắt đầu.`,kind:'welcome'});
+      await createNotification(e,{recipientType:'admin',recipientId:'master',title:'Đã tạo tenant mới',body:planType==='free'?`Tài khoản ${slug} thuộc gói Free. Admin cần hoàn thành luồng nhận key; mỗi key hợp lệ cộng 4 ngày.`:`Tài khoản ${slug} đã được tạo với thời hạn ${days} ngày.`,kind:'tenant'});
+      await createNotification(e,{recipientType:'tenant',recipientId:row.id,title:'Chào mừng đến với Téo Studio',body:planType==='free'?'Tài khoản Free đã được tạo. Khi hết thời hạn, hãy vượt link một lần và nhập key để mở Admin thêm 4 ngày.':`Tài khoản ${slug} đã được tạo. Hãy đăng nhập trang quản trị tenant để bắt đầu.`,kind:'welcome'});
       let welcomeEmail=null;
       if(email){welcomeEmail=await notifyEmail(e,{to:email,subject:'Chào mừng bạn đến với Téo Studio',text:`Xin chào ${slug}!
 
@@ -2349,7 +2413,7 @@ async function bumpView(e,kind,productId='',source=''){
 }
 async function comments(e){return ((await e.DB.prepare('SELECT c.id,c.name,c.text,c.image,c.created_at,b.avatar FROM comments c LEFT JOIN buyer_accounts b ON b.id=c.buyer_id WHERE c.visible=1 ORDER BY c.created_at DESC LIMIT 50').all()).results||[]).map(x=>({...x,avatar:x.avatar?safeImageValue(x.avatar,800000):'',image:x.image?safeImageValue(x.image,1000000):''}))}
 async function stats(e,days=30,monthArg=''){const n=Math.max(1,Math.min(Number(days)||30,365));const today=dayVN(),month=/^\d{4}-(0[1-9]|1[0-2])$/.test(String(monthArg||''))?String(monthArg):today.slice(0,7),start=month+'-01',end=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),1)).toISOString().slice(0,10),monthlyView=!!monthArg;const rows=(await e.DB.prepare(monthlyView?`SELECT day,kind,product_id,views FROM view_daily WHERE day>=? AND day<? ORDER BY day ASC`:`SELECT day,kind,product_id,views FROM view_daily WHERE day>=date(?, '-'||?||' days') ORDER BY day ASC`).bind(...(monthlyView?[start,end]:[today,n-1])).all()).results||[];const prods=monthlyView?await e.DB.prepare(`SELECT p.id,p.title,COALESCE(v.views,0) AS views,p.sale_mode,p.price_vnd FROM products p LEFT JOIN (SELECT product_id,SUM(views) AS views FROM view_daily WHERE day>=? AND day<? AND kind='product' GROUP BY product_id) v ON v.product_id=p.id ORDER BY views DESC,p.updated_at DESC`).bind(start,end).all():await e.DB.prepare('SELECT id,title,views,sale_mode,price_vnd FROM products ORDER BY views DESC,updated_at DESC').all();let daily={orders:0,revenueVnd:0,views:0},monthly={orders:0,revenueVnd:0,byDay:[]};try{daily=await e.DB.prepare("SELECT COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenueVnd FROM product_payment_orders WHERE status='paid' AND date(paid_at,'+7 hours')=?").bind(today).first()||daily;monthly=await e.DB.prepare("SELECT COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenueVnd FROM product_payment_orders WHERE status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<date(?,'+1 month')").bind(month+'-01',month+'-01').first()||monthly;monthly.byDay=(await e.DB.prepare("SELECT date(paid_at,'+7 hours') AS day,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenueVnd FROM product_payment_orders WHERE status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<date(?,'+1 month') GROUP BY date(paid_at,'+7 hours') ORDER BY day").bind(month+'-01',month+'-01').all()).results||[];const walletToday=await e.DB.prepare("SELECT COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenueVnd FROM buyer_purchases WHERE status='paid' AND date(created_at,'+7 hours')=?").bind(today).first();daily.orders+=Number(walletToday?.orders||0);daily.revenueVnd+=Number(walletToday?.revenueVnd||0);const walletMonth=await e.DB.prepare("SELECT COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenueVnd FROM buyer_purchases WHERE status='paid' AND date(created_at,'+7 hours')>=? AND date(created_at,'+7 hours')<date(?,'+1 month')").bind(month+'-01',month+'-01').first();monthly.orders+=Number(walletMonth?.orders||0);monthly.revenueVnd+=Number(walletMonth?.revenueVnd||0);const walletByDay=(await e.DB.prepare("SELECT date(created_at,'+7 hours') AS day,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenueVnd FROM buyer_purchases WHERE status='paid' AND date(created_at,'+7 hours')>=? AND date(created_at,'+7 hours')<date(?,'+1 month') GROUP BY date(created_at,'+7 hours') ORDER BY day").bind(month+'-01',month+'-01').all()).results||[];const dayMap=new Map(monthly.byDay.map(x=>[x.day,{...x,orders:Number(x.orders||0),revenueVnd:Number(x.revenueVnd||0)}]));for(const x of walletByDay){const row=dayMap.get(x.day)||{day:x.day,orders:0,revenueVnd:0};row.orders+=Number(x.orders||0);row.revenueVnd+=Number(x.revenueVnd||0);dayMap.set(x.day,row)}monthly.byDay=[...dayMap.values()].sort((a,b)=>a.day.localeCompare(b.day));}catch{}let referrers=[],paidViewsByDay=[];try{referrers=(await e.DB.prepare(monthlyView?`SELECT domain,SUM(views) AS views FROM view_referrers_daily WHERE day>=? AND day<? GROUP BY domain ORDER BY views DESC LIMIT 50`:`SELECT domain,SUM(views) AS views FROM view_referrers_daily WHERE day>=date(?, '-'||?||' days') GROUP BY domain ORDER BY views DESC LIMIT 50`).bind(...(monthlyView?[start,end]:[today,n-1])).all()).results||[]}catch{}try{paidViewsByDay=(await e.DB.prepare(monthlyView?`SELECT v.day,v.product_id,p.title,SUM(v.views) AS views FROM view_daily v JOIN products p ON p.id=v.product_id WHERE v.day>=? AND v.day<? AND p.sale_mode IN ('paid','both') AND v.kind IN ('product','outbound') GROUP BY v.day,v.product_id,p.title ORDER BY v.day DESC,views DESC`:`SELECT v.day,v.product_id,p.title,SUM(v.views) AS views FROM view_daily v JOIN products p ON p.id=v.product_id WHERE v.day>=date(?, '-'||?||' days') AND p.sale_mode IN ('paid','both') AND v.kind IN ('product','outbound') GROUP BY v.day,v.product_id,p.title ORDER BY v.day DESC,views DESC`).bind(...(monthlyView?[start,end]:[today,Math.max(n-1,29)])).all()).results||[]}catch{}return {days:n,rows,products:prods.results||[],referrers,paidViewsByDay,today:rows.filter(x=>x.day===today).reduce((a,x)=>a+Number(x.views||0),0),sales:{today:{orders:Number(daily.orders||0),revenueVnd:Number(daily.revenueVnd||0)},month:{orders:Number(monthly.orders||0),revenueVnd:Number(monthly.revenueVnd||0),byDay:monthly.byDay||[]}}} }
-export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}},async fetch(r,e){const u=new URL(r.url);const p=u.pathname.replace(/\/$/,'');const host=u.hostname.toLowerCase();const wrongHost=host.endsWith('.workers.dev')||host==='www.teostudio.top';if(wrongHost&&p!=='/api/webhook/sepay'){const canonical=PUBLIC_ORIGIN+(p||'/')+u.search;if(!p.startsWith('/api/')&&['GET','HEAD'].includes(r.method))return Response.redirect(canonical,302);if(p.startsWith('/api/'))return J({ok:false,error:'CANONICAL_HOST_REQUIRED',message:'Bạn đang mở địa chỉ thử nghiệm hoặc tên miền phụ. Hãy mở https://teostudio.top để đăng nhập và sử dụng các chức năng.'},421);return J({ok:false,error:'CANONICAL_HOST_REQUIRED',message:'Hãy mở https://teostudio.top.'},421)}if(r.method==='OPTIONS')return new Response(null,{headers:C});try{
+export default{async scheduled(controller,e){if(String(controller?.cron||'')==='*/5 * * * *'){try{await purgeExpiredBypassArtifacts(e)}catch{};return}try{await purgeExpired(e)}catch{}},async fetch(r,e){const u=new URL(r.url);const p=u.pathname.replace(/\/$/,'');const host=u.hostname.toLowerCase();const wrongHost=host.endsWith('.workers.dev')||host==='www.teostudio.top';if(wrongHost&&p!=='/api/webhook/sepay'){const canonical=PUBLIC_ORIGIN+(p||'/')+u.search;if(!p.startsWith('/api/')&&['GET','HEAD'].includes(r.method))return Response.redirect(canonical,302);if(p.startsWith('/api/'))return J({ok:false,error:'CANONICAL_HOST_REQUIRED',message:'Bạn đang mở địa chỉ thử nghiệm hoặc tên miền phụ. Hãy mở https://teostudio.top để đăng nhập và sử dụng các chức năng.'},421);return J({ok:false,error:'CANONICAL_HOST_REQUIRED',message:'Hãy mở https://teostudio.top.'},421)}if(r.method==='OPTIONS')return new Response(null,{headers:C});try{
   if(u.pathname.length>2048||u.search.length>4096)return J({ok:false,error:'URI_TOO_LARGE'},414);
   // Reject cross-site browser writes to cookie/session-backed APIs. SePay server webhook is exempt.
   if(p.startsWith('/api/')&&!['GET','HEAD','OPTIONS'].includes(r.method)&&p!='/api/webhook/sepay'&&p!='/api/webhook/card-provider'){
@@ -2498,12 +2562,14 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
       ORDER BY bp.created_at DESC,bp.amount_vnd DESC LIMIT 200`).all()).results||[];
     return J({ok:true,sales:rows.map(x=>({productId:clean(x.product_id,100),title:clean(x.title,160),amountVnd:Number(x.amount_vnd||0),createdAt:x.created_at,name:clean(x.display_name||'Khách',60),emailMasked:maskEmail(x.email),avatar:x.buyer_account_id?'/media/buyer-avatar/'+encodeURIComponent(clean(x.buyer_account_id,100)):'/assets/img/default-avatar.svg',thumb:x.available_product_id?'/media/product/'+encodeURIComponent(clean(x.available_product_id,100)):'/assets/img/default-avatar.svg'}))});
   }
-  if(p==='/api/rental/config'&&r.method==='GET')return J({...paymentConfig(e),freeBypassConfigured:!!(bypassProviderConfig(e).bumx.key&&bypassProviderConfig(e).rewardTrafficApproved&&bypassProviderConfig(e).verification.configured),emailConfigured:!!e.OXMAIL_SMTP_PASS});
+  if(p==='/api/rental/config'&&r.method==='GET'){const c=bypassProviderConfig(e);return J({...paymentConfig(e),freeBypassConfigured:!!(c.bumx.key&&c.bumx.url),freeBypassProviders:{bumx:!!(c.bumx.key&&c.bumx.url),link4m:!!(c.link4m.key&&c.link4m.url),link4mApproved:c.link4mApproved},emailConfigured:!!e.OXMAIL_SMTP_PASS})}
   if(p==='/api/rental/email/start'&&r.method==='POST')return await startRentalEmailVerification(r,e);
   if(p==='/api/rental/email/verify'&&r.method==='POST')return await verifyRentalEmail(r,e);
   if(p==='/api/rental/free/create'&&r.method==='POST')return await createFreeRentalAccount(r,e);
   if(p==='/api/rental/free/bypass/start'&&r.method==='POST')return await startFreeBypass(r,e);
-  if(p==='/api/rental/free/bypass/complete'&&r.method==='POST')return await completeFreeBypass(r,e);
+  if(p==='/api/rental/free/bypass/issue'&&r.method==='POST')return await issueFreeBypassKey(r,e);
+  if(p==='/api/rental/free/bypass/redeem'&&r.method==='POST')return await redeemFreeBypassKey(r,e);
+  if(p==='/api/rental/free/bypass/complete'&&r.method==='POST')return J({ok:false,error:'BYPASS_FLOW_REPLACED',message:'Luồng cũ đã được thay bằng key một lần. Hãy tạo link mới từ Admin Free.'},410);
   if(p==='/api/rental/orders/create'&&r.method==='POST')return await handleRentalOrderCreate(r,e);
   const rentalOrderMatch=p.match(/^\/api\/rental\/orders\/([^/]+)$/);if(rentalOrderMatch&&r.method==='GET')return await handleRentalOrderStatus(r,e,rentalOrderMatch[1]);
   if(p==='/api/health'){const cs=runtimeConfigStatus(e);return J({ok:true,service:'teo-studio-api',version:BUILD_VERSION,frontendVersion:BUILD_VERSION,auth:'admin-key-session',payment:paymentConfig(e),config:{d1:cs.database.configured,aiConfigured:cs.ai.ready,emailConfigured:cs.email.configured,telegramConfigured:cs.telegram.configured,turnstileConfigured:cs.turnstile.configured,sepayConfigured:cs.sepay.configured,cardExchangePartnerConfigured:cs.cardExchange.partnerConfigured,cardWithdrawalMode:cs.cardExchange.withdrawalMode,cardWithdrawalEncryptionConfigured:cs.cardExchange.withdrawalEncryptionConfigured}})}

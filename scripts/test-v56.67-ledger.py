@@ -75,24 +75,35 @@ c.execute("INSERT INTO buyer_wallet_ledger VALUES('credit1','b1',8000,'card_topu
 c.execute("INSERT OR IGNORE INTO buyer_wallet_ledger VALUES('credit2','b1',8000,'card_topup','card_topup','topup1','duplicate',datetime('now'))")
 assert c.execute("SELECT COUNT(*) FROM buyer_wallet_ledger WHERE buyer_id='b1'").fetchone()[0] == 1
 
-# Atomic Free-bypass claim: replay cannot advance the same step twice.
+# V57.3 one-time Free key: short lifetime, session binding, atomic consume and deletion.
 c.execute("INSERT INTO tenant_accounts VALUES('t1','free',0,0,'2026-01-01',NULL)")
-c.execute("INSERT INTO free_bypass_attempts(id,tenant_id,step,status,expires_at) VALUES('a1','t1',1,'pending',9999999999999)")
+c.execute("CREATE TABLE free_bypass_keys(id TEXT PRIMARY KEY,tenant_id TEXT,attempt_id TEXT UNIQUE,key_hash TEXT UNIQUE,session_hash TEXT,expires_at INTEGER,used_at TEXT,redemption_id TEXT)")
+c.execute("INSERT INTO free_bypass_attempts(id,tenant_id,step,status,expires_at) VALUES('a1','t1',1,'key_issued',9999999999999)")
+c.execute("INSERT INTO free_bypass_keys(id,tenant_id,attempt_id,key_hash,session_hash,expires_at) VALUES('k1','t1','a1','hash-key','same-session',9999999999999)")
 c.commit()
-update_tenant = """UPDATE tenant_accounts SET free_bypass_count=?,free_admin_unlocked=?,expires_at=?,starts_at=COALESCE(starts_at,?)
-WHERE id=? AND plan_type='free' AND COALESCE(free_bypass_count,0)=?
-AND EXISTS(SELECT 1 FROM free_bypass_attempts WHERE id=? AND tenant_id=? AND step=? AND status='pending' AND expires_at>?)"""
-mark_attempt = """UPDATE free_bypass_attempts SET status='verified',verified_at=datetime('now')
-WHERE id=? AND status='pending' AND EXISTS(SELECT 1 FROM tenant_accounts WHERE id=? AND COALESCE(free_bypass_count,0)=?)"""
+now = 100
+redemption_id = str(uuid.uuid4())
+used_at = '2026-11-04 00:00:00'
+claim_key = "UPDATE free_bypass_keys SET used_at=?,redemption_id=? WHERE id='k1' AND key_hash='hash-key' AND tenant_id='t1' AND session_hash='same-session' AND used_at IS NULL AND expires_at>?"
+update_tenant = """UPDATE tenant_accounts SET free_bypass_count=1,free_admin_unlocked=1,expires_at='2026-11-08',starts_at=COALESCE(starts_at,'2026-11-04')
+WHERE id='t1' AND plan_type='free' AND EXISTS(SELECT 1 FROM free_bypass_keys WHERE id='k1' AND redemption_id=? AND used_at=?)"""
 c.execute('BEGIN')
-a = c.execute(update_tenant, (1,0,'2026-01-03','2026-01-03','t1',0,'a1','t1',1,1)).rowcount
-b = c.execute(mark_attempt, ('a1','t1',1)).rowcount
+a = c.execute(claim_key, (used_at, redemption_id, now)).rowcount
+b = c.execute(update_tenant, (redemption_id, used_at)).rowcount
 c.commit()
 assert (a,b) == (1,1)
+assert c.execute("SELECT free_bypass_count,free_admin_unlocked,expires_at FROM tenant_accounts WHERE id='t1'").fetchone() == (1,1,'2026-11-08')
+# The same key cannot be claimed twice, and another browser session cannot redeem it.
 c.execute('BEGIN')
-a = c.execute(update_tenant, (1,0,'2026-01-03','2026-01-03','t1',0,'a1','t1',1,1)).rowcount
-b = c.execute(mark_attempt, ('a1','t1',1)).rowcount
+replay = c.execute(claim_key, ('2026-11-04 00:00:01',str(uuid.uuid4()),now)).rowcount
 c.commit()
-assert (a,b) == (0,0)
+assert replay == 0
+# Copy is a client action; database stores only a key hash and removes the row after redemption.
+c.execute("DELETE FROM free_bypass_keys WHERE id='k1' AND redemption_id=?", (redemption_id,))
+assert c.execute("SELECT COUNT(*) FROM free_bypass_keys WHERE id='k1'").fetchone()[0] == 0
+# An expired key cannot be claimed.
+c.execute("INSERT INTO free_bypass_keys(id,tenant_id,attempt_id,key_hash,session_hash,expires_at) VALUES('k2','t1','a2','hash-expired','same-session',50)")
+expired = c.execute("UPDATE free_bypass_keys SET used_at='2026-11-04 00:00:02' WHERE id='k2' AND used_at IS NULL AND expires_at>?", (now,)).rowcount
+assert expired == 0
 
-print('PASS V56.68 SQLite smoke tests: 105% manual reservation, idempotent rejection refund, Admin manual delivery field, persistent limits, duplicate top-up callback protection, and atomic Free-bypass claim.')
+print('PASS SQLite smoke tests: 105% manual reservation, idempotent rejection refund, Admin manual delivery field, persistent limits, duplicate top-up callback protection, and V57.3 one-time Free-key claim/replay/expiry/delete.')
