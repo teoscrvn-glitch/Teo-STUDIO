@@ -26,5 +26,6 @@ html{scroll-behavior:smooth}
 .earn-feature:hover{transform:translateY(-2px);border-color:rgba(167,139,250,.45)}
 .footer{border-top-color:var(--teo-ui-line)}
 @media(max-width:640px){.hero{padding:28px 0 26px}.hero h1{font-size:clamp(31px,9vw,43px);line-height:1.06}.hero-subtitle{margin-bottom:18px}.product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.product-body{padding:11px}.product-body h3{font-size:14px}.product-body p{font-size:11px}.earn-promo{border-radius:20px}}
-@media(max-width:390px){.product-grid{grid-template-columns:1fr}}
+/* Keep Share File cards in two columns on narrow phones. */
+@media(max-width:390px){.product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.product-body{padding:8px}.product-body h3{font-size:12px}.product-body p{font-size:10px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.product-card,.earn-feature{transition:none}}
