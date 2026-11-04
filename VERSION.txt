@@ -1,2 +1,2 @@
-v56.64-seller-security-polish
-Base: TeoStudio-V56.63-Seller-Ads-Complete
+v57.0-prepublic-design-legal-security
+Base: TeoStudio V56.69 Seller Analytics + Free Bypass Fix + V56.68 Terms

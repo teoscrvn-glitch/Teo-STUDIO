@@ -1,0 +1,57 @@
+/* TeoStudio V57.0 · visual system based on the submitted design video and review screenshots */
+:root{--teo-violet:#9b83ff;--teo-violet-2:#7259d9;--teo-cyan:#42e7dc;--teo-pink:#f06aab;--teo-ink:#080a13;--teo-surface:#111522;--teo-line:rgba(170,158,255,.19);--teo-text:#f3f2fb;--teo-muted:#a8adc0;--teo-radius:17px}
+html{scroll-behavior:smooth;scroll-padding-top:88px;color-scheme:dark}
+body{background-color:var(--teo-ink)}
+:where(button,a,input,select,textarea,[tabindex]):focus-visible{outline:3px solid rgba(66,231,220,.88)!important;outline-offset:3px!important}
+:where(button,a){-webkit-tap-highlight-color:transparent}
+:where(h1,h2,h3).teo-gradient-title,.hero-content h1,.section-head h2,.admin-page-head h1{background:linear-gradient(100deg,#fff 3%,#d9cbff 49%,#9cefe9 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-wrap:balance}
+.eyebrow,.notice-pill,.modal-kicker{letter-spacing:.14em}
+:where(.admin-card,.service-panel,.support-box,.product-card,.earn-promo,.analytics-detail-card,.teo-builder-card){border-color:var(--teo-line)}
+:where(.admin-card,.service-panel,.support-box,.product-card,.analytics-detail-card){box-shadow:0 14px 38px rgba(0,0,0,.17)}
+:where(.btn,.mini-btn,.header-tag,.table-btn,.teo-primary,.teo-secondary){transition:transform .18s ease,border-color .18s ease,filter .18s ease,box-shadow .18s ease}
+:where(.btn,.mini-btn,.header-tag,.table-btn,.teo-primary,.teo-secondary):hover{filter:brightness(1.08)}
+:where(.btn.primary,.teo-primary){background:linear-gradient(110deg,#7459d9,#9568e8 58%,#4baeb7);box-shadow:0 8px 25px rgba(117,89,217,.2)}
+:where(.admin-card,.service-panel,.teo-account-panel){backdrop-filter:blur(10px)}
+:where(input,select,textarea){accent-color:var(--teo-violet)}
+img{max-width:100%}
+.teo-policy-footer{border-top:1px solid var(--teo-line);padding:22px 14px 92px;margin-top:38px;color:var(--teo-muted);font-size:12px}
+.teo-policy-footer-inner{max-width:1180px;margin:auto;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between}
+.teo-policy-footer a{color:#d2c6ff;text-decoration:none}.teo-policy-footer a:hover{text-decoration:underline;color:#fff}
+.teo-cookie-notice{position:fixed;z-index:11020;left:16px;right:16px;bottom:16px;margin:auto;max-width:760px;padding:15px 16px;border:1px solid rgba(155,131,255,.36);border-radius:16px;background:rgba(13,17,30,.97);box-shadow:0 18px 54px rgba(0,0,0,.42);display:grid;grid-template-columns:1fr auto;gap:12px;color:#f4f3fb}
+.teo-cookie-notice p{margin:4px 0 0;color:#b7bdd0;font-size:12px;line-height:1.5}.teo-cookie-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.teo-cookie-actions button,.teo-cookie-actions a{border:1px solid rgba(255,255,255,.16);border-radius:10px;background:rgba(255,255,255,.06);color:#fff;padding:9px 12px;font:inherit;font-size:12px;text-decoration:none}.teo-cookie-actions button{background:#7459d9;border-color:#9278f0;font-weight:800}
+.teo-legal-page{min-height:100vh;background:radial-gradient(ellipse at 10% 0%,rgba(55,213,204,.11),transparent 34%),radial-gradient(ellipse at 92% 14%,rgba(223,77,151,.10),transparent 36%),#080a13;color:var(--teo-text)}
+.teo-legal-top{max-width:1100px;margin:auto;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;gap:14px;border-bottom:1px solid rgba(255,255,255,.08)}
+.teo-legal-top a{color:#d4caff;text-decoration:none;font-size:13px;font-weight:700}
+.teo-legal-shell{max-width:1100px;margin:auto;padding:clamp(22px,5vw,54px) 18px 80px}
+.teo-legal-hero{padding:clamp(20px,4vw,36px);border:1px solid rgba(155,131,255,.22);border-radius:22px;background:linear-gradient(125deg,rgba(41,33,82,.55),rgba(15,26,42,.83));box-shadow:0 22px 55px rgba(0,0,0,.23)}
+.teo-legal-kicker{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(66,231,220,.25);border-radius:999px;background:rgba(66,231,220,.08);color:#80f1e9;padding:7px 12px;font-size:10px;font-weight:900;letter-spacing:.15em}
+.teo-legal-hero h1{font-size:clamp(30px,5.5vw,48px);line-height:1.08;margin:15px 0 10px;background:linear-gradient(100deg,#fff,#d7caff 54%,#70e8df);-webkit-background-clip:text;background-clip:text;color:transparent;text-wrap:balance}
+.teo-legal-hero p{max-width:780px;color:#c0c3d2;line-height:1.7;margin:0}
+.teo-legal-meta{display:flex;gap:8px 18px;flex-wrap:wrap;color:#989fb5;font-size:11px;margin-top:17px}
+.teo-legal-grid{display:grid;grid-template-columns:245px minmax(0,1fr);gap:18px;margin-top:18px;align-items:start}
+.teo-legal-toc,.teo-legal-content{border:1px solid rgba(165,156,212,.16);border-radius:17px;background:rgba(16,20,33,.88)}
+.teo-legal-toc{position:sticky;top:14px;padding:16px;display:grid;gap:7px}
+.teo-legal-toc b{font-size:12px;color:#d9d0ff;margin-bottom:5px}.teo-legal-toc a{font-size:12px;color:#b9bfd0;text-decoration:none;padding:7px 8px;border-radius:8px}.teo-legal-toc a:hover{background:rgba(155,131,255,.11);color:#fff}
+.teo-legal-content{padding:clamp(18px,3vw,30px)}
+.teo-legal-content section{padding:0 0 22px;margin:0 0 22px;border-bottom:1px solid rgba(255,255,255,.075);scroll-margin-top:20px}
+.teo-legal-content section:last-child{border:0;margin:0;padding:0}
+.teo-legal-content h2{font-size:clamp(17px,2.7vw,22px);margin:0 0 12px;color:#f0edff}
+.teo-legal-content h3{font-size:15px;margin:16px 0 7px;color:#d8d0ff}
+.teo-legal-content p,.teo-legal-content li{font-size:13px;line-height:1.75;color:#c0c5d4}
+.teo-legal-content ul,.teo-legal-content ol{padding-left:20px}
+.teo-legal-content a{color:#8beae2;text-underline-offset:3px}
+.teo-legal-callout{border:1px solid rgba(240,106,171,.27);background:rgba(240,106,171,.07);border-radius:13px;padding:13px 14px;color:#f6c6dc;font-size:12px;line-height:1.65;margin:15px 0}
+.teo-legal-callout.teo-info{border-color:rgba(66,231,220,.24);background:rgba(66,231,220,.055);color:#c4f5ef}
+.teo-legal-placeholder{background:rgba(245,158,11,.1);border:1px dashed rgba(245,158,11,.45);border-radius:10px;padding:12px;color:#ffe0a5;font-size:12px;line-height:1.6}
+.teo-legal-doc-nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}.teo-legal-doc-nav a{padding:9px 12px;border:1px solid rgba(165,156,212,.22);border-radius:10px;color:#d5ceef;text-decoration:none;font-size:12px}.teo-legal-doc-nav a[aria-current=page]{border-color:#8f7be8;background:rgba(143,123,232,.14);color:#fff}
+.teo-rights-card{max-width:760px;margin:24px auto;padding:22px;border:1px solid rgba(155,131,255,.23);border-radius:18px;background:rgba(16,20,33,.92)}
+.teo-rights-form{display:grid;gap:13px}.teo-rights-form label{display:grid;gap:6px;font-size:13px;color:#d5d7e4}.teo-rights-form input,.teo-rights-form select,.teo-rights-form textarea{width:100%;box-sizing:border-box;padding:12px;border:1px solid rgba(165,156,212,.27);border-radius:11px;background:#090e1a;color:#fff;font:inherit}.teo-rights-form textarea{min-height:115px;resize:vertical}.teo-rights-status{font-size:12px;color:#a7e7d9;min-height:20px}
+.teo-reveal{opacity:0;transform:translateY(12px);transition:opacity .42s ease,transform .42s ease}.teo-reveal.is-visible{opacity:1;transform:none}
+@media(max-width:760px){.teo-legal-grid{grid-template-columns:1fr}.teo-legal-toc{position:static;grid-template-columns:repeat(2,minmax(0,1fr))}.teo-legal-toc b{grid-column:1/-1}.teo-cookie-notice{grid-template-columns:1fr;bottom:8px;left:8px;right:8px}.teo-cookie-actions{justify-content:flex-end}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.teo-reveal{opacity:1;transform:none;transition:none}*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+.teo-terms-consent a{color:#9feee6;text-decoration:underline;text-underline-offset:3px;font-weight:700}.teo-terms-consent{align-items:flex-start;line-height:1.55}.teo-terms-consent input{width:18px;height:18px;accent-color:#8d76ed;flex:none;margin-top:2px}
+.teo-rights-item{padding:13px 0;border-bottom:1px solid rgba(255,255,255,.08);display:grid;gap:5px}.teo-rights-item:last-child{border:0}.teo-rights-item span,.teo-rights-item small{font-size:11px;color:#9ea7be}.teo-rights-item p{margin:0;font-size:12px;line-height:1.6;color:#c7cada}
+
+.teo-skip-link{position:fixed;left:12px;top:8px;z-index:12000;transform:translateY(-160%);padding:10px 14px;background:#fff;color:#111;border-radius:10px;font-size:13px;font-weight:800}.teo-skip-link:focus{transform:translateY(0)}
+
+.teo-policy-footer-links{display:flex;flex-wrap:wrap;align-items:center;gap:9px 16px;margin-top:12px}.teo-policy-footer-inner{align-items:center}

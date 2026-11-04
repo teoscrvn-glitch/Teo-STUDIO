@@ -50,7 +50,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v56.68-account-analytics-manual-card-withdrawal';
+const BUILD_VERSION='v57.0-prepublic-design-legal-security';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -422,7 +422,7 @@ async function recordBuyerActivity(e,buyerId,eventType,pagePath='',detail=''){
   await e.DB.prepare('INSERT INTO buyer_activity_events(id,buyer_id,event_type,page_path,detail) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),String(buyerId),String(eventType),path,clean(detail,180)).run();
   try{await e.DB.prepare(`DELETE FROM buyer_activity_events WHERE buyer_id=? AND id NOT IN (SELECT id FROM buyer_activity_events WHERE buyer_id=? ORDER BY created_at DESC LIMIT 250)`).bind(String(buyerId),String(buyerId)).run()}catch{}
 }
-// === V56.68 manual card withdrawals, shared account security and analytics ===
+// === V56.68 manual card withdrawals + V56.69 seller analytics and Free bypass fix ===
 const CARD_VENDOR_TYPES={vinaphone:'VINAPHONE',mobifone:'MOBIFONE',viettel:'VIETTEL',garena:'GARENA',zing:'ZING'};
 function md5hex(input){
   const bytes=new TextEncoder().encode(String(input)),len=bytes.length,buf=new Uint8Array(((len+8>>>6)+1)*64);buf.set(bytes);buf[len]=0x80;const bitLen=len*8;for(let i=0;i<8;i++)buf[buf.length-8+i]=Math.floor(bitLen/Math.pow(256,i))&255;
@@ -506,10 +506,32 @@ async function createCardRedemption(e,{actorType,actorId,telco,face,requestKey})
   return J({ok:true,id,status:'pending',faceVnd:face,debitVnd:debit,message:'Đã gửi yêu cầu tới Admin chính. Admin sẽ duyệt và gửi thẻ thủ công; hệ thống không tự động mua thẻ.'},201);
 }
 
+const LEGAL_TERMS_VERSION='2026-11-04-v1.0';
+const LEGAL_PRIVACY_VERSION='2026-11-04-v1.0';
+async function ensureLegalSchema(e){
+  await e.DB.batch([
+    e.DB.prepare(`CREATE TABLE IF NOT EXISTS legal_acceptances(
+      id TEXT PRIMARY KEY, account_id TEXT NOT NULL, document_key TEXT NOT NULL,
+      document_version TEXT NOT NULL, accepted_at TEXT NOT NULL DEFAULT(datetime('now')),
+      acceptance_method TEXT NOT NULL DEFAULT 'web-registration',
+      UNIQUE(account_id,document_key,document_version)
+    )`),
+    e.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_legal_acceptances_account ON legal_acceptances(account_id,accepted_at)`),
+    e.DB.prepare(`CREATE TABLE IF NOT EXISTS privacy_rights_requests(
+      id TEXT PRIMARY KEY, account_id TEXT NOT NULL, request_type TEXT NOT NULL,
+      message TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'received',
+      admin_note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT(datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT(datetime('now'))
+    )`),
+    e.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_privacy_requests_status ON privacy_rights_requests(status,created_at)`),
+    e.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_privacy_requests_account ON privacy_rights_requests(account_id,created_at)`)
+  ]);
+}
 async function accountApi(r,e,p){
-  await ensureV55Schema(e);const method=r.method,b=method==='POST'||method==='PUT'?await r.json().catch(()=>({})):{};
+  await ensureV55Schema(e);await ensureLegalSchema(e);const method=r.method,b=method==='POST'||method==='PUT'?await r.json().catch(()=>({})):{};
   if(p==='/api/account/register'&&method==='POST'){
     const rl=limited(r,'account-register',3,60000);if(rl)return rl;
+    if(b.termsAccepted!==true||b.privacyAcknowledged!==true||b.termsVersion!==LEGAL_TERMS_VERSION||b.privacyVersion!==LEGAL_PRIVACY_VERSION){return J({ok:false,error:'LEGAL_ACCEPTANCE_REQUIRED',message:'Bạn cần đọc và đồng ý Điều khoản sử dụng cùng Thông báo quyền riêng tư phiên bản hiện hành trước khi tạo tài khoản.',required:{termsVersion:LEGAL_TERMS_VERSION,privacyVersion:LEGAL_PRIVACY_VERSION}},400)}
     const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi đăng ký.'},400);
     const email=validEmail(b.email||'').toLowerCase(),loginId=clean(b.loginId||b.username||'',32),name=clean(b.displayName||loginId,80),password=String(b.password||'');
     if(email&&await securityBlocked(e,'email',email))return J({ok:false,error:'NOT_FOUND',message:'Không thể thực hiện yêu cầu.'},404);
@@ -524,6 +546,10 @@ async function accountApi(r,e,p){
       if(existing)await e.DB.prepare("UPDATE buyer_accounts SET email=?,email_normalized=?,login_id=?,display_name=?,password_hash=?,email_verified=0,updated_at=datetime('now') WHERE id=?").bind(email,email,loginId,name,hash,id).run();
       else await e.DB.prepare('INSERT INTO buyer_accounts(id,email,email_normalized,login_id,display_name,password_hash) VALUES(?,?,?,?,?,?)').bind(id,email,email,loginId,name,hash).run();
     }catch(err){if(String(err?.message||'').toLowerCase().includes('unique'))return J({ok:false,error:'LOGIN_ID_EXISTS',message:'ID hoặc email đã được sử dụng.'},409);throw err}
+    await e.DB.batch([
+      e.DB.prepare(`INSERT OR IGNORE INTO legal_acceptances(id,account_id,document_key,document_version,acceptance_method) VALUES(?,?,?,?,?)`).bind(crypto.randomUUID(),id,'terms',LEGAL_TERMS_VERSION,'web-registration'),
+      e.DB.prepare(`INSERT OR IGNORE INTO legal_acceptances(id,account_id,document_key,document_version,acceptance_method) VALUES(?,?,?,?,?)`).bind(crypto.randomUUID(),id,'privacy-notice',LEGAL_PRIVACY_VERSION,'web-registration')
+    ]);
     const sent=await saveBuyerCode(e,email,'verify');if(!sent.ok)return J({ok:false,error:'EMAIL_SEND_FAILED',message:'Chưa gửi được email xác minh. Kiểm tra cấu hình email hoặc thử lại.'},502);
     await notifyEmail(e,{to:email,subject:'TeoStudio: yêu cầu tạo tài khoản',text:`Xin chào ${name},\n\nChúng tôi đã nhận yêu cầu tạo tài khoản TeoStudio với ID: ${loginId}. Mã xác minh đã được gửi trong email riêng. Không chia sẻ mã này cho người khác.`});
     return J({ok:true,requiresVerification:true,message:'Đã gửi mã xác minh vào email.'},201);
@@ -547,6 +573,9 @@ async function accountApi(r,e,p){
     else row=await e.DB.prepare('SELECT * FROM buyer_accounts WHERE lower(login_id)=lower(?) LIMIT 1').bind(identifier).first();
     if(row&&await securityBlocked(e,'email',row.email_normalized||row.email))return J({ok:false,error:'NOT_FOUND',message:'Không thể thực hiện yêu cầu.'},404);
     if(!row||Number(row.email_verified)!==1||!(await verifyPasswordV55(password,row.password_hash)))return J({ok:false,error:'INVALID_LOGIN',message:'ID/email hoặc mật khẩu không đúng, hoặc email chưa xác minh.'},401);if(Number(row.locked)===1)return J({ok:false,error:'ACCOUNT_LOCKED'},403);
+    const accepted=(await e.DB.prepare('SELECT document_key,document_version FROM legal_acceptances WHERE account_id=? AND document_version IN (?,?)').bind(row.id,LEGAL_TERMS_VERSION,LEGAL_PRIVACY_VERSION).all()).results||[];
+    const hasTerms=accepted.some(x=>x.document_key==='terms'&&x.document_version===LEGAL_TERMS_VERSION),hasPrivacy=accepted.some(x=>x.document_key==='privacy-notice'&&x.document_version===LEGAL_PRIVACY_VERSION);
+    if(!hasTerms||!hasPrivacy){if(b.termsAccepted!==true||b.privacyAcknowledged!==true||b.termsVersion!==LEGAL_TERMS_VERSION||b.privacyVersion!==LEGAL_PRIVACY_VERSION)return J({ok:false,error:'LEGAL_ACCEPTANCE_REQUIRED',message:'Tài khoản của bạn cần xác nhận phiên bản Điều khoản và Thông báo quyền riêng tư mới trước khi tiếp tục.',required:{termsVersion:LEGAL_TERMS_VERSION,privacyVersion:LEGAL_PRIVACY_VERSION}},400);await e.DB.batch([e.DB.prepare('INSERT OR IGNORE INTO legal_acceptances(id,account_id,document_key,document_version,acceptance_method) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),row.id,'terms',LEGAL_TERMS_VERSION,'account-login-reconsent'),e.DB.prepare('INSERT OR IGNORE INTO legal_acceptances(id,account_id,document_key,document_version,acceptance_method) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),row.id,'privacy-notice',LEGAL_PRIVACY_VERSION,'account-login-reconsent')]);}
     const ua=clean(r.headers.get('user-agent')||'Thiết bị không xác định',300),ip=clientIp(r)||'',deviceLabel=ua.slice(0,180),clientDevice=clean(r.headers.get('x-teo-device-id')||'',100),deviceKey=await sha256(clientDevice&&/^[A-Za-z0-9._:-]{12,100}$/.test(clientDevice)?`teo-device-v2|${clientDevice}`:`${ua}|${ip}`);
     let known=false;try{known=!!(await e.DB.prepare('SELECT id FROM buyer_known_devices WHERE buyer_id=? AND device_key=?').bind(row.id,deviceKey).first())}catch{}
     try{await e.DB.prepare(`INSERT INTO buyer_known_devices(id,buyer_id,device_key,device_label,ip_address) VALUES(?,?,?,?,?) ON CONFLICT(buyer_id,device_key) DO UPDATE SET device_label=excluded.device_label,ip_address=excluded.ip_address,last_seen_at=datetime('now')`).bind(crypto.randomUUID(),row.id,deviceKey,deviceLabel,ip).run()}catch{}
@@ -568,6 +597,23 @@ async function accountApi(r,e,p){
     const resetAccount=await e.DB.prepare('SELECT id,email,login_id FROM buyer_accounts WHERE email_normalized=?').bind(email).first();await e.DB.batch([e.DB.prepare("UPDATE buyer_accounts SET password_hash=?,updated_at=datetime('now') WHERE email_normalized=?").bind(await hashPasswordV55(password),email),e.DB.prepare("UPDATE buyer_email_codes SET used_at=datetime('now') WHERE id=?").bind(row.id),e.DB.prepare('DELETE FROM buyer_sessions WHERE buyer_id=(SELECT id FROM buyer_accounts WHERE email_normalized=?)').bind(email)]);if(resetAccount){await notifyEmail(e,{to:email,subject:'TeoStudio: mật khẩu đã được đặt lại',text:`Mật khẩu tài khoản ${resetAccount.login_id||email} vừa được đặt lại bằng mã email. Tất cả phiên đăng nhập cũ đã bị đăng xuất. Nếu không phải bạn, hãy liên hệ hỗ trợ.`});await createNotification(e,{recipientType:'buyer',recipientId:resetAccount.id,title:'Mật khẩu đã đặt lại',body:'Các phiên đăng nhập cũ đã bị đăng xuất.',kind:'security'});}return J({ok:true,message:'Đổi mật khẩu thành công. Đăng nhập lại nhé.'});
   }
   const buyer=await buyerFromRequest(r,e);
+  if(p==='/api/account/privacy-requests'&&method==='POST'){
+    if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED',message:'Đăng nhập tài khoản đã xác minh email để gửi yêu cầu dữ liệu.'},401);
+    const rl=limitedForAccount('privacy-rights-request',buyer.id,5,3600000);if(rl)return rl;
+    const allowed=['access','correct','delete','restrict','withdraw_consent','complaint'];
+    const requestType=String(b.requestType||'').trim(),message=clean(b.message||'',1000);
+    if(!allowed.includes(requestType))return J({ok:false,error:'INVALID_PRIVACY_REQUEST_TYPE'},400);
+    if(message.length<8)return J({ok:false,error:'PRIVACY_REQUEST_DETAILS_REQUIRED',message:'Vui lòng mô tả yêu cầu tối thiểu 8 ký tự.'},400);
+    const id=crypto.randomUUID();
+    await e.DB.prepare('INSERT INTO privacy_rights_requests(id,account_id,request_type,message) VALUES(?,?,?,?)').bind(id,buyer.id,requestType,message).run();
+    await createNotification(e,{recipientType:'admin',recipientId:'master',title:'Yêu cầu quyền dữ liệu mới',body:`${buyer.login_id||buyer.email} · ${requestType} · ${id}`,kind:'privacy'});
+    return J({ok:true,id,status:'received',message:'Đã tiếp nhận yêu cầu. Quản trị viên sẽ kiểm tra và phản hồi qua kênh hỗ trợ đã công bố.'},201);
+  }
+  if(p==='/api/account/privacy-requests'&&method==='GET'){
+    if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);
+    const rows=(await e.DB.prepare('SELECT id,request_type,message,status,admin_note,created_at,updated_at FROM privacy_rights_requests WHERE account_id=? ORDER BY created_at DESC LIMIT 30').bind(buyer.id).all()).results||[];
+    return J({ok:true,requests:rows});
+  }
   if(p==='/api/account/seller/catalog'&&method==='GET'){
     if(!buyer)return J({ok:false,error:'ACCOUNT_REQUIRED'},401);if(!await isFeatureEnabled(e,'seller_program'))return J({ok:true,products:[],enabled:false});
     const rows=[];
@@ -1403,7 +1449,42 @@ async function tenantStats(e,tid,days=30,month=''){
   try{const purchases=(await e.DB.prepare(`SELECT product_id,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenue FROM buyer_purchases WHERE scope='tenant' AND tenant_id=? AND status='paid' AND ${walletDateClause} GROUP BY product_id`).bind(String(tid),start,monthly?start:endDate).all()).results||[];for(const p of purchases){const x=performanceMap.get(String(p.product_id));if(x){x.orders+=Number(p.orders||0);x.revenueVnd+=Number(p.revenue||0)}}}catch{}
   try{const legacyProducts=(await e.DB.prepare(`SELECT product_id,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenue FROM tenant_payment_orders WHERE tenant_id=? AND status='paid' AND ${saleDateClause} GROUP BY product_id`).bind(String(tid),start,monthly?start:endDate).all()).results||[];for(const p of legacyProducts){const x=performanceMap.get(String(p.product_id));if(x){x.orders+=Number(p.orders||0);x.revenueVnd+=Number(p.revenue||0)}}}catch{}
   const productPerformance=[...performanceMap.values()].map(x=>({...x,conversionRate:x.views?Math.round(x.orders/x.views*10000)/100:0})).sort((a,b)=>b.revenueVnd-a.revenueVnd||b.views-a.views);
-  return {days:/^\d{4}-\d{2}$/.test(String(month||''))?rows.length:n,month:/^\d{4}-\d{2}$/.test(String(month||''))?month:undefined,start,end:endDate,rows,products:productRows,productPerformance,referrers,today,viewKinds,sales,supportReports};
+  // File-level daily paid-order report, combining current wallet purchases and legacy SePay orders.
+  const productDailyMap=new Map();
+  try{const dailyWallet=(await e.DB.prepare(`SELECT date(created_at,'+7 hours') AS day,product_id,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenue FROM buyer_purchases WHERE scope='tenant' AND tenant_id=? AND status='paid' AND ${walletDateClause} GROUP BY date(created_at,'+7 hours'),product_id`).bind(String(tid),start,monthly?start:endDate).all()).results||[];for(const x of dailyWallet){const k=String(x.day)+'|'+String(x.product_id||'');productDailyMap.set(k,{day:String(x.day),productId:String(x.product_id||''),orders:Number(x.orders||0),revenueVnd:Number(x.revenue||0)})}}catch{}
+  try{const dailyLegacy=(await e.DB.prepare(`SELECT date(paid_at,'+7 hours') AS day,product_id,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS revenue FROM tenant_payment_orders WHERE tenant_id=? AND status='paid' AND ${saleDateClause} GROUP BY date(paid_at,'+7 hours'),product_id`).bind(tid,start,monthly?start:endDate).all()).results||[];for(const x of dailyLegacy){const k=String(x.day)+'|'+String(x.product_id||''),v=productDailyMap.get(k)||{day:String(x.day),productId:String(x.product_id||''),orders:0,revenueVnd:0};v.orders+=Number(x.orders||0);v.revenueVnd+=Number(x.revenue||0);productDailyMap.set(k,v)}}catch{}
+  sales.byProductDay=[...productDailyMap.values()].map(x=>({...x,title:productRows.find(p=>String(p.id)===x.productId)?.title||x.productId||'File'})).sort((a,b)=>b.day.localeCompare(a.day)||b.revenueVnd-a.revenueVnd);
+  // Seller referral analytics: attribute only paid file purchases that contain a seller_id.
+  // This deliberately excludes un-attributed legacy orders rather than guessing a referrer.
+  let sellerRows=[],sellerDaily=[],sellerOrders=[];
+  const sellerDateClause=monthly?"date(p.created_at,'+7 hours')>=? AND date(p.created_at,'+7 hours')<date(?, '+1 month')":"date(p.created_at,'+7 hours')>=? AND date(p.created_at,'+7 hours')<=?";
+  try{
+    sellerRows=(await e.DB.prepare(`SELECT p.seller_id,a.login_id,a.display_name,a.email,COUNT(*) AS orders,
+      COALESCE(SUM(p.amount_vnd),0) AS referred_gross_vnd,
+      COALESCE(SUM(p.seller_commission_vnd),0) AS commission_gross_vnd,
+      COALESCE(SUM(p.seller_amount_vnd),0) AS studio_net_vnd,
+      COALESCE(SUM(p.commission_vnd),0) AS platform_fee_vnd
+      FROM buyer_purchases p LEFT JOIN buyer_accounts a ON a.id=p.seller_id
+      WHERE p.scope='tenant' AND p.tenant_id=? AND p.status='paid' AND COALESCE(p.seller_id,'')<>'' AND ${sellerDateClause}
+      GROUP BY p.seller_id,a.login_id,a.display_name,a.email ORDER BY commission_gross_vnd DESC,referred_gross_vnd DESC LIMIT 100`).bind(String(tid),start,monthly?start:endDate).all()).results||[];
+    sellerDaily=(await e.DB.prepare(`SELECT date(p.created_at,'+7 hours') AS day,COUNT(*) AS orders,
+      COALESCE(SUM(p.amount_vnd),0) AS referred_gross_vnd,
+      COALESCE(SUM(p.seller_commission_vnd),0) AS commission_vnd
+      FROM buyer_purchases p WHERE p.scope='tenant' AND p.tenant_id=? AND p.status='paid'
+      AND COALESCE(p.seller_id,'')<>'' AND ${sellerDateClause}
+      GROUP BY date(p.created_at,'+7 hours') ORDER BY day`).bind(String(tid),start,monthly?start:endDate).all()).results||[];
+    sellerOrders=(await e.DB.prepare(`SELECT p.id,p.title,p.product_id,p.seller_id,a.login_id,a.display_name,
+      p.amount_vnd,p.seller_commission_vnd,p.created_at
+      FROM buyer_purchases p LEFT JOIN buyer_accounts a ON a.id=p.seller_id
+      WHERE p.scope='tenant' AND p.tenant_id=? AND p.status='paid' AND COALESCE(p.seller_id,'')<>'' AND ${sellerDateClause}
+      ORDER BY p.created_at DESC LIMIT 100`).bind(String(tid),start,monthly?start:endDate).all()).results||[];
+  }catch{}
+  let sellerSummary={orders:0,referredGrossVnd:0,commissionVnd:0,sellerCount:0};
+  try{const z=await e.DB.prepare(`SELECT COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS referred_gross_vnd,COALESCE(SUM(seller_commission_vnd),0) AS commission_vnd,COUNT(DISTINCT seller_id) AS seller_count FROM buyer_purchases WHERE scope='tenant' AND tenant_id=? AND status='paid' AND COALESCE(seller_id,'')<>'' AND ${sellerDateClause}`).bind(String(tid),start,monthly?start:endDate).first();sellerSummary={orders:Number(z?.orders||0),referredGrossVnd:Number(z?.referred_gross_vnd||0),commissionVnd:Number(z?.commission_vnd||0),sellerCount:Number(z?.seller_count||0)}}catch{}
+  for(const day of sales.byDay){const sd=sellerDaily.find(x=>String(x.day)===String(day.day));day.sellerOrders=Number(sd?.orders||0);day.sellerCommissionVnd=Number(sd?.commission_vnd||0);day.sellerReferredGrossVnd=Number(sd?.referred_gross_vnd||0);}
+  sales.sellerCommissionVnd=sellerSummary.commissionVnd;
+  const sellerAnalytics={summary:sellerSummary,sellers:sellerRows.map(x=>({...x,orders:Number(x.orders||0),referredGrossVnd:Number(x.referred_gross_vnd||0),commissionVnd:Number(x.commission_gross_vnd||0),studioNetVnd:Number(x.studio_net_vnd||0),platformFeeVnd:Number(x.platform_fee_vnd||0),commissionRate:Number(x.referred_gross_vnd)?Math.round(Number(x.commission_gross_vnd||0)/Number(x.referred_gross_vnd)*10000)/100:0})),byDay:sellerDaily.map(x=>({...x,orders:Number(x.orders||0),referredGrossVnd:Number(x.referred_gross_vnd||0),commissionVnd:Number(x.commission_vnd||0)})),orders:sellerOrders};
+  return {days:/^\d{4}-\d{2}$/.test(String(month||''))?rows.length:n,month:/^\d{4}-\d{2}$/.test(String(month||''))?month:undefined,start,end:endDate,rows,products:productRows,productPerformance,referrers,today,viewKinds,sales,sellerAnalytics,supportReports};
 }
 async function purgeExpired(e){
   // Expiry changes access/plan state; it must never erase user content or financial history.
@@ -1619,6 +1700,7 @@ function bypassProviderConfig(e){
   return {
     link4m:{key:link4mKey,url:String(e?.LINK4M_API_URL||'https://link4m.co/api-shorten/v2').trim()},
     bumx:{key:bumxKey,url:String(e?.BUMX_API_URL||'https://linkfree.click/s/link/shorten').trim()},
+    rewardTrafficApproved:String(e?.FREE_BYPASS_REWARDED_TRAFFIC_APPROVED||'')==='1',
     verification:{url:verifyUrl,key:verifyKey,endpointValid:verificationEndpointValid,configured:!!(verifyKey&&verificationEndpointValid)}
   };
 }
@@ -1926,7 +2008,7 @@ Kết nối Telegram hoạt động bình thường.`);
     await e.DB.prepare('DELETE FROM tenant_telegram_links WHERE tenant_id=?').bind(String(t.id)).run();
     return J({ok:true,unlinked:true});
   }
-  if(String(t.plan_type||'paid')==='free'&&Number(t.free_admin_unlocked)!==1){return J({ok:false,error:'FREE_BYPASS_REQUIRED',message:'Gói Free cần hoàn thành 2 lượt và được API xác minh phía nhà cung cấp xác nhận để mở Admin.',tenant:tenantInfo(t),bypassConfigured:bypassProviderConfig(e).verification.configured&&!!(e.LINK4M_API_KEY||e.BUMX_API_KEY)},403)}
+  if(String(t.plan_type||'paid')==='free'&&Number(t.free_admin_unlocked)!==1){return J({ok:false,error:'FREE_BYPASS_REQUIRED',message:'Gói Free cần hoàn thành 2 lượt và được API xác minh phía nhà cung cấp xác nhận để mở Admin.',tenant:tenantInfo(t),bypassConfigured:(()=>{const c=bypassProviderConfig(e);return !!(c.bumx.key&&c.rewardTrafficApproved&&c.verification.configured)})()},403)}
   if(String(t.plan_type||'paid')==='free'&&(/^\/api\/tenant\/(wallet|payout-profile|withdrawals)(?:\/|$)/.test(p)||p.includes('/orders/'))){return J({ok:false,error:'VIP_REQUIRED',message:'Tính năng kiếm tiền, bán file và rút tiền chỉ có ở gói VIP.'},403)}
   if(p==='/api/tenant/notifications'&&r.method==='GET'){
     const notifications=await notificationList(e,'tenant',t.id);
@@ -2528,7 +2610,31 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
     const sellerMap=new Map(sellers.map(v=>[String(v.tenant_id),{...v,orders:Number(v.orders||0),gross:Number(v.gross||0),sellerNet:Number(v.sellerNet||0),commission:Number(v.commission||0)}]));for(const v of legacySellers){const k=String(v.tenant_id),row=sellerMap.get(k)||{tenant_id:k,orders:0,gross:0,sellerNet:0,commission:0};row.orders+=Number(v.orders||0);row.gross+=Number(v.gross||0);row.sellerNet+=Number(v.gross||0);sellerMap.set(k,row)}const allSellers=[...sellerMap.values()].sort((a,b)=>b.gross-a.gross).slice(0,50);
     const days=new Date(Date.UTC(Number(m.slice(0,4)),Number(m.slice(5,7)),0)).getUTCDate(),dayMap=new Map(purchasesByDay.map(x=>[x.day,{...x,fileSalesVnd:Number(x.gross||0),rentalVnd:0}]));for(const v of legacyTenantByDay){const row=dayMap.get(v.day)||{day:v.day,orders:0,gross:0,commission:0,fileSalesVnd:0,rentalVnd:0};row.orders=Number(row.orders||0)+Number(v.orders||0);row.gross=Number(row.gross||0)+Number(v.gross||0);row.fileSalesVnd=Number(row.fileSalesVnd||0)+Number(v.gross||0);dayMap.set(v.day,row)}const legacyMainByDay=(await e.DB.prepare("SELECT date(paid_at,'+7 hours') AS day,COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS gross FROM product_payment_orders WHERE status='paid' AND date(paid_at,'+7 hours')>=? AND date(paid_at,'+7 hours')<? GROUP BY date(paid_at,'+7 hours')").bind(start,end).all().catch(()=>({results:[]}))).results||[];for(const v of legacyMainByDay){const row=dayMap.get(v.day)||{day:v.day,orders:0,gross:0,commission:0,fileSalesVnd:0,rentalVnd:0};row.orders=Number(row.orders||0)+Number(v.orders||0);row.gross=Number(row.gross||0)+Number(v.gross||0);row.fileSalesVnd=Number(row.fileSalesVnd||0)+Number(v.gross||0);dayMap.set(v.day,row)}for(const v of rentalByDay){const row=dayMap.get(v.day)||{day:v.day,orders:0,gross:0,commission:0,fileSalesVnd:0,rentalVnd:0};row.orders=Number(row.orders||0)+Number(v.orders||0);row.gross=Number(row.gross||0)+Number(v.amount||0);row.rentalVnd=Number(row.rentalVnd||0)+Number(v.amount||0);dayMap.set(v.day,row)}const byDay=[];for(let n=1;n<=days;n++){const d=`${m}-${String(n).padStart(2,'0')}`,v=dayMap.get(d)||{};byDay.push({day:d,orders:Number(v.orders||0),grossVnd:Number(v.gross||0),fileSalesVnd:Number(v.fileSalesVnd||0),rentalVnd:Number(v.rentalVnd||0),commissionVnd:Number(v.commission||0)})}
     const allFileOrders=Number(sale?.orders||0)+Number(legacyMain?.orders||0)+Number(legacyTenant?.orders||0),allOrders=allFileOrders+Number(rentalIncome?.count||0),fileGross=Number(sale?.gross||0)+Number(legacyMain?.gross||0)+Number(legacyTenant?.gross||0),rentalGross=Number(rentalIncome?.amount||0),gross=fileGross+rentalGross,platformVnd=Number(sale?.platform||0)+Number(legacyMain?.gross||0)+rentalGross-Number(rentalReferral?.amount||0),sellerNetVnd=Number(sale?.sellerNet||0)+Number(legacyTenant?.gross||0);
-    return J({ok:true,month:m,summary:{orders:allOrders,fileOrders:allFileOrders,grossVnd:gross,fileSalesVnd:fileGross,rentalRevenueVnd:rentalGross,rentalOrders:Number(rentalIncome?.count||0),platformRevenueVnd:Math.max(0,platformVnd),commissionVnd:Number(sale?.commission||0),sellerNetVnd:Math.max(0,sellerNetVnd),topupsVnd:Number(topups?.amount||0),topupCount:Number(topups?.count||0)},byDay,views,sellers:allSellers,recent:(await e.DB.prepare("SELECT id,title,scope,tenant_id,amount_vnd,commission_vnd,status,created_at FROM buyer_purchases WHERE date(created_at,'+7 hours')>=? AND date(created_at,'+7 hours')<? ORDER BY created_at DESC LIMIT 100").bind(start,end).all()).results||[]});
+    // Referral sellers are distinct from tenant owners. Report their real buyer account ID and earned commission.
+    const sellerAffiliateRows=(await e.DB.prepare(`SELECT p.seller_id,a.login_id,a.display_name,a.email,
+      COUNT(*) AS orders,COUNT(DISTINCT CASE WHEN p.scope='tenant' THEN p.tenant_id END) AS studio_count,
+      GROUP_CONCAT(DISTINCT CASE WHEN p.scope='tenant' THEN p.tenant_id END) AS studio_ids,
+      COALESCE(SUM(p.amount_vnd),0) AS referred_gross_vnd,
+      COALESCE(SUM(p.seller_commission_vnd),0) AS commission_vnd,
+      COALESCE(SUM(p.seller_amount_vnd),0) AS owner_net_vnd,
+      COALESCE(SUM(p.commission_vnd),0) AS platform_fee_vnd
+      FROM buyer_purchases p LEFT JOIN buyer_accounts a ON a.id=p.seller_id
+      WHERE p.status='paid' AND COALESCE(p.seller_id,'')<>'' AND date(p.created_at,'+7 hours')>=? AND date(p.created_at,'+7 hours')<?
+      GROUP BY p.seller_id,a.login_id,a.display_name,a.email
+      ORDER BY commission_vnd DESC,referred_gross_vnd DESC LIMIT 200`).bind(start,end).all()).results||[];
+    const sellerAffiliateDaily=(await e.DB.prepare(`SELECT date(created_at,'+7 hours') AS day,COUNT(*) AS orders,
+      COALESCE(SUM(amount_vnd),0) AS referred_gross_vnd,COALESCE(SUM(seller_commission_vnd),0) AS commission_vnd
+      FROM buyer_purchases WHERE status='paid' AND COALESCE(seller_id,'')<>''
+      AND date(created_at,'+7 hours')>=? AND date(created_at,'+7 hours')<?
+      GROUP BY date(created_at,'+7 hours') ORDER BY day`).bind(start,end).all()).results||[];
+    const sellerAffiliateOrders=(await e.DB.prepare(`SELECT p.id,p.title,p.product_id,p.scope,p.tenant_id,p.seller_id,a.login_id,a.display_name,
+      p.amount_vnd,p.seller_commission_vnd,p.created_at
+      FROM buyer_purchases p LEFT JOIN buyer_accounts a ON a.id=p.seller_id
+      WHERE p.status='paid' AND COALESCE(p.seller_id,'')<>'' AND date(p.created_at,'+7 hours')>=? AND date(p.created_at,'+7 hours')<?
+      ORDER BY p.created_at DESC LIMIT 200`).bind(start,end).all()).results||[];
+    const sellerAffiliateSummary=(await e.DB.prepare(`SELECT COUNT(*) AS orders,COALESCE(SUM(amount_vnd),0) AS referred_gross_vnd,COALESCE(SUM(seller_commission_vnd),0) AS commission_vnd,COUNT(DISTINCT seller_id) AS seller_count FROM buyer_purchases WHERE status='paid' AND COALESCE(seller_id,'')<>'' AND date(created_at,'+7 hours')>=? AND date(created_at,'+7 hours')<?`).bind(start,end).first())||{};
+    const sellerAnalytics={summary:{orders:Number(sellerAffiliateSummary.orders||0),referredGrossVnd:Number(sellerAffiliateSummary.referred_gross_vnd||0),commissionVnd:Number(sellerAffiliateSummary.commission_vnd||0),sellerCount:Number(sellerAffiliateSummary.seller_count||0)},sellers:sellerAffiliateRows.map(x=>({...x,orders:Number(x.orders||0),studioCount:Number(x.studio_count||0),studioIds:String(x.studio_ids||'').split(',').filter(Boolean),referredGrossVnd:Number(x.referred_gross_vnd||0),commissionVnd:Number(x.commission_vnd||0),ownerNetVnd:Number(x.owner_net_vnd||0),platformFeeVnd:Number(x.platform_fee_vnd||0),commissionRate:Number(x.referred_gross_vnd)?Math.round(Number(x.commission_vnd||0)/Number(x.referred_gross_vnd)*10000)/100:0})),byDay:sellerAffiliateDaily.map(x=>({...x,orders:Number(x.orders||0),referredGrossVnd:Number(x.referred_gross_vnd||0),commissionVnd:Number(x.commission_vnd||0)})),orders:sellerAffiliateOrders};
+    return J({ok:true,month:m,summary:{orders:allOrders,fileOrders:allFileOrders,grossVnd:gross,fileSalesVnd:fileGross,rentalRevenueVnd:rentalGross,rentalOrders:Number(rentalIncome?.count||0),platformRevenueVnd:Math.max(0,platformVnd),commissionVnd:Number(sale?.commission||0),sellerNetVnd:Math.max(0,sellerNetVnd),topupsVnd:Number(topups?.amount||0),topupCount:Number(topups?.count||0)},byDay,views,sellers:allSellers,sellerAnalytics,recent:(await e.DB.prepare("SELECT id,title,scope,tenant_id,amount_vnd,commission_vnd,status,created_at FROM buyer_purchases WHERE date(created_at,'+7 hours')>=? AND date(created_at,'+7 hours')<? ORDER BY created_at DESC LIMIT 100").bind(start,end).all()).results||[]});
   }
   const reportImageMatch=p.match(/^\/api\/admin\/support\/reports\/([^/]+)\/image$/);
   if(reportImageMatch&&r.method==='GET'){
@@ -2827,6 +2933,25 @@ export default{async scheduled(_controller,e){try{await purgeExpired(e)}catch{}}
   }
   if(p==='/api/admin/logout'&&r.method==='POST'){const t=tokenFrom(r);if(t)await e.DB.prepare('DELETE FROM admin_sessions WHERE token=?').bind(t).run();return J({ok:true})}
   if(p.startsWith('/api/admin/')&&!(await isAdmin(r,e)))return J({ok:false,error:'ADMIN_REQUIRED'},401);
+  if(p==='/api/admin/privacy-requests'&&r.method==='GET'){
+    await ensureLegalSchema(e);
+    const q=new URL(r.url).searchParams,status=String(q.get('status')||'').trim();
+    const valid=['received','reviewing','completed','rejected'];
+    const query=`SELECT pr.id,pr.request_type,pr.message,pr.status,pr.admin_note,pr.created_at,pr.updated_at,
+      a.login_id,a.display_name,a.email FROM privacy_rights_requests pr
+      JOIN buyer_accounts a ON a.id=pr.account_id ${valid.includes(status)?'WHERE pr.status=?':''}
+      ORDER BY CASE pr.status WHEN 'received' THEN 0 WHEN 'reviewing' THEN 1 ELSE 2 END,pr.created_at DESC LIMIT 200`;
+    const rows=(valid.includes(status)?await e.DB.prepare(query).bind(status).all():await e.DB.prepare(query).all()).results||[];
+    return J({ok:true,requests:rows});
+  }
+  if(p==='/api/admin/privacy-requests'&&r.method==='PUT'){
+    await ensureLegalSchema(e);const b=await r.json().catch(()=>({}));
+    const id=clean(b.id||'',100),status=String(b.status||''),note=clean(b.adminNote||'',1000);
+    if(!id||!['received','reviewing','completed','rejected'].includes(status))return J({ok:false,error:'INVALID_PRIVACY_REQUEST_UPDATE'},400);
+    const result=await e.DB.prepare("UPDATE privacy_rights_requests SET status=?,admin_note=?,updated_at=datetime('now') WHERE id=?").bind(status,note,id).run();
+    if(!result?.meta?.changes)return J({ok:false,error:'PRIVACY_REQUEST_NOT_FOUND'},404);
+    return J({ok:true,message:'Đã cập nhật trạng thái yêu cầu quyền dữ liệu.'});
+  }
   if(p.startsWith('/api/admin/card-withdrawals')){
     await ensureCardExchangeSchema(e);
     if(p==='/api/admin/card-withdrawals'&&r.method==='GET'){

@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const read=p=>fs.readFileSync(p,'utf8');
+const w=read('cloudflare/worker.js'),a=read('frontend/assets/js/account.js'),c=read('frontend/assets/js/config.js'),admin=read('frontend/admin.html');
+for(const p of ['terms.html','privacy.html','cookie-policy.html','refund-policy.html','privacy-request.html'])assert.ok(fs.statSync('frontend/'+p).size>1000,p+' missing/too short');
+assert.ok(w.includes("b.termsAccepted!==true||b.privacyAcknowledged!==true"),'server must require two legal acknowledgements');
+assert.ok(w.includes('LEGAL_TERMS_VERSION')&&w.includes('LEGAL_PRIVACY_VERSION'),'legal versions missing');
+assert.ok(w.includes('INSERT OR IGNORE INTO legal_acceptances'),'acceptance evidence missing');
+assert.ok(w.includes('account-login-reconsent')&&w.includes('LEGAL_ACCEPTANCE_REQUIRED'),'legacy accounts must re-consent at next login');
+assert.ok(a.includes('name=\"termsAccepted\"')&&a.includes('name=\"privacyAcknowledged\"'),'login and registration form consent controls missing');
+assert.ok(w.includes('/api/account/privacy-requests')&&w.includes('/api/admin/privacy-requests'),'privacy rights APIs missing');
+assert.ok(a.includes("d.privacyAcknowledged=f.elements.privacyAcknowledged?.checked===true"),'client privacy ack missing');
+assert.ok(a.includes("d.termsVersion='2026-11-04-v1.0'"),'registration version missing');
+assert.ok(admin.includes('id="privacyRequestRows"')&&admin.includes('admin-privacy.js'),'admin review UI missing');
+assert.ok(read('frontend/assets/css/pre-public-polish.css').includes('prefers-reduced-motion'),'reduced-motion support missing');
+assert.ok(read('frontend/assets/js/legal-ui.js').includes('TEO_COOKIE_NOTICE_V57'),'cookie notice missing');
+assert.ok(read("frontend/assets/js/legal-ui.js").includes("const existingFooter=document.querySelector('footer');const footer=existingFooter||document.createElement('footer')"),'shared legal links should reuse existing footer');
+console.log('PASS: V57 legal acknowledgement, policy pages, privacy rights endpoints/UI, design/accessibility checks');

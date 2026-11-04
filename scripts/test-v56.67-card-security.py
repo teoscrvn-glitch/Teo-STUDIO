@@ -48,7 +48,7 @@ assert 'BYPASS_ALREADY_USED_OR_STEP_ADVANCED' in worker
 account = (ROOT / 'frontend/assets/js/account.js').read_text(encoding='utf-8')
 share = (ROOT / 'frontend/share.html').read_text(encoding='utf-8')
 public_tenant = worker[worker.find("if(parts[3]==='comments'&&r.method==='GET')"):worker.find("if(parts[3]==='comments'&&r.method==='GET')") + 1200]
-assert "BUILD_VERSION='v56.68-account-analytics-manual-card-withdrawal'" in worker
+assert "BUILD_VERSION='v57.0-prepublic-design-legal-security'" in worker
 assert 'session_device_key' in worker and 'teo-device-v2|' in worker
 assert 'ip_address=?,device_label=?' in worker and 'x-teo-device-id' in worker
 assert 'buyer_known_devices' in worker
