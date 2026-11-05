@@ -1,2 +1,1 @@
-v57.8-free-bypass-cycle-security
-Base: TeoStudio V57.7 Free bypass tenant-session fix.
+TeoStudio V57.13 — Free key cross-tab return + clean UI
