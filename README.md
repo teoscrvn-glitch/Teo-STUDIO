@@ -1,6 +1,19 @@
+# TeoStudio V57.10 — Link4M API diagnostic
+
+See `VERSION_V57.10.md`, `DEPLOY_V57.10_LINK4M_API_DIAGNOSTIC.md`, and `TEST_REPORT_V57.10_LINK4M_API_DIAGNOSTIC.md` for this release.
+
 # TeoStudio V56.16 — Account, Wallet & Tenant Suite
 
 This release bundles the account/session, wallet purchase UX, tenant dashboard, email notification and configuration-preservation work for the existing TeoStudio Cloudflare Worker project.
+
+## Latest patch in this archive — V57.9
+- `VERSION_V57.9.md` — release scope.
+- `CHANGELOG_V57.9_IDENTITY_RATE_SECURITY.md` — persistent account/IP/network login throttles and IP-header hardening.
+- `DEPLOY_V57.9_IDENTITY_RATE_SECURITY.md` — deploy steps and new D1 behavior.
+- `CLOUDFLARE_WAF_V57.9.md` — recommended zone-level WAF rate-limit rules to configure in Cloudflare Dashboard.
+- `TEST_REPORT_V57.9_IDENTITY_RATE_SECURITY.md` — local test scope and production limitations.
+
+The release keeps the previous V56/V57 feature set and existing D1 database. It does not include or modify any Cloudflare Secret values.
 
 ## Read before deploying
 - `VERSION_V56.16.md` — exact scope and limitations.
@@ -9,7 +22,7 @@ This release bundles the account/session, wallet purchase UX, tenant dashboard, 
 
 ## Cloudflare configuration
 - Keep existing Worker name `teo-studio`, D1 binding `DB`, database name `teo-studio`, and database ID unchanged.
-- The observed non-secret Production vars are documented in `cloudflare/wrangler.toml`: `SEPAY_ACCOUNT_NUMBER`, `SEPAY_BANK_CODE`, and `TURNSTILE_SITE_KEY`. Confirm they still match Cloudflare Production before deployment.
+- The non-secret Production vars are documented in `cloudflare/wrangler.toml`, including `BUMX_API_URL`, `LINK4M_API_URL`, `SEPAY_ACCOUNT_NUMBER`, `SEPAY_BANK_CODE`, and `TURNSTILE_SITE_KEY`. Confirm they still match Cloudflare Production before deployment.
 - Keep `ADMIN_KEY`, `SEPAY_API_KEY`, `TURNSTILE_SECRET`, `OXMAIL_SMTP_PASS`, and any AI/Telegram credentials as Cloudflare Secrets. Secret values must never be committed to GitHub or placed in this ZIP.
 - Do not delete or recreate the D1 database. The Worker uses additive migrations; still make a D1 backup before production deployment.
 

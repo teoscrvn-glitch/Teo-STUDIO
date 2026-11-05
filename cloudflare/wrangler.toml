@@ -11,6 +11,7 @@ compatibility_date = "2026-09-18"
 # THECAOSIEUTOC_PARTNER_KEY (for card top-ups), CARD_DATA_ENCRYPTION_KEY (for encrypting manually delivered withdrawal card codes/serials). No card-purchase API token is used for withdrawals.
 # For per-tenant Telegram linking, set the non-secret TELEGRAM_BOT_USERNAME in Cloudflare Variables.
 # The tenant pairing endpoint configures the webhook with TELEGRAM_WEBHOOK_SECRET automatically.
+# Optional: set LOGIN_RATE_HASH_KEY as a Cloudflare Secret for stable HMAC login-throttle identifiers across ADMIN_KEY rotation; otherwise the Worker uses ADMIN_KEY or TURNSTILE_SECRET.
 # Keep non-secret Production settings in sync here; never put secret values in this file.
 [vars]
 AI_API_URL = "https://openrouter.ai/api/v1/chat/completions"

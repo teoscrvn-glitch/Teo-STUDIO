@@ -15,9 +15,9 @@ topup = (ROOT / 'frontend/topup.html').read_text(encoding='utf-8')
 wrangler = (ROOT / 'cloudflare/wrangler.toml').read_text(encoding='utf-8')
 
 # Build/version and server-side migration.
-assert "BUILD_VERSION='v57.8-free-bypass-cycle-security'" in w
-assert "BUILD_VERSION:'v57.8-free-bypass-cycle-security'" in config
-assert 'v57.8-free-bypass-cycle-security' in page and 'v57.8-free-bypass-cycle-security' in admin_page
+assert "BUILD_VERSION='v57.10-link4m-api-diagnostic'" in w
+assert "BUILD_VERSION:'v57.10-link4m-api-diagnostic'" in config
+assert 'v57.9-identity-rate-security' in page and 'v57.10-link4m-api-diagnostic' in admin_page
 assert "'free_bypass_cycle_1_at','INTEGER DEFAULT NULL'" in w
 assert "'free_bypass_cycle_2_at','INTEGER DEFAULT NULL'" in w
 assert "'client_proof_hash','TEXT DEFAULT NULL'" in w

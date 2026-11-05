@@ -50,7 +50,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v57.8-free-bypass-cycle-security';
+const BUILD_VERSION='v57.10-link4m-api-diagnostic';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -60,7 +60,7 @@ function runtimeConfigStatus(e){
   const emailMissing=[];if(!has('OXMAIL_SMTP_PASS'))emailMissing.push('OXMAIL_SMTP_PASS');if(Number(e?.OXMAIL_SMTP_PORT||465)!==465)emailMissing.push('OXMAIL_SMTP_PORT (must be 465)');const smtpHost=String(e?.OXMAIL_SMTP_HOST||'mail.teostudio.top');if(!/^[a-z0-9.-]+$/i.test(smtpHost)||smtpHost.startsWith('.')||smtpHost.endsWith('.'))emailMissing.push('OXMAIL_SMTP_HOST');const smtpUser=String(e?.OXMAIL_SMTP_USER||'teostudio@teostudio.top'),smtpFrom=String(e?.EMAIL_FROM||smtpUser);if(!EMAIL_RE.test(smtpUser))emailMissing.push('OXMAIL_SMTP_USER');if(!EMAIL_RE.test(smtpFrom))emailMissing.push('EMAIL_FROM');const email={configured:emailMissing.length===0,missing:emailMissing,hostUsesDefault:!has('OXMAIL_SMTP_HOST'),userUsesDefault:!has('OXMAIL_SMTP_USER'),fromUsesDefault:!has('EMAIL_FROM')};
   const telegramChatId=String(e?.TELEGRAM_CHAT_ID||e?.ID_CHAT_TELEGRAM||'').trim();
   const telegramMissing=[];if(!has('TELEGRAM_BOT_TOKEN'))telegramMissing.push('TELEGRAM_BOT_TOKEN');if(!telegramChatId)telegramMissing.push('TELEGRAM_CHAT_ID (or legacy ID_CHAT_TELEGRAM)');
-  const tenantTelegramMissing=[];if(!has('TELEGRAM_BOT_TOKEN'))tenantTelegramMissing.push('TELEGRAM_BOT_TOKEN (Secret)');if(!has('TELEGRAM_WEBHOOK_SECRET'))tenantTelegramMissing.push('TELEGRAM_WEBHOOK_SECRET (Secret)');if(!has('TELEGRAM_BOT_USERNAME'))tenantTelegramMissing.push('TELEGRAM_BOT_USERNAME (Variable, không có @)');return {database:{configured:!!e?.DB},ai,email,telegram:{configured:telegramMissing.length===0,missing:telegramMissing},tenantTelegram:{configured:tenantTelegramMissing.length===0,missing:tenantTelegramMissing},freeBypass:(()=>{const bumx=has('BUMX_API_KEY')&&has('BUMX_API_URL'),link4m=has('LINK4M_API_KEY')&&has('LINK4M_API_URL'),link4mApproved=String(e?.LINK4M_REWARDED_TRAFFIC_APPROVED||'')==='1';return {configured:bumx&&link4m&&link4mApproved,bumxConfigured:bumx,link4mConfigured:link4m,link4mRewardTrafficApproved:link4mApproved,verificationMode:'one-time-key',missing:[...(!bumx?['BUMX_API_KEY / BUMX_API_URL']:[]),...(!link4m?['LINK4M_API_KEY / LINK4M_API_URL']:[]),...(!link4mApproved?['LINK4M_REWARDED_TRAFFIC_APPROVED=1 (chỉ bật sau khi Link4M cho phép bằng văn bản)']:[])]}})(),turnstile:check(['TURNSTILE_SITE_KEY','TURNSTILE_SECRET']),sepay:check(['SEPAY_API_KEY','SEPAY_BANK_CODE','SEPAY_ACCOUNT_NUMBER']),cardExchange:{partnerConfigured:!!(e?.THECAOSIEUTOC_PARTNER_ID&&e?.THECAOSIEUTOC_PARTNER_KEY),withdrawalMode:'manual',withdrawalEncryptionConfigured:String(e?.CARD_DATA_ENCRYPTION_KEY||'').length>=32}};
+  const tenantTelegramMissing=[];if(!has('TELEGRAM_BOT_TOKEN'))tenantTelegramMissing.push('TELEGRAM_BOT_TOKEN (Secret)');if(!has('TELEGRAM_WEBHOOK_SECRET'))tenantTelegramMissing.push('TELEGRAM_WEBHOOK_SECRET (Secret)');if(!has('TELEGRAM_BOT_USERNAME'))tenantTelegramMissing.push('TELEGRAM_BOT_USERNAME (Variable, không có @)');return {database:{configured:!!e?.DB},ai,email,telegram:{configured:telegramMissing.length===0,missing:telegramMissing},tenantTelegram:{configured:tenantTelegramMissing.length===0,missing:tenantTelegramMissing},freeBypass:(()=>{const bumx=has('BUMX_API_KEY')&&has('BUMX_API_URL'),link4m=has('LINK4M_API_KEY')&&has('LINK4M_API_URL'),link4mApproved=String(e?.LINK4M_REWARDED_TRAFFIC_APPROVED||'')==='1';return {configured:bumx&&link4m&&link4mApproved,bumxConfigured:bumx,link4mConfigured:link4m,link4mRewardTrafficApproved:link4mApproved,verificationMode:'one-time-key',missing:[...(!bumx?['BUMX_API_KEY / BUMX_API_URL']:[]),...(!link4m?['LINK4M_API_KEY / LINK4M_API_URL']:[]),...(!link4mApproved?['LINK4M_REWARDED_TRAFFIC_APPROVED=1 (chỉ bật sau khi Link4M cho phép traffic khuyến khích bằng văn bản)']:[])]}})(),turnstile:check(['TURNSTILE_SITE_KEY','TURNSTILE_SECRET']),sepay:check(['SEPAY_API_KEY','SEPAY_BANK_CODE','SEPAY_ACCOUNT_NUMBER']),cardExchange:{partnerConfigured:!!(e?.THECAOSIEUTOC_PARTNER_ID&&e?.THECAOSIEUTOC_PARTNER_KEY),withdrawalMode:'manual',withdrawalEncryptionConfigured:String(e?.CARD_DATA_ENCRYPTION_KEY||'').length>=32}};
 }
 const C={"content-type":"application/json;charset=utf-8","access-control-allow-origin":"https://teostudio.top","access-control-allow-methods":"GET,POST,PUT,DELETE,OPTIONS","access-control-allow-headers":"Content-Type,Authorization,X-Requested-With,X-Tenant-Slug","vary":"Origin","cache-control":"no-store","x-content-type-options":"nosniff","x-frame-options":"SAMEORIGIN","referrer-policy":"strict-origin-when-cross-origin","permissions-policy":"camera=(),microphone=(),geolocation=()","x-permitted-cross-domain-policies":"none","cross-origin-opener-policy":"same-origin","strict-transport-security":"max-age=31536000","content-security-policy":"default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://challenges.cloudflare.com; frame-src 'self' https://challenges.cloudflare.com https://www.youtube-nocookie.com https://www.youtube.com; worker-src 'self' blob: https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"};
 const J=(x,s=200,extra={})=>new Response(JSON.stringify(x),{status:s,headers:{...C,...extra}});
@@ -88,9 +88,14 @@ async function servePublicImage(e,r,value,maxBytes=1500000){
 function safeCommentImage(value){const raw=String(value||'');if(raw.length>450000||!/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(raw))return '';try{const payload=raw.slice(raw.indexOf(',')+1);const bin=atob(payload.slice(0,80));if(raw.startsWith('data:image/jpeg;')&&!(bin.charCodeAt(0)===0xff&&bin.charCodeAt(1)===0xd8&&bin.charCodeAt(2)===0xff))return '';if(raw.startsWith('data:image/png;')&&!(bin.charCodeAt(0)===0x89&&bin.slice(1,4)==='PNG'))return '';if(raw.startsWith('data:image/webp;')&&!(bin.slice(0,4)==='RIFF'&&bin.slice(8,12)==='WEBP'))return '';return raw}catch{return ''}}
 const tokenFrom=r=>(r.headers.get('authorization')||'').replace(/^Bearer\s+/i,'').trim();
 const RL=new Map();
-// Rate limiting can return HTTP 429 for a burst, but it never creates an IP ban.
-// Persistent IP/email blocking is exclusively controlled by the Admin security_blocks list.
-function clientIp(r){return clean(r.headers.get('CF-Connecting-IP')||'',80)}
+// Use only Cloudflare's edge-populated CF-Connecting-IP. Never fall back to
+// X-Forwarded-For, X-Real-IP, or other client-supplied proxy headers.
+function canonicalIp(value){
+  const raw=String(value||'').trim();if(!raw||raw.length>80||/[\s,/%]/.test(raw))return '';
+  if(raw.includes(':')){try{const host=new URL(`http://[${raw}]/`).hostname;if(!host.startsWith('[')||!host.endsWith(']'))return '';return host.slice(1,-1).toLowerCase()}catch{return ''}}
+  const p=raw.split('.');if(p.length!==4||p.some(x=>!/^\d{1,3}$/.test(x)||Number(x)>255))return '';return p.map(x=>String(Number(x))).join('.')
+}
+function clientIp(r){return canonicalIp(r.headers.get('CF-Connecting-IP')||'')}
 let lastMapPruneAt=0;
 function pruneMaps(now=Date.now()){
   if(now-lastMapPruneAt<30000 && RL.size<8000)return;
@@ -114,11 +119,18 @@ async function tenantSecurityBlocked(e,tenantId,kind,value){
 }
 
 function blockedNotFound(r){const accept=String(r.headers.get('accept')||'').toLowerCase();if(accept.includes('text/html'))return new Response('<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Không tìm thấy trang</title><body style="font-family:system-ui;background:#0a0d16;color:#e5e7eb;padding:12vh 8vw"><h1>404 · Không tìm thấy trang</h1><p>Trang bạn yêu cầu không tồn tại hoặc không thể truy cập.</p></body></html>',{status:404,headers:{...C,'content-type':'text/html;charset=UTF-8','cache-control':'no-store'}});return J({ok:false,error:'NOT_FOUND'},404)}
-function normalizeIpInput(value){const v=String(value||'').trim();if(!v||v.length>80||/[\s/,]/.test(v))return '';if(v.includes(':'))return /^[0-9a-f:.]+$/i.test(v)?v.toLowerCase():'';const parts=v.split('.');if(parts.length!==4||parts.some(x=>!/^\d{1,3}$/.test(x)||Number(x)>255))return '';return parts.map(x=>String(Number(x))).join('.')}
+function normalizeIpInput(value){return canonicalIp(value)}
 function rateLimit(r,key,limit=20,windowMs=60000){const now=Date.now(),ip=clientIp(r);if(!ip)return 0;const k=key+':ip:'+ip;const a=RL.get(k)||[];const fresh=a.filter(t=>now-t<windowMs);if(fresh.length>=limit){RL.set(k,fresh);pruneMaps(now);return Math.max(1,Math.ceil((windowMs-(now-fresh[0]))/1000))}fresh.push(now);RL.set(k,fresh);pruneMaps(now);return 0}
 // Secondary soft guard for nearby rotating proxies: IPv4 /24 and IPv6 /64.
 // This is defense-in-depth only; Cloudflare edge WAF/rate limiting remains the primary DDoS control.
-function clientNetworkPrefix(r){const ip=clientIp(r);if(!ip)return '';if(ip.includes(':')){const parts=ip.toLowerCase().split(':');if(parts.length<2)return '';return 'v6:'+parts.slice(0,4).join(':')}const parts=ip.split('.');if(parts.length!==4||parts.some(x=>!/^\d{1,3}$/.test(x)||Number(x)>255))return '';return 'v4:'+parts.slice(0,3).join('.')}
+function ipv6ExpandedGroups(address){
+  let ip=String(address||'').toLowerCase();
+  if(ip.includes('.')){const ix=ip.lastIndexOf(':');if(ix<0)return null;const v4=ip.slice(ix+1).split('.');if(v4.length!==4||v4.some(x=>!/^\d{1,3}$/.test(x)||Number(x)>255))return null;const a=(Number(v4[0])*256+Number(v4[1])).toString(16),b=(Number(v4[2])*256+Number(v4[3])).toString(16);ip=ip.slice(0,ix+1)+a+':'+b}
+  const halves=ip.split('::');if(halves.length>2)return null;const left=halves[0]?halves[0].split(':'):[],right=halves.length===2&&halves[1]?halves[1].split(':'):[];let groups;
+  if(halves.length===2){const missing=8-left.length-right.length;if(missing<1)return null;groups=[...left,...Array(missing).fill('0'),...right]}else groups=left;
+  if(groups.length!==8||groups.some(x=>!/^([0-9a-f]{1,4})$/.test(x)))return null;return groups.map(x=>x.padStart(4,'0'))
+}
+function clientNetworkPrefix(r){const ip=clientIp(r);if(!ip)return '';if(ip.includes(':')){const g=ipv6ExpandedGroups(ip);return g?'v6:'+g.slice(0,4).join(':'):''}const parts=ip.split('.');return parts.length===4?'v4:'+parts.slice(0,3).join('.'):''}
 function networkRateLimit(r,key,limit,windowMs){const now=Date.now(),prefix=clientNetworkPrefix(r);if(!prefix)return 0;const k=key+':net:'+prefix;const a=RL.get(k)||[];const fresh=a.filter(t=>now-t<windowMs);if(fresh.length>=limit){RL.set(k,fresh);pruneMaps(now);return Math.max(1,Math.ceil((windowMs-(now-fresh[0]))/1000))}fresh.push(now);RL.set(k,fresh);pruneMaps(now);return 0}
 function limited(r,key,limit,windowMs){const retry=rateLimit(r,key,limit,windowMs);return retry?new Response(JSON.stringify({ok:false,error:'RATE_LIMITED',retryAfter:retry}),{status:429,headers:{...C,'retry-after':String(retry),'cache-control':'no-store'}}):null}
 function limitedForAccount(key,accountId,limit,windowMs){const now=Date.now(),k=String(key)+':account:'+String(accountId||'');if(!accountId)return null;const a=RL.get(k)||[],fresh=a.filter(t=>now-t<windowMs);if(fresh.length>=limit){RL.set(k,fresh);pruneMaps(now);const retry=Math.max(1,Math.ceil((windowMs-(now-fresh[0]))/1000));return new Response(JSON.stringify({ok:false,error:'RATE_LIMITED',retryAfter:retry}),{status:429,headers:{...C,'retry-after':String(retry),'cache-control':'no-store'}})}fresh.push(now);RL.set(k,fresh);pruneMaps(now);return null}
@@ -131,7 +143,7 @@ async function cloudflareEdgeRateResponse(r,e,path){
   if(!path.startsWith('/api/')||(path==='/api/webhook/sepay'||path==='/api/webhook/card-provider')||r.method==='OPTIONS')return null;
   const ip=clientIp(r);if(!ip)return null;
   const rules=[['API_EDGE_LIMITER','api',600],
-    [/^\/api\/(?:account\/(?:login|register|verify-email|password\/(?:reset|change))|tenant\/(?:login|password)|rental\/email\/(?:start|verify))/.test(path)?'AUTH_EDGE_LIMITER':'','auth',18],
+    [/^\/api\/(?:account\/(?:login|register|verify-email|password\/(?:reset|change))|tenant\/(?:login|security-login|password)|rental\/email\/(?:start|verify))/.test(path)?'AUTH_EDGE_LIMITER':'','auth',18],
     [/^\/api\/(?:account\/(?:topups\/create|card-topups|seller\/(?:withdrawals|payout-profile|card-withdrawals))|tenant\/(?:withdrawals|payout-profile|card-withdrawals))/.test(path)?'FINANCE_EDGE_LIMITER':'','finance',12],
     [/^\/api\/rental\/free\/bypass\/(?:start|issue|redeem|complete)$/.test(path)?'BYPASS_EDGE_LIMITER':'','free-bypass',8]];
   for(const [bindingName,bucket] of rules){if(!bindingName)continue;const binding=e?.[bindingName];if(!binding||typeof binding.limit!=='function')continue;
@@ -162,6 +174,15 @@ async function addColumnSafe(e,table,column,type){
 }
 
 async function sha256(s){const b=new TextEncoder().encode(s);const h=await crypto.subtle.digest('SHA-256',b);return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+const LOGIN_FAIL_WINDOW_MS=15*60*1000,LOGIN_FAIL_LIMIT=8,LOGIN_IP_FAIL_LIMIT=24,LOGIN_NET_FAIL_LIMIT=60;
+async function loginSubjectHash(e,scope,subject){const secret=String(e?.LOGIN_RATE_HASH_KEY||e?.ADMIN_KEY||e?.TURNSTILE_SECRET||'');if(!secret)throw new Error('LOGIN_RATE_HASH_KEY, ADMIN_KEY or TURNSTILE_SECRET is required for secure login throttling');const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);const message=new TextEncoder().encode('teostudio-login-v1|'+String(scope||'')+'|'+String(subject||'').trim().toLowerCase());const sig=new Uint8Array(await crypto.subtle.sign('HMAC',key,message));return [...sig].map(x=>x.toString(16).padStart(2,'0')).join('')}
+async function loginCooldownSeconds(e,subjectHash){if(!subjectHash)return 0;const row=await e.DB.prepare('SELECT locked_until FROM security_login_attempts WHERE subject_hash=? LIMIT 1').bind(subjectHash).first();const left=Number(row?.locked_until||0)-Date.now();return left>0?Math.max(1,Math.ceil(left/1000)):0}
+async function recordLoginFailure(e,subjectHash,limit=LOGIN_FAIL_LIMIT){if(!subjectHash)return;const now=Date.now(),cutoff=now-LOGIN_FAIL_WINDOW_MS;await e.DB.prepare(`INSERT INTO security_login_attempts(subject_hash,window_started_at,failed_count,locked_until,updated_at) VALUES(?,?,1,0,?) ON CONFLICT(subject_hash) DO UPDATE SET failed_count=CASE WHEN security_login_attempts.window_started_at<=? THEN 1 ELSE security_login_attempts.failed_count+1 END,window_started_at=CASE WHEN security_login_attempts.window_started_at<=? THEN excluded.window_started_at ELSE security_login_attempts.window_started_at END,locked_until=CASE WHEN security_login_attempts.window_started_at<=? THEN 0 WHEN security_login_attempts.failed_count+1>=? THEN excluded.updated_at+? ELSE security_login_attempts.locked_until END,updated_at=excluded.updated_at`).bind(subjectHash,now,now,cutoff,cutoff,cutoff,limit,LOGIN_FAIL_WINDOW_MS).run()}
+async function clearLoginFailure(e,subjectHash){if(subjectHash)await e.DB.prepare('DELETE FROM security_login_attempts WHERE subject_hash=?').bind(subjectHash).run()}
+async function loginAbuseSubjects(e,r){const ip=clientIp(r),network=clientNetworkPrefix(r);return {ip:ip?await loginSubjectHash(e,'login-client-ip',ip):'',network:network?await loginSubjectHash(e,'login-network',network):''}}
+async function loginAbuseCooldown(e,subjects){for(const hash of [subjects?.ip,subjects?.network].filter(Boolean)){const seconds=await loginCooldownSeconds(e,hash);if(seconds)return seconds}return 0}
+async function recordLoginAbuseFailure(e,subjects){const jobs=[];if(subjects?.ip)jobs.push(recordLoginFailure(e,subjects.ip,LOGIN_IP_FAIL_LIMIT));if(subjects?.network)jobs.push(recordLoginFailure(e,subjects.network,LOGIN_NET_FAIL_LIMIT));await Promise.all(jobs)}
+function loginCooldownResponse(seconds){return J({ok:false,error:'LOGIN_TEMPORARILY_LIMITED',message:'Có quá nhiều lần đăng nhập không thành công cho tài khoản này. Hãy chờ rồi thử lại.',retryAfter:seconds},429,{'retry-after':String(seconds),'cache-control':'no-store'})}
 async function ensureSchema(e){
   if(schemaReady)return schemaReady;
   schemaReady=(async()=>{
@@ -218,6 +239,13 @@ async function ensureV55Schema(e){
   if(v55SchemaReady)return v55SchemaReady;
   v55SchemaReady=(async()=>{
     await ensureSchema(e);await ensureTenantSchema(e);
+    // Persistent identity-based login throttling. Store only one-way subject hashes;
+    // an IP/proxy change or switching username/email does not reset the account limit.
+    await e.DB.prepare(`CREATE TABLE IF NOT EXISTS security_login_attempts(
+      subject_hash TEXT PRIMARY KEY,window_started_at INTEGER NOT NULL,failed_count INTEGER NOT NULL DEFAULT 0,
+      locked_until INTEGER NOT NULL DEFAULT 0,updated_at INTEGER NOT NULL
+    )`).run();
+    await e.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_security_login_attempts_updated ON security_login_attempts(updated_at)`).run();
     await e.DB.prepare(`CREATE TABLE IF NOT EXISTS buyer_accounts (
       id TEXT PRIMARY KEY,email TEXT NOT NULL,email_normalized TEXT NOT NULL UNIQUE,
       display_name TEXT NOT NULL,avatar TEXT NOT NULL DEFAULT '',password_hash TEXT NOT NULL,
@@ -565,14 +593,20 @@ async function accountApi(r,e,p){
     return J({ok:true,message:'Email đã xác minh. Bạn có thể đăng nhập.'});
   }
   if(p==='/api/account/login'&&method==='POST'){
-    const rl=limited(r,'account-login',8,60000);if(rl)return rl;const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi đăng nhập.'},400);
+    const rl=limited(r,'account-login',8,60000);if(rl)return rl;const abuseSubjects=await loginAbuseSubjects(e,r),abuseCooldown=await loginAbuseCooldown(e,abuseSubjects);if(abuseCooldown)return loginCooldownResponse(abuseCooldown);const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi đăng nhập.'},400);
     const identifier=clean(b.identifier||b.loginId||b.email||'',320),password=String(b.password||'');
     if(!identifier||!password)return J({ok:false,error:'INVALID_LOGIN',message:'Nhập ID/email và mật khẩu.'},400);
+    const inputHash=await loginSubjectHash(e,'buyer-input',identifier),inputCooldown=await loginCooldownSeconds(e,inputHash);if(inputCooldown)return loginCooldownResponse(inputCooldown);
     let row=null;
     if(identifier.includes('@')){const email=validEmail(identifier).toLowerCase();if(email&&await securityBlocked(e,'email',email))return J({ok:false,error:'NOT_FOUND',message:'Không thể thực hiện yêu cầu.'},404);if(email)row=await e.DB.prepare('SELECT * FROM buyer_accounts WHERE email_normalized=? LIMIT 1').bind(email).first();}
     else row=await e.DB.prepare('SELECT * FROM buyer_accounts WHERE lower(login_id)=lower(?) LIMIT 1').bind(identifier).first();
     if(row&&await securityBlocked(e,'email',row.email_normalized||row.email))return J({ok:false,error:'NOT_FOUND',message:'Không thể thực hiện yêu cầu.'},404);
-    if(!row||Number(row.email_verified)!==1||!(await verifyPasswordV55(password,row.password_hash)))return J({ok:false,error:'INVALID_LOGIN',message:'ID/email hoặc mật khẩu không đúng, hoặc email chưa xác minh.'},401);if(Number(row.locked)===1)return J({ok:false,error:'ACCOUNT_LOCKED'},403);
+    const accountHash=row?await loginSubjectHash(e,'buyer-account',row.id):'';
+    const accountCooldown=accountHash?await loginCooldownSeconds(e,accountHash):0;if(accountCooldown)return loginCooldownResponse(accountCooldown);
+    const passwordOk=!!(row&&Number(row.email_verified)===1&&await verifyPasswordV55(password,row.password_hash));
+    if(!passwordOk){await Promise.all([recordLoginFailure(e,inputHash),accountHash?recordLoginFailure(e,accountHash):Promise.resolve(),recordLoginAbuseFailure(e,abuseSubjects)]);return J({ok:false,error:'INVALID_LOGIN',message:'ID/email hoặc mật khẩu không đúng, hoặc email chưa xác minh.'},401)}
+    if(Number(row.locked)===1)return J({ok:false,error:'ACCOUNT_LOCKED'},403);
+    await clearLoginFailure(e,inputHash);if(accountHash)await clearLoginFailure(e,accountHash);
     const accepted=(await e.DB.prepare('SELECT document_key,document_version FROM legal_acceptances WHERE account_id=? AND document_version IN (?,?)').bind(row.id,LEGAL_TERMS_VERSION,LEGAL_PRIVACY_VERSION).all()).results||[];
     const hasTerms=accepted.some(x=>x.document_key==='terms'&&x.document_version===LEGAL_TERMS_VERSION),hasPrivacy=accepted.some(x=>x.document_key==='privacy-notice'&&x.document_version===LEGAL_PRIVACY_VERSION);
     if(!hasTerms||!hasPrivacy){if(b.termsAccepted!==true||b.privacyAcknowledged!==true||b.termsVersion!==LEGAL_TERMS_VERSION||b.privacyVersion!==LEGAL_PRIVACY_VERSION)return J({ok:false,error:'LEGAL_ACCEPTANCE_REQUIRED',message:'Tài khoản của bạn cần xác nhận phiên bản Điều khoản và Thông báo quyền riêng tư mới trước khi tiếp tục.',required:{termsVersion:LEGAL_TERMS_VERSION,privacyVersion:LEGAL_PRIVACY_VERSION}},400);await e.DB.batch([e.DB.prepare('INSERT OR IGNORE INTO legal_acceptances(id,account_id,document_key,document_version,acceptance_method) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),row.id,'terms',LEGAL_TERMS_VERSION,'account-login-reconsent'),e.DB.prepare('INSERT OR IGNORE INTO legal_acceptances(id,account_id,document_key,document_version,acceptance_method) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),row.id,'privacy-notice',LEGAL_PRIVACY_VERSION,'account-login-reconsent')]);}
@@ -1552,7 +1586,7 @@ async function purgeExpired(e){
   await purgeExpiredBypassArtifacts(e);
   try{await e.DB.prepare('DELETE FROM tenant_view_dedup WHERE expires_at<=?').bind(now).run()}catch{}
   try{await e.DB.prepare("DELETE FROM comment_rate_events WHERE created_at < datetime('now','-7 days')").run()}catch{}
-  try{await ensureV55Schema(e);await e.DB.prepare('DELETE FROM seller_attributions WHERE expires_at<=?').bind(now).run()}catch{}
+  try{await ensureV55Schema(e);await e.DB.prepare('DELETE FROM security_login_attempts WHERE updated_at<?').bind(now-86400000).run();await e.DB.prepare('DELETE FROM seller_attributions WHERE expires_at<=?').bind(now).run()}catch{}
 }
 
 async function walletBalance(e,tenantId){
@@ -1751,10 +1785,11 @@ function bypassProviderConfig(e){
     link4mApproved:String(e?.LINK4M_REWARDED_TRAFFIC_APPROVED||'')==='1'
   };
 }
-async function createBypassShortUrl(e,providerName,destination){
+async function createBypassShortUrl(e,providerName,destination,options={}){
   const cfg=bypassProviderConfig(e),provider=providerName==='link4m'?cfg.link4m:cfg.bumx;
   if(!provider.key||!provider.url)throw new Error((providerName==='link4m'?'LINK4M':'BUMX')+'_API_NOT_CONFIGURED');
-  if(providerName==='link4m'&&!cfg.link4mApproved)throw new Error('LINK4M_REWARDED_TRAFFIC_NOT_APPROVED');
+  // Diagnostic probes may test only the URL-shortening API. They never enable a rewarded flow.
+  if(providerName==='link4m'&&!cfg.link4mApproved&&!options.allowUnapprovedDiagnostic)throw new Error('LINK4M_REWARDED_TRAFFIC_NOT_APPROVED');
   const endpoint=new URL(provider.url);
   if(endpoint.protocol!=='https:'||endpoint.username||endpoint.password)throw new Error('SHORTENER_ENDPOINT_INVALID');
   endpoint.searchParams.set('api',provider.key);
@@ -1769,7 +1804,25 @@ async function createBypassShortUrl(e,providerName,destination){
   const statusOk=providerName==='link4m'?status==='success':(!status||['success','true','1','ok','200'].includes(status));
   if(!(candidate&&statusOk))throw new Error(String(data?.message||data?.error||payload?.message||payload?.error||('SHORTENER_REJECTED_'+(status||'NO_URL'))));
   const result=safeHttpUrl(candidate,2000);if(!result||new URL(result).protocol!=='https:')throw new Error('SHORTENER_RESULT_INVALID');
-  return {url:result,provider:providerName==='link4m'?'Link4M':'BumX'};
+  return {url:result,provider:providerName==='link4m'?'Link4M':'BumX',httpStatus:resp.status,providerStatus:status||'not_provided',resultDomain:new URL(result).hostname};
+}
+function safeShortenerDiagnosticError(err,secret=''){
+  let value=String(err?.message||'SHORTENER_TEST_FAILED');
+  if(secret)value=value.split(secret).join('[redacted]');
+  value=value.replace(/([?&](?:api|token|key)=)[^&\s]+/gi,'$1[redacted]');
+  value=value.replace(/https?:\/\/[^\s]+/gi,'[provider-url-redacted]');
+  return clean(value,180);
+}
+async function testBypassShortener(e,providerName){
+  const cfg=bypassProviderConfig(e),provider=providerName==='link4m'?cfg.link4m:cfg.bumx;
+  if(!provider.key||!provider.url)return {provider:providerName==='link4m'?'Link4M':'BumX',ok:false,error:'API_NOT_CONFIGURED'};
+  const destination=`${PUBLIC_ORIGIN}/free-key.html?api_probe=${encodeURIComponent(crypto.randomUUID())}`;
+  try{
+    const result=await createBypassShortUrl(e,providerName,destination,{allowUnapprovedDiagnostic:providerName==='link4m'});
+    return {provider:result.provider,ok:true,stage:'shortlink_creation',httpStatus:result.httpStatus,providerStatus:result.providerStatus,resultDomain:result.resultDomain,completionVerified:false,rewardEnabled:providerName==='link4m'?cfg.link4mApproved:null};
+  }catch(err){
+    return {provider:providerName==='link4m'?'Link4M':'BumX',ok:false,stage:'shortlink_creation',error:safeShortenerDiagnosticError(err,provider.key),completionVerified:false,rewardEnabled:providerName==='link4m'?cfg.link4mApproved:null};
+  }
 }
 async function startFreeBypass(r,e){
   const rl=limited(r,'free-bypass-start',6,60000);if(rl)return rl;
@@ -2067,15 +2120,20 @@ Kết nối Telegram hoạt động bình thường.`);
   }
   if(p==='/api/tenant/bypass/test'&&r.method==='POST'){
     const rl=limited(r,'tenant-bypass-api-test',2,60000);if(rl)return rl;
-    const cfg=bypassProviderConfig(e),results=[],missing=[];
-    for(const [name,entry] of [['BumX',cfg.bumx],['Link4M',cfg.link4m]]){
-      if(!entry.key||!entry.url){missing.push(name==='BumX'?'BUMX_API_KEY / BUMX_API_URL':'LINK4M_API_KEY / LINK4M_API_URL');results.push({provider:name,ok:false,error:'API_NOT_CONFIGURED'});continue;}
-      if(name==='Link4M'&&!cfg.link4mApproved){missing.push('LINK4M_REWARDED_TRAFFIC_APPROVED=1 (chỉ bật sau khi Link4M cấp phép bằng văn bản)');results.push({provider:name,ok:false,error:'REWARDED_TRAFFIC_NOT_APPROVED'});continue;}
-      try{await createBypassShortUrl(e,name.toLowerCase()==='link4m'?'link4m':'bumx',`${PUBLIC_ORIGIN}/free-key.html?test=1`);results.push({provider:name,ok:true});}
-      catch(err){results.push({provider:name,ok:false,error:clean(err?.message||'SHORTENER_TEST_FAILED',120)});}
-    }
-    const configured=results.length===2&&results.every(x=>x.ok);
-    return J({ok:true,configured,providers:results,verificationMode:'TeoStudio one-time key',missing,message:configured?'✅ Cả BumX và Link4M tạo link được. Luồng key nội bộ dùng một lần, hết hạn sau 5 phút.':'Kiểm tra từng nền tảng bên dưới. Link4M chỉ hoạt động khi có chấp thuận traffic khuyến khích.'});
+    const cfg=bypassProviderConfig(e),results=[];
+    // This performs one API create-link probe per provider using the server-side Secret.
+    // It does not open the generated URL, create a rewarded attempt, issue a key, or grant days.
+    for(const providerName of ['bumx','link4m'])results.push(await testBypassShortener(e,providerName));
+    const shortlinkApisOk=results.length===2&&results.every(x=>x.ok);
+    const link4mResult=results.find(x=>x.provider==='Link4M');
+    const link4mRewardEnabled=!!cfg.link4mApproved;
+    const completionVerified=false; // Current supplied API evidence is the shorten endpoint only.
+    const missing=[];
+    if(!cfg.bumx.key||!cfg.bumx.url)missing.push('BUMX_API_KEY / BUMX_API_URL');
+    if(!cfg.link4m.key||!cfg.link4m.url)missing.push('LINK4M_API_KEY / LINK4M_API_URL');
+    if(!link4mRewardEnabled)missing.push('LINK4M_REWARDED_TRAFFIC_APPROVED=1 (chỉ sau khi có chấp thuận bằng văn bản)');
+    const rewardFlowReady=link4mRewardEnabled&&completionVerified;
+    return J({ok:true,configured:shortlinkApisOk,shortlinkApisOk,providers:results,link4mRewardEnabled,providerCompletionVerified:completionVerified,rewardFlowReady,verificationMode:'shortlink-api-probe-only',missing,testedAt:new Date().toISOString(),message:shortlinkApisOk?'✅ API tạo link của cả BumX và Link4M phản hồi thành công. Đây chỉ là kiểm tra tạo link; không xác minh click/hoàn thành quảng cáo và không cấp ngày Free.':`Đã kiểm tra API. Xem lỗi riêng từng nhà cung cấp bên dưới. ${link4mResult?.ok?'Link4M tạo link được, nhưng phần thưởng vẫn chưa được bật.':''}`});
   }
   if(p==='/api/tenant/telegram/status'&&r.method==='GET'){
     await ensureTenantTelegramSchema(e);
@@ -2842,62 +2900,69 @@ export default{async scheduled(controller,e){if(String(controller?.cron||'')==='
   let to=p.match(/^\/api\/track\/outbound\/([^/]+)$/);if(to&&r.method==='POST'){const id=decodeURIComponent(to[1]);const product=await productById(e,id);if(!product)return J({ok:false,error:'NOT_FOUND'},404);await bumpView(e,'outbound',id,u.searchParams.get('source')||'');return J({ok:true})}
   if(p==='/api/tenant/security-login'&&r.method==='POST'){const rl=limited(r,'tenant-security-login',8,60000);if(rl)return rl;
     try{
-      await ensureTenantSchema(e);
+      await ensureV55Schema(e);
+      const abuseSubjects=await loginAbuseSubjects(e,r),abuseCooldown=await loginAbuseCooldown(e,abuseSubjects);if(abuseCooldown)return loginCooldownResponse(abuseCooldown);
       const b=await r.json().catch(()=>({}));
-      const identifier=clean(b.tenant||b.id||b.slug||'',100), pass=String(b.password||'');
+      const cap=await verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi mở Admin.'},400);
+      const identifier=clean(b.tenant||b.id||b.slug||'',100),pass=String(b.password||'');
       if(!identifier||!pass)return J({ok:false,error:'SECURITY_PASSWORD_REQUIRED'},400);
       const raw=await tenantByIdentifier(e,identifier);
-      if(!raw)return J({ok:false,error:'INVALID_SECURITY_LOGIN'},401);
-      let t=await normalizeTenantRow(e,raw);t=await refreshTenantPlan(e,t);const st=tenantStatus(t);
+      if(!raw){const inputHash=await loginSubjectHash(e,'tenant-security-input',identifier);await Promise.all([recordLoginFailure(e,inputHash),recordLoginAbuseFailure(e,abuseSubjects)]);return J({ok:false,error:'INVALID_SECURITY_LOGIN'},401)}
+      let t=await normalizeTenantRow(e,raw);
+      const securityHash=await loginSubjectHash(e,'tenant-security-account',String(t.id||t.tenant_id||t.slug||identifier));
+      const securityCooldown=await loginCooldownSeconds(e,securityHash);if(securityCooldown)return loginCooldownResponse(securityCooldown);
+      t=await refreshTenantPlan(e,t);const st=tenantStatus(t);
       if(st==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);
       if(st==='expired'&&String(t.plan_type||'paid')!=='free')return J({ok:false,error:'TENANT_EXPIRED'},403);
       if(!String(t.admin_confirm_password_hash||''))return J({ok:false,error:'SECURITY_PASSWORD_NOT_SET'},409);
-      const securityPasswordOk=String(t.admin_confirm_password_hash).startsWith('pbkdf2$')?await verifyPasswordV55(pass,t.admin_confirm_password_hash):String(t.admin_confirm_password_hash)===await sha256(pass);if(!securityPasswordOk)return J({ok:false,error:'INVALID_SECURITY_PASSWORD'},401);
+      const securityPasswordOk=String(t.admin_confirm_password_hash).startsWith('pbkdf2$')?await verifyPasswordV55(pass,t.admin_confirm_password_hash):String(t.admin_confirm_password_hash)===await sha256(pass);
+      if(!securityPasswordOk){await Promise.all([recordLoginFailure(e,securityHash),recordLoginAbuseFailure(e,abuseSubjects)]);return J({ok:false,error:'INVALID_SECURITY_PASSWORD'},401)}
+      await clearLoginFailure(e,securityHash);
       const token=crypto.randomUUID()+crypto.randomUUID();
       const sessionTenantId=clean(t?.slug??t?.tenant_id??t?.id,100);
       if(!sessionTenantId)return J({ok:false,error:'TENANT_KEY_MISSING'},500);
       const sessionExpires=Date.now()+30*86400000;
       await e.DB.prepare('INSERT INTO tenant_sessions(token,tenant_id,expires_at) VALUES(?,?,?)').bind(token,sessionTenantId,sessionExpires).run();
-      // Share one token across tenant Admin, buyer account, comments and AI only when
-      // the Studio has an explicit owner_user_id link or a verified matching email.
       let linkedBuyer=null;
       try{
-        await ensureV55Schema(e);
         if(t.owner_user_id)linkedBuyer=await e.DB.prepare('SELECT id,email,email_verified,locked FROM buyer_accounts WHERE id=? AND email_verified=1 AND locked=0 LIMIT 1').bind(String(t.owner_user_id)).first();
         if(!linkedBuyer&&t.email)linkedBuyer=await e.DB.prepare('SELECT id,email,email_verified,locked FROM buyer_accounts WHERE lower(email_normalized)=lower(?) AND email_verified=1 AND locked=0 LIMIT 1').bind(String(t.email)).first();
         if(linkedBuyer)await e.DB.prepare('INSERT INTO buyer_sessions(token,buyer_id,expires_at) VALUES(?,?,?) ON CONFLICT(token) DO UPDATE SET buyer_id=excluded.buyer_id,expires_at=excluded.expires_at').bind(token,String(linkedBuyer.id),sessionExpires).run();
       }catch{linkedBuyer=null}
       return J({ok:true,token,linkedBuyerSession:!!linkedBuyer,tenant:tenantInfo(t),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share?tenant=${encodeURIComponent(t.slug)}`});
-    }catch(x){return J({ok:false,error:'TENANT_SECURITY_LOGIN_DB_ERROR',detail:String(x?.message||x)},500)}
+    }catch(x){console.error('TENANT_SECURITY_LOGIN_DB_ERROR',String(x?.message||x));return J({ok:false,error:'TENANT_SECURITY_LOGIN_DB_ERROR',message:'Không thể xác nhận mật khẩu bảo mật lúc này. Hãy thử lại sau.'},500)}
   }
   if(p==='/api/tenant/login'&&r.method==='POST'){const rl=limited(r,'tenant-login',8,60000);if(rl)return rl;
     try{
-      await ensureTenantSchema(e);
+      await ensureV55Schema(e);
+      const abuseSubjects=await loginAbuseSubjects(e,r),abuseCooldown=await loginAbuseCooldown(e,abuseSubjects);if(abuseCooldown)return loginCooldownResponse(abuseCooldown);
       const b=await r.json().catch(()=>({}));
-      const identifier=b.tenant||b.id||b.slug||'';
-      const t0=await tenantByLogin(e,identifier,b.password);
-      if(!t0)return J({ok:false,error:'INVALID_LOGIN'},401);
-      let t=await normalizeTenantRow(e,t0);t=await refreshTenantPlan(e,t);
+      const identifier=clean(b.tenant||b.id||b.slug||'',100),tenantSubject=tenantSlug(identifier)||identifier.toLowerCase();
+      if(!tenantSubject||!b.password)return J({ok:false,error:'INVALID_LOGIN'},401);
+      const candidates=await tenantCandidates(e,identifier),identitySubjects=[...new Set(candidates.map(x=>String(x.id||x.tenant_id||x.slug||'').trim().toLowerCase()).filter(Boolean))];
+      const subjectHashes=await Promise.all([loginSubjectHash(e,'tenant-identity',tenantSubject),...identitySubjects.map(x=>loginSubjectHash(e,'tenant-account',x))]);
+      for(const hash of subjectHashes){const cooldown=await loginCooldownSeconds(e,hash);if(cooldown)return loginCooldownResponse(cooldown)}
+      let t0=null;for(const candidate of candidates){if(await tenantPasswordMatches(e,candidate,b.password)){t0=candidate;break}}
+      if(!t0){await Promise.all([...subjectHashes.map(hash=>recordLoginFailure(e,hash)),recordLoginAbuseFailure(e,abuseSubjects)]);return J({ok:false,error:'INVALID_LOGIN'},401)}
+      let t=await normalizeTenantRow(e,t0);
+      await Promise.all(subjectHashes.map(hash=>clearLoginFailure(e,hash)));
+      t=await refreshTenantPlan(e,t);
       const st=tenantStatus(t);
       if(st==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);
       if(st==='expired'&&String(t.plan_type||'paid')!=='free')return J({ok:false,error:'TENANT_EXPIRED'},403);
-      if(!(await tenantPasswordMatches(e,t,b.password)))return J({ok:false,error:'INVALID_LOGIN'},401);
       const token=crypto.randomUUID()+crypto.randomUUID();
       const sessionTenantId=clean(t?.slug??t?.tenant_id??t?.id,100);
       if(!sessionTenantId)return J({ok:false,error:'TENANT_KEY_MISSING'},500);
       const sessionExpires=Date.now()+30*86400000;
       await e.DB.prepare('INSERT INTO tenant_sessions(token,tenant_id,expires_at) VALUES(?,?,?)').bind(token,sessionTenantId,sessionExpires).run();
-      // Share one token across tenant Admin, buyer account, comments and AI only when
-      // the Studio has an explicit owner_user_id link or a verified matching email.
       let linkedBuyer=null;
       try{
-        await ensureV55Schema(e);
         if(t.owner_user_id)linkedBuyer=await e.DB.prepare('SELECT id,email,email_verified,locked FROM buyer_accounts WHERE id=? AND email_verified=1 AND locked=0 LIMIT 1').bind(String(t.owner_user_id)).first();
         if(!linkedBuyer&&t.email)linkedBuyer=await e.DB.prepare('SELECT id,email,email_verified,locked FROM buyer_accounts WHERE lower(email_normalized)=lower(?) AND email_verified=1 AND locked=0 LIMIT 1').bind(String(t.email)).first();
         if(linkedBuyer)await e.DB.prepare('INSERT INTO buyer_sessions(token,buyer_id,expires_at) VALUES(?,?,?) ON CONFLICT(token) DO UPDATE SET buyer_id=excluded.buyer_id,expires_at=excluded.expires_at').bind(token,String(linkedBuyer.id),sessionExpires).run();
       }catch{linkedBuyer=null}
       return J({ok:true,token,linkedBuyerSession:!!linkedBuyer,tenant:tenantInfo(t),adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share?tenant=${encodeURIComponent(t.slug)}`});
-    }catch(x){return J({ok:false,error:'TENANT_LOGIN_DB_ERROR',detail:String(x?.message||x)},500)}
+    }catch(x){console.error('TENANT_LOGIN_DB_ERROR',String(x?.message||x));return J({ok:false,error:'TENANT_LOGIN_DB_ERROR',message:'Đăng nhập Studio tạm thời không thực hiện được. Hãy thử lại sau.'},500)}
   }
   if(p.match(/^\/api\/og\/tenant\/[^/]+$/)&&r.method==='GET'){
     try{
