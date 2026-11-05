@@ -1,5 +1,5 @@
 window.TEO_CONFIG={
-  BUILD_VERSION:'v57.10-link4m-api-diagnostic',
+  BUILD_VERSION:'v57.11-free-key-five-minute-ttl',
   API_BASE_URL:(window.location?.origin||'https://teostudio.top'),
   RENT_ZALO_URL:'',
   AVATAR_VIDEO_URL:'https://raw.githubusercontent.com/teoscrvn-glitch/-nh-video/refs/heads/main/snaptik.vn_7684570630439685384.mp4'

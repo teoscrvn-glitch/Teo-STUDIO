@@ -15,9 +15,9 @@ topup = (ROOT / 'frontend/topup.html').read_text(encoding='utf-8')
 wrangler = (ROOT / 'cloudflare/wrangler.toml').read_text(encoding='utf-8')
 
 # Build/version and server-side migration.
-assert "BUILD_VERSION='v57.10-link4m-api-diagnostic'" in w
-assert "BUILD_VERSION:'v57.10-link4m-api-diagnostic'" in config
-assert 'v57.9-identity-rate-security' in page and 'v57.10-link4m-api-diagnostic' in admin_page
+assert "BUILD_VERSION='v57.11-free-key-five-minute-ttl'" in w
+assert "BUILD_VERSION:'v57.11-free-key-five-minute-ttl'" in config
+assert 'v57.11-free-key-five-minute-ttl' in page and 'v57.11-free-key-five-minute-ttl' in admin_page
 assert "'free_bypass_cycle_1_at','INTEGER DEFAULT NULL'" in w
 assert "'free_bypass_cycle_2_at','INTEGER DEFAULT NULL'" in w
 assert "'client_proof_hash','TEXT DEFAULT NULL'" in w
@@ -37,10 +37,14 @@ assert "sha256(returnSession)!==String(attempt.session_hash||'')" in w
 assert 'tenantFromFreeBypassSession(r,e,requestedTenant)' in w
 assert "String(sessionTenant.id)!==String(attempt.tenant_id)" in w
 assert "status='key_issued'" in w and 'BYPASS_KEY_ALREADY_ISSUED' in w
+assert 'expires=now+5*60*1000,sessionHash=await sha256(sessionToken)' in w
 assert 'keyExpires=now+5*60*1000' in w
+assert "status='key_issued',key_issued_at=?,expires_at=?" in w
 assert 'BYPASS_CLIENT_PROOF_REQUIRED' in w and 'BYPASS_CLIENT_PROOF_MISMATCH' in w
 assert 'client_proof_hash' in w and '&proof=${encodeURIComponent(clientProof)}' in w
 assert 'sessionStorage.getItem(proofKey)' in k and 'sessionStorage.removeItem(proofKey)' in k
+assert "linkExpiresAt=Number(q.get('exp')||0)" in k and 'expireReturnLink()' in k
+assert 'cleanReturnUrl()' in k and 'đồng hồ 5 phút vẫn tiếp tục chạy' in k
 assert 'BYPASS_SESSION_MISMATCH' in w and 'BYPASS_TENANT_SESSION_MISMATCH' in w
 assert 'history.replaceState({},\'\',location.pathname+\'?tenant=\'+encodeURIComponent(tenant))' in k
 assert "if(!state||!tenant||!clientProof){" in k and 'create.disabled=true' in k

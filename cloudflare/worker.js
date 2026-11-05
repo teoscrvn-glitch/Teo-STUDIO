@@ -50,7 +50,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v57.10-link4m-api-diagnostic';
+const BUILD_VERSION='v57.11-free-key-five-minute-ttl';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -1844,9 +1844,9 @@ async function startFreeBypass(r,e){
   try{await e.DB.prepare('DELETE FROM free_bypass_keys WHERE tenant_id=? AND expires_at<=?').bind(String(t.id),now).run()}catch{}
   const active=await e.DB.prepare("SELECT COUNT(*) AS n FROM free_bypass_attempts WHERE tenant_id=? AND status IN ('pending','key_issued') AND expires_at>? ").bind(String(t.id),now).first();
   if(Number(active?.n||0)>0)return J({ok:false,error:'BYPASS_ATTEMPT_EXISTS',message:'Bạn đã có một lượt vượt đang chờ. Hãy mở link trước đó hoặc đợi link hết hạn.'},409);
-  const state=crypto.randomUUID()+crypto.randomUUID(),attemptId=crypto.randomUUID(),expires=now+15*60*1000,sessionHash=await sha256(sessionToken);
+  const state=crypto.randomUUID()+crypto.randomUUID(),attemptId=crypto.randomUUID(),expires=now+5*60*1000,sessionHash=await sha256(sessionToken);
   await e.DB.prepare("INSERT INTO free_bypass_attempts(id,tenant_id,step,state_hash,session_hash,provider,expires_at,status,client_proof_hash) VALUES(?,?,?,?,?,?,?,'pending',?)").bind(attemptId,String(t.id),step,await sha256(state),sessionHash,provider,expires,await sha256(clientProof)).run();
-  const returnUrl=`${PUBLIC_ORIGIN}/free-key.html?tenant=${encodeURIComponent(t.slug)}&state=${encodeURIComponent(state)}&proof=${encodeURIComponent(clientProof)}`;
+  const returnUrl=`${PUBLIC_ORIGIN}/free-key.html?tenant=${encodeURIComponent(t.slug)}&state=${encodeURIComponent(state)}&proof=${encodeURIComponent(clientProof)}&exp=${expires}`;
   let short;try{short=await createBypassShortUrl(e,provider,returnUrl)}catch(err){try{await e.DB.prepare("UPDATE free_bypass_attempts SET status='failed' WHERE id=? AND status='pending'").bind(attemptId).run()}catch{}return J({ok:false,error:'FREE_BYPASS_SHORTENER_FAILED',provider:provider==='link4m'?'Link4M':'BumX',message:`Không tạo được link ${provider==='bumx'?'BumX':'Link4M'}. Kiểm tra API URL/key và phản hồi nhà cung cấp.`,detail:clean(err?.message||'',160)},502)}
   return J({ok:true,step,progress,completedCycles:quota.completedLast24h,provider:short.provider,redirectUrl:short.url,attemptExpiresAt:expires,dailyLimit:2,message:`Mở link ${short.provider}, quay lại đúng phiên Studio để tạo key. ${step===1?'Sau khi nhập key BumX, tiếp tục Link4M ngay.':'Nhập key Link4M để nhận thêm 7 ngày Free.'} Mỗi chu kỳ BumX + Link4M được cộng 7 ngày; tối đa 2 chu kỳ trong 24 giờ.`},201);
 }
@@ -1876,9 +1876,22 @@ async function issueFreeBypassKey(r,e){
   const sessionHash=String(attempt.session_hash||'');if(!sessionHash)return J({ok:false,error:'BYPASS_SESSION_INVALID',message:'Phiên vượt cũ không thể cấp key. Hãy tạo lượt vượt mới.'},403);
   const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',bytes=crypto.getRandomValues(new Uint8Array(20));let key='TEO-';for(const byte of bytes)key+=alphabet[byte&31];
   const keyId=crypto.randomUUID(),keyHash=await sha256(key),keyExpires=now+5*60*1000;
-  const claimed=await e.DB.prepare("UPDATE free_bypass_attempts SET status='key_issued',key_issued_at=? WHERE id=? AND status='pending' AND expires_at>?").bind(now,attempt.id,now).run();
-  if(Number(claimed?.meta?.changes||0)!==1)return J({ok:false,error:'BYPASS_KEY_ALREADY_ISSUED',message:'Phiên này đã được sử dụng. Mỗi lượt chỉ tạo một key.'},409);
-  try{await e.DB.prepare('INSERT INTO free_bypass_keys(id,tenant_id,attempt_id,key_hash,session_hash,expires_at) VALUES(?,?,?,?,?,?)').bind(keyId,String(attempt.tenant_id),String(attempt.id),keyHash,sessionHash,keyExpires).run()}catch{try{await e.DB.prepare("UPDATE free_bypass_attempts SET status='pending',key_issued_at=NULL WHERE id=? AND status='key_issued'").bind(attempt.id).run()}catch{}return J({ok:false,error:'BYPASS_KEY_CREATE_FAILED',message:'Không lưu được key. Hãy thử lại bằng lượt vượt mới.'},500)}
+  let issueResults;
+  try{
+    // Claim the one-time state and insert the key in one D1 batch. If either
+    // statement fails, D1 rolls the batch back instead of leaving a consumed
+    // state without a corresponding key row.
+    const claim=e.DB.prepare("UPDATE free_bypass_attempts SET status='key_issued',key_issued_at=?,expires_at=? WHERE id=? AND status='pending' AND expires_at>?").bind(now,keyExpires,attempt.id,now);
+    const issueKey=e.DB.prepare(`INSERT INTO free_bypass_keys(id,tenant_id,attempt_id,key_hash,session_hash,expires_at)
+      SELECT ?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM free_bypass_attempts WHERE id=? AND status='key_issued' AND key_issued_at=? AND expires_at=?)`)
+      .bind(keyId,String(attempt.tenant_id),String(attempt.id),keyHash,sessionHash,keyExpires,attempt.id,now,keyExpires);
+    issueResults=await e.DB.batch([claim,issueKey]);
+  }catch{
+    const latest=await e.DB.prepare('SELECT status FROM free_bypass_attempts WHERE id=? LIMIT 1').bind(attempt.id).first().catch(()=>null);
+    if(latest?.status==='key_issued'||latest?.status==='redeemed')return J({ok:false,error:'BYPASS_KEY_ALREADY_ISSUED',message:'Phiên này đã được sử dụng. Mỗi lượt chỉ tạo một key.'},409);
+    return J({ok:false,error:'BYPASS_KEY_CREATE_FAILED',message:'Không lưu được key. Hãy tạo lượt vượt mới.'},500);
+  }
+  if(Number(issueResults?.[0]?.meta?.changes||0)!==1||Number(issueResults?.[1]?.meta?.changes||0)!==1)return J({ok:false,error:'BYPASS_KEY_ALREADY_ISSUED',message:'Phiên này đã được sử dụng, đã hết hạn hoặc không thể cấp thêm key.'},409);
   return J({ok:true,key,step,provider:provider==='link4m'?'Link4M':'BumX',progress,completedCycles:quota.completedLast24h,expiresAt:keyExpires,expiresIn:300,message:`Key lượt ${step}/2 đã tạo. Copy và nhập trong vòng 5 phút.`},201);
 }
 
