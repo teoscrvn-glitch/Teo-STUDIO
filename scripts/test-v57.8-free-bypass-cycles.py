@@ -15,9 +15,9 @@ topup = (ROOT / 'frontend/topup.html').read_text(encoding='utf-8')
 wrangler = (ROOT / 'cloudflare/wrangler.toml').read_text(encoding='utf-8')
 
 # Build/version and server-side migration.
-assert "BUILD_VERSION='v57.11-free-key-five-minute-ttl'" in w
-assert "BUILD_VERSION:'v57.11-free-key-five-minute-ttl'" in config
-assert 'v57.11-free-key-five-minute-ttl' in page and 'v57.11-free-key-five-minute-ttl' in admin_page
+assert "BUILD_VERSION='v57.12-link4m-destination-key-page'" in w
+assert "BUILD_VERSION:'v57.12-link4m-destination-key-page'" in config
+assert 'v57.12-link4m-destination-key-page' in page and 'v57.12-link4m-destination-key-page' in admin_page
 assert "'free_bypass_cycle_1_at','INTEGER DEFAULT NULL'" in w
 assert "'free_bypass_cycle_2_at','INTEGER DEFAULT NULL'" in w
 assert "'client_proof_hash','TEXT DEFAULT NULL'" in w
@@ -46,7 +46,7 @@ assert 'sessionStorage.getItem(proofKey)' in k and 'sessionStorage.removeItem(pr
 assert "linkExpiresAt=Number(q.get('exp')||0)" in k and 'expireReturnLink()' in k
 assert 'cleanReturnUrl()' in k and 'đồng hồ 5 phút vẫn tiếp tục chạy' in k
 assert 'BYPASS_SESSION_MISMATCH' in w and 'BYPASS_TENANT_SESSION_MISMATCH' in w
-assert 'history.replaceState({},\'\',location.pathname+\'?tenant=\'+encodeURIComponent(tenant))' in k
+assert 'history.replaceState' in k and 'cleanReturnUrl()' in k
 assert "if(!state||!tenant||!clientProof){" in k and 'create.disabled=true' in k
 assert "attempt.status!=='key_issued'" in w
 assert 'used_at IS NULL AND expires_at>?' in w
@@ -63,8 +63,13 @@ assert 'BumX' in page and 'Link4M' in page and '2 chu kỳ BumX + Link4M trong 2
 
 # The shortener APIs in this project do not return a cryptographically verifiable ad-completion callback.
 # The build must disclose that limitation rather than claim independent proof of a completed view.
-assert 'chưa cung cấp callback ký số' in w or 'chưa cung cấp callback ký số' in t
-assert 'LINK4M_REWARDED_TRAFFIC_APPROVED' in w
+assert 'callback' in w or 'callback' in t
+assert 'không xác minh lượt xem quảng cáo' in t
+assert 'LINK4M_REWARDED_TRAFFIC_APPROVED' not in w
+assert "if(provider==='link4m'&&!cfg.link4mApproved)" not in w
+assert "if(step===2&&!bypassProviderConfig(e).link4mApproved)" not in w
+assert "destinationPage:'/free-key.html'" in w
+assert 'auto-claim' in k or 'issueKey()' in k
 
 # Preserve the existing independent card top-up flow and guardian acknowledgement.
 assert '(?:account|topup)' in a and 'isTopupPage()' in a

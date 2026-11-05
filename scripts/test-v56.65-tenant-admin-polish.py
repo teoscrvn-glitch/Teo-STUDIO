@@ -14,7 +14,8 @@ assert 'SHORTENER_REDIRECT_BLOCKED' in worker
 
 # V57.4 Free gate uses one-time TeoStudio keys after BumX/Link4M return URLs.
 assert 'FREE_BYPASS_VERIFY_URL' not in worker and 'FREE_BYPASS_API_KEY' not in worker
-assert 'LINK4M_REWARDED_TRAFFIC_APPROVED' in worker
+assert 'LINK4M_REWARDED_TRAFFIC_APPROVED' not in worker
+assert "destinationPage:'/free-key.html'" in worker
 assert 'async function startFreeBypass' in worker
 assert 'async function issueFreeBypassKey' in worker
 assert 'async function redeemFreeBypassKey' in worker

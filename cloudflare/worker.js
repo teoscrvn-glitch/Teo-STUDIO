@@ -50,7 +50,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v57.11-free-key-five-minute-ttl';
+const BUILD_VERSION='v57.12-link4m-destination-key-page';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -60,7 +60,7 @@ function runtimeConfigStatus(e){
   const emailMissing=[];if(!has('OXMAIL_SMTP_PASS'))emailMissing.push('OXMAIL_SMTP_PASS');if(Number(e?.OXMAIL_SMTP_PORT||465)!==465)emailMissing.push('OXMAIL_SMTP_PORT (must be 465)');const smtpHost=String(e?.OXMAIL_SMTP_HOST||'mail.teostudio.top');if(!/^[a-z0-9.-]+$/i.test(smtpHost)||smtpHost.startsWith('.')||smtpHost.endsWith('.'))emailMissing.push('OXMAIL_SMTP_HOST');const smtpUser=String(e?.OXMAIL_SMTP_USER||'teostudio@teostudio.top'),smtpFrom=String(e?.EMAIL_FROM||smtpUser);if(!EMAIL_RE.test(smtpUser))emailMissing.push('OXMAIL_SMTP_USER');if(!EMAIL_RE.test(smtpFrom))emailMissing.push('EMAIL_FROM');const email={configured:emailMissing.length===0,missing:emailMissing,hostUsesDefault:!has('OXMAIL_SMTP_HOST'),userUsesDefault:!has('OXMAIL_SMTP_USER'),fromUsesDefault:!has('EMAIL_FROM')};
   const telegramChatId=String(e?.TELEGRAM_CHAT_ID||e?.ID_CHAT_TELEGRAM||'').trim();
   const telegramMissing=[];if(!has('TELEGRAM_BOT_TOKEN'))telegramMissing.push('TELEGRAM_BOT_TOKEN');if(!telegramChatId)telegramMissing.push('TELEGRAM_CHAT_ID (or legacy ID_CHAT_TELEGRAM)');
-  const tenantTelegramMissing=[];if(!has('TELEGRAM_BOT_TOKEN'))tenantTelegramMissing.push('TELEGRAM_BOT_TOKEN (Secret)');if(!has('TELEGRAM_WEBHOOK_SECRET'))tenantTelegramMissing.push('TELEGRAM_WEBHOOK_SECRET (Secret)');if(!has('TELEGRAM_BOT_USERNAME'))tenantTelegramMissing.push('TELEGRAM_BOT_USERNAME (Variable, không có @)');return {database:{configured:!!e?.DB},ai,email,telegram:{configured:telegramMissing.length===0,missing:telegramMissing},tenantTelegram:{configured:tenantTelegramMissing.length===0,missing:tenantTelegramMissing},freeBypass:(()=>{const bumx=has('BUMX_API_KEY')&&has('BUMX_API_URL'),link4m=has('LINK4M_API_KEY')&&has('LINK4M_API_URL'),link4mApproved=String(e?.LINK4M_REWARDED_TRAFFIC_APPROVED||'')==='1';return {configured:bumx&&link4m&&link4mApproved,bumxConfigured:bumx,link4mConfigured:link4m,link4mRewardTrafficApproved:link4mApproved,verificationMode:'one-time-key',missing:[...(!bumx?['BUMX_API_KEY / BUMX_API_URL']:[]),...(!link4m?['LINK4M_API_KEY / LINK4M_API_URL']:[]),...(!link4mApproved?['LINK4M_REWARDED_TRAFFIC_APPROVED=1 (chỉ bật sau khi Link4M cho phép traffic khuyến khích bằng văn bản)']:[])]}})(),turnstile:check(['TURNSTILE_SITE_KEY','TURNSTILE_SECRET']),sepay:check(['SEPAY_API_KEY','SEPAY_BANK_CODE','SEPAY_ACCOUNT_NUMBER']),cardExchange:{partnerConfigured:!!(e?.THECAOSIEUTOC_PARTNER_ID&&e?.THECAOSIEUTOC_PARTNER_KEY),withdrawalMode:'manual',withdrawalEncryptionConfigured:String(e?.CARD_DATA_ENCRYPTION_KEY||'').length>=32}};
+  const tenantTelegramMissing=[];if(!has('TELEGRAM_BOT_TOKEN'))tenantTelegramMissing.push('TELEGRAM_BOT_TOKEN (Secret)');if(!has('TELEGRAM_WEBHOOK_SECRET'))tenantTelegramMissing.push('TELEGRAM_WEBHOOK_SECRET (Secret)');if(!has('TELEGRAM_BOT_USERNAME'))tenantTelegramMissing.push('TELEGRAM_BOT_USERNAME (Variable, không có @)');return {database:{configured:!!e?.DB},ai,email,telegram:{configured:telegramMissing.length===0,missing:telegramMissing},tenantTelegram:{configured:tenantTelegramMissing.length===0,missing:tenantTelegramMissing},freeBypass:(()=>{const bumx=has('BUMX_API_KEY')&&has('BUMX_API_URL'),link4m=has('LINK4M_API_KEY')&&has('LINK4M_API_URL');return {configured:bumx&&link4m,bumxConfigured:bumx,link4mConfigured:link4m,destinationPage:'/free-key.html',verificationMode:'one-time-return-state-key',adCompletionVerified:false,missing:[...(!bumx?['BUMX_API_KEY / BUMX_API_URL']:[]),...(!link4m?['LINK4M_API_KEY / LINK4M_API_URL']:[])]}})(),turnstile:check(['TURNSTILE_SITE_KEY','TURNSTILE_SECRET']),sepay:check(['SEPAY_API_KEY','SEPAY_BANK_CODE','SEPAY_ACCOUNT_NUMBER']),cardExchange:{partnerConfigured:!!(e?.THECAOSIEUTOC_PARTNER_ID&&e?.THECAOSIEUTOC_PARTNER_KEY),withdrawalMode:'manual',withdrawalEncryptionConfigured:String(e?.CARD_DATA_ENCRYPTION_KEY||'').length>=32}};
 }
 const C={"content-type":"application/json;charset=utf-8","access-control-allow-origin":"https://teostudio.top","access-control-allow-methods":"GET,POST,PUT,DELETE,OPTIONS","access-control-allow-headers":"Content-Type,Authorization,X-Requested-With,X-Tenant-Slug","vary":"Origin","cache-control":"no-store","x-content-type-options":"nosniff","x-frame-options":"SAMEORIGIN","referrer-policy":"strict-origin-when-cross-origin","permissions-policy":"camera=(),microphone=(),geolocation=()","x-permitted-cross-domain-policies":"none","cross-origin-opener-policy":"same-origin","strict-transport-security":"max-age=31536000","content-security-policy":"default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://challenges.cloudflare.com; frame-src 'self' https://challenges.cloudflare.com https://www.youtube-nocookie.com https://www.youtube.com; worker-src 'self' blob: https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"};
 const J=(x,s=200,extra={})=>new Response(JSON.stringify(x),{status:s,headers:{...C,...extra}});
@@ -1782,14 +1782,12 @@ function bypassProviderConfig(e){
   return {
     bumx:{key:String(e?.BUMX_API_KEY||'').trim(),url:String(e?.BUMX_API_URL||'https://linkfree.click/s/link/shorten').trim()},
     link4m:{key:String(e?.LINK4M_API_KEY||'').trim(),url:String(e?.LINK4M_API_URL||'https://link4m.co/api-shorten/v2').trim()},
-    link4mApproved:String(e?.LINK4M_REWARDED_TRAFFIC_APPROVED||'')==='1'
   };
 }
 async function createBypassShortUrl(e,providerName,destination,options={}){
   const cfg=bypassProviderConfig(e),provider=providerName==='link4m'?cfg.link4m:cfg.bumx;
   if(!provider.key||!provider.url)throw new Error((providerName==='link4m'?'LINK4M':'BUMX')+'_API_NOT_CONFIGURED');
-  // Diagnostic probes may test only the URL-shortening API. They never enable a rewarded flow.
-  if(providerName==='link4m'&&!cfg.link4mApproved&&!options.allowUnapprovedDiagnostic)throw new Error('LINK4M_REWARDED_TRAFFIC_NOT_APPROVED');
+  // Link4M's shortener redirects to TeoStudio's own result page. TeoStudio issues a one-time key only after return to the bound session/state.
   const endpoint=new URL(provider.url);
   if(endpoint.protocol!=='https:'||endpoint.username||endpoint.password)throw new Error('SHORTENER_ENDPOINT_INVALID');
   endpoint.searchParams.set('api',provider.key);
@@ -1804,7 +1802,7 @@ async function createBypassShortUrl(e,providerName,destination,options={}){
   const statusOk=providerName==='link4m'?status==='success':(!status||['success','true','1','ok','200'].includes(status));
   if(!(candidate&&statusOk))throw new Error(String(data?.message||data?.error||payload?.message||payload?.error||('SHORTENER_REJECTED_'+(status||'NO_URL'))));
   const result=safeHttpUrl(candidate,2000);if(!result||new URL(result).protocol!=='https:')throw new Error('SHORTENER_RESULT_INVALID');
-  return {url:result,provider:providerName==='link4m'?'Link4M':'BumX',httpStatus:resp.status,providerStatus:status||'not_provided',resultDomain:new URL(result).hostname};
+  return {url:result,provider:providerName==='link4m'?'Link4M':'BumX',httpStatus:resp.status,providerStatus:status||'not_provided',resultDomain:new URL(result).hostname,destinationPage:'/free-key.html'};
 }
 function safeShortenerDiagnosticError(err,secret=''){
   let value=String(err?.message||'SHORTENER_TEST_FAILED');
@@ -1818,10 +1816,10 @@ async function testBypassShortener(e,providerName){
   if(!provider.key||!provider.url)return {provider:providerName==='link4m'?'Link4M':'BumX',ok:false,error:'API_NOT_CONFIGURED'};
   const destination=`${PUBLIC_ORIGIN}/free-key.html?api_probe=${encodeURIComponent(crypto.randomUUID())}`;
   try{
-    const result=await createBypassShortUrl(e,providerName,destination,{allowUnapprovedDiagnostic:providerName==='link4m'});
-    return {provider:result.provider,ok:true,stage:'shortlink_creation',httpStatus:result.httpStatus,providerStatus:result.providerStatus,resultDomain:result.resultDomain,completionVerified:false,rewardEnabled:providerName==='link4m'?cfg.link4mApproved:null};
+    const result=await createBypassShortUrl(e,providerName,destination);
+    return {provider:result.provider,ok:true,stage:'shortlink_creation',httpStatus:result.httpStatus,providerStatus:result.providerStatus,resultDomain:result.resultDomain,destinationPage:result.destinationPage,completionVerified:false};
   }catch(err){
-    return {provider:providerName==='link4m'?'Link4M':'BumX',ok:false,stage:'shortlink_creation',error:safeShortenerDiagnosticError(err,provider.key),completionVerified:false,rewardEnabled:providerName==='link4m'?cfg.link4mApproved:null};
+    return {provider:providerName==='link4m'?'Link4M':'BumX',ok:false,stage:'shortlink_creation',error:safeShortenerDiagnosticError(err,provider.key),destinationPage:'/free-key.html',completionVerified:false};
   }
 }
 async function startFreeBypass(r,e){
@@ -1839,7 +1837,6 @@ async function startFreeBypass(r,e){
   if(progress===0&&quota.completedLast24h>=2)return J({ok:false,error:'FREE_BYPASS_DAILY_LIMIT',progress,completedCycles:quota.completedLast24h,nextAllowedAt:quota.nextAllowedAt,retryAfterMs:Math.max(0,Number(quota.nextAllowedAt||now)-now),message:`Bạn đã hoàn tất 2 chu kỳ BumX + Link4M trong 24 giờ. Lượt tiếp theo mở lúc ${new Date(quota.nextAllowedAt).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}.`},429);
   const cfg=bypassProviderConfig(e),step=progress+1,provider=step===1?'bumx':'link4m',selected=cfg[provider];
   if(!selected?.key||!selected?.url)return J({ok:false,error:'FREE_BYPASS_PROVIDER_NOT_CONFIGURED',provider:provider==='bumx'?'BumX':'Link4M',message:`Chưa cấu hình đủ ${provider==='bumx'?'BUMX_API_KEY và BUMX_API_URL':'LINK4M_API_KEY và LINK4M_API_URL'} trong Cloudflare.`},503);
-  if(provider==='link4m'&&!cfg.link4mApproved)return J({ok:false,error:'LINK4M_REWARDED_TRAFFIC_NOT_APPROVED',provider:'Link4M',message:'Link4M chỉ được bật khi có chấp thuận bằng văn bản cho traffic khuyến khích. Chỉ đặt LINK4M_REWARDED_TRAFFIC_APPROVED=1 sau khi được nhà cung cấp đồng ý.'},403);
   try{await e.DB.prepare("UPDATE free_bypass_attempts SET status='expired' WHERE tenant_id=? AND status IN ('pending','key_issued') AND expires_at<=?").bind(String(t.id),now).run()}catch{}
   try{await e.DB.prepare('DELETE FROM free_bypass_keys WHERE tenant_id=? AND expires_at<=?').bind(String(t.id),now).run()}catch{}
   const active=await e.DB.prepare("SELECT COUNT(*) AS n FROM free_bypass_attempts WHERE tenant_id=? AND status IN ('pending','key_issued') AND expires_at>? ").bind(String(t.id),now).first();
@@ -1872,7 +1869,6 @@ async function issueFreeBypassKey(r,e){
   const quota=freeBypassCycleState(t,now);
   if(step===1&&quota.completedLast24h>=2)return J({ok:false,error:'FREE_BYPASS_DAILY_LIMIT',nextAllowedAt:quota.nextAllowedAt,message:'Đã dùng đủ 2 chu kỳ trong 24 giờ. Hãy đợi đến khi hệ thống mở lượt mới.'},429);
   if(step===2&&!Number(t.free_bypass_last_at||0))return J({ok:false,error:'BYPASS_FIRST_STEP_REQUIRED',message:'Cần nhập key BumX thành công trước khi nhận key Link4M.'},409);
-  if(step===2&&!bypassProviderConfig(e).link4mApproved)return J({ok:false,error:'LINK4M_REWARDED_TRAFFIC_NOT_APPROVED',message:'Link4M chưa được nhà cung cấp chấp thuận traffic khuyến khích.'},403);
   const sessionHash=String(attempt.session_hash||'');if(!sessionHash)return J({ok:false,error:'BYPASS_SESSION_INVALID',message:'Phiên vượt cũ không thể cấp key. Hãy tạo lượt vượt mới.'},403);
   const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',bytes=crypto.getRandomValues(new Uint8Array(20));let key='TEO-';for(const byte of bytes)key+=alphabet[byte&31];
   const keyId=crypto.randomUUID(),keyHash=await sha256(key),keyExpires=now+5*60*1000;
@@ -2138,15 +2134,13 @@ Kết nối Telegram hoạt động bình thường.`);
     // It does not open the generated URL, create a rewarded attempt, issue a key, or grant days.
     for(const providerName of ['bumx','link4m'])results.push(await testBypassShortener(e,providerName));
     const shortlinkApisOk=results.length===2&&results.every(x=>x.ok);
-    const link4mResult=results.find(x=>x.provider==='Link4M');
-    const link4mRewardEnabled=!!cfg.link4mApproved;
+    const link4mReturnFlowReady=!!(cfg.link4m.key&&cfg.link4m.url);
     const completionVerified=false; // Current supplied API evidence is the shorten endpoint only.
     const missing=[];
     if(!cfg.bumx.key||!cfg.bumx.url)missing.push('BUMX_API_KEY / BUMX_API_URL');
     if(!cfg.link4m.key||!cfg.link4m.url)missing.push('LINK4M_API_KEY / LINK4M_API_URL');
-    if(!link4mRewardEnabled)missing.push('LINK4M_REWARDED_TRAFFIC_APPROVED=1 (chỉ sau khi có chấp thuận bằng văn bản)');
-    const rewardFlowReady=link4mRewardEnabled&&completionVerified;
-    return J({ok:true,configured:shortlinkApisOk,shortlinkApisOk,providers:results,link4mRewardEnabled,providerCompletionVerified:completionVerified,rewardFlowReady,verificationMode:'shortlink-api-probe-only',missing,testedAt:new Date().toISOString(),message:shortlinkApisOk?'✅ API tạo link của cả BumX và Link4M phản hồi thành công. Đây chỉ là kiểm tra tạo link; không xác minh click/hoàn thành quảng cáo và không cấp ngày Free.':`Đã kiểm tra API. Xem lỗi riêng từng nhà cung cấp bên dưới. ${link4mResult?.ok?'Link4M tạo link được, nhưng phần thưởng vẫn chưa được bật.':''}`});
+    const returnFlowReady=shortlinkApisOk&&link4mReturnFlowReady;
+    return J({ok:true,configured:shortlinkApisOk,shortlinkApisOk,providers:results,link4mReturnFlowReady,returnFlowReady,providerCompletionVerified:completionVerified,verificationMode:'one-time-return-state-key',destinationPage:'/free-key.html',missing,testedAt:new Date().toISOString(),message:shortlinkApisOk?'✅ API rút gọn BumX và Link4M đều tạo link được. Link sẽ quay về trang kết quả TeoStudio /free-key.html; trang chỉ cấp một key khi đúng state, Studio và phiên đăng nhập còn hiệu lực. Nhà cung cấp không trả callback xác minh hoàn thành quảng cáo, nên hệ thống chỉ xác nhận quay về hợp lệ.':`Đã kiểm tra API. Xem lỗi riêng từng nhà cung cấp bên dưới.`});
   }
   if(p==='/api/tenant/telegram/status'&&r.method==='GET'){
     await ensureTenantTelegramSchema(e);
@@ -2158,7 +2152,7 @@ Kết nối Telegram hoạt động bình thường.`);
     await e.DB.prepare('DELETE FROM tenant_telegram_links WHERE tenant_id=?').bind(String(t.id)).run();
     return J({ok:true,unlinked:true});
   }
-  if(String(t.plan_type||'paid')==='free'&&!tenantHasTimeLeft(t)){const c=bypassProviderConfig(e),progress=Math.max(0,Math.min(1,Number(t.free_bypass_count||0))),nextProvider=progress===0?'BumX':'Link4M';return J({ok:false,error:'FREE_BYPASS_REQUIRED',message:progress===0?'Thời hạn Free đã hết. Hoàn thành BumX rồi Link4M để nhận 7 ngày; tối đa 2 chu kỳ trong 24 giờ.':'Đã hoàn tất BumX lượt 1/2. Tiếp tục Link4M ngay để nhận thêm 7 ngày Free.',tenant:tenantInfo(t),bypassConfigured:!!(c.bumx.key&&c.bumx.url&&(progress===0||(c.link4m.key&&c.link4m.url&&c.link4mApproved))),bypassProviders:{bumxConfigured:!!(c.bumx.key&&c.bumx.url),link4mConfigured:!!(c.link4m.key&&c.link4m.url),link4mApproved:c.link4mApproved}},403)}
+  if(String(t.plan_type||'paid')==='free'&&!tenantHasTimeLeft(t)){const c=bypassProviderConfig(e),progress=Math.max(0,Math.min(1,Number(t.free_bypass_count||0))),nextProvider=progress===0?'BumX':'Link4M';return J({ok:false,error:'FREE_BYPASS_REQUIRED',message:progress===0?'Thời hạn Free đã hết. Hoàn thành BumX rồi Link4M để nhận 7 ngày; tối đa 2 chu kỳ trong 24 giờ.':'Đã hoàn tất BumX lượt 1/2. Tiếp tục Link4M ngay để nhận thêm 7 ngày Free.',tenant:tenantInfo(t),bypassConfigured:!!(c.bumx.key&&c.bumx.url&&(progress===0||(c.link4m.key&&c.link4m.url))),bypassProviders:{bumxConfigured:!!(c.bumx.key&&c.bumx.url),link4mConfigured:!!(c.link4m.key&&c.link4m.url),destinationPage:'/free-key.html',verificationMode:'one-time-return-state-key'}},403)}
   if(String(t.plan_type||'paid')==='free'&&(/^\/api\/tenant\/(wallet|payout-profile|withdrawals)(?:\/|$)/.test(p)||p.includes('/orders/'))){return J({ok:false,error:'VIP_REQUIRED',message:'Tính năng kiếm tiền, bán file và rút tiền chỉ có ở gói VIP.'},403)}
   if(p==='/api/tenant/notifications'&&r.method==='GET'){
     const notifications=await notificationList(e,'tenant',t.id);
@@ -2648,7 +2642,7 @@ export default{async scheduled(controller,e){if(String(controller?.cron||'')==='
       ORDER BY bp.created_at DESC,bp.amount_vnd DESC LIMIT 200`).all()).results||[];
     return J({ok:true,sales:rows.map(x=>({productId:clean(x.product_id,100),title:clean(x.title,160),amountVnd:Number(x.amount_vnd||0),createdAt:x.created_at,name:clean(x.display_name||'Khách',60),emailMasked:maskEmail(x.email),avatar:x.buyer_account_id?'/media/buyer-avatar/'+encodeURIComponent(clean(x.buyer_account_id,100)):'/assets/img/default-avatar.svg',thumb:x.available_product_id?'/media/product/'+encodeURIComponent(clean(x.available_product_id,100)):'/assets/img/default-avatar.svg'}))});
   }
-  if(p==='/api/rental/config'&&r.method==='GET'){const c=bypassProviderConfig(e);return J({...paymentConfig(e),freeBypassConfigured:!!(c.bumx.key&&c.bumx.url),freeBypassProviders:{bumx:!!(c.bumx.key&&c.bumx.url),link4m:!!(c.link4m.key&&c.link4m.url),link4mApproved:c.link4mApproved},emailConfigured:!!e.OXMAIL_SMTP_PASS})}
+  if(p==='/api/rental/config'&&r.method==='GET'){const c=bypassProviderConfig(e);return J({...paymentConfig(e),freeBypassConfigured:!!(c.bumx.key&&c.bumx.url&&c.link4m.key&&c.link4m.url),freeBypassProviders:{bumx:!!(c.bumx.key&&c.bumx.url),link4m:!!(c.link4m.key&&c.link4m.url),destinationPage:'/free-key.html',verificationMode:'one-time-return-state-key'},emailConfigured:!!e.OXMAIL_SMTP_PASS})}
   if(p==='/api/rental/email/start'&&r.method==='POST')return await startRentalEmailVerification(r,e);
   if(p==='/api/rental/email/verify'&&r.method==='POST')return await verifyRentalEmail(r,e);
   if(p==='/api/rental/free/create'&&r.method==='POST')return await createFreeRentalAccount(r,e);

@@ -7,8 +7,10 @@ key_html=(root/"frontend/free-key.html").read_text()
 tenant_html=(root/"frontend/tenant-admin.html").read_text()
 admin=(root/"frontend/assets/js/admin-v14.js").read_text()
 admin_html=(root/"frontend/admin.html").read_text()
-assert "link4mApproved:String(e?.LINK4M_REWARDED_TRAFFIC_APPROVED||'')==='1'" in worker
-assert "providerName==='link4m'&&!cfg.link4mApproved" in worker
+assert "LINK4M_REWARDED_TRAFFIC_APPROVED" not in worker
+assert "if(provider==='link4m'&&!cfg.link4mApproved)" not in worker
+assert "destinationPage:'/free-key.html'" in worker
+assert "link4mConfigured:!!(c.link4m.key&&c.link4m.url)" in worker
 assert "FREE_BYPASS_VERIFY_URL" not in worker and "FREE_BYPASS_API_KEY" not in worker
 assert "CREATE TABLE IF NOT EXISTS free_bypass_keys" in worker
 assert "expiresIn:300" in worker or "keyExpires=now+5*60*1000" in worker
@@ -24,4 +26,4 @@ assert 'renderTenantSellerAnalytics(x.sellerAnalytics||{},selectedMonth)' in ten
 assert 'sellerAffiliateRows' in worker and 'sellerAffiliateOrders' in worker and 'sellerAffiliateDaily' in worker
 assert 'v56SellerCommissionRows' in admin_html and 'v56SellerCommissionDaily' in admin_html
 assert 'const sa=x.sellerAnalytics||{}' in admin
-print('PASS V57.4: one-time Free key, 5-minute expiry, active-rental bypass, Link4M approval guard, and Seller analytics regression checks.')
+print('PASS V57.12: one-time Free key, 5-minute expiry, active-rental bypass, TeoStudio Link4M destination-page flow, and Seller analytics regression checks.')

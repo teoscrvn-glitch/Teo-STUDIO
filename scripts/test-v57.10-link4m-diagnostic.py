@@ -6,19 +6,19 @@ ui = (ROOT / 'frontend/assets/js/tenant-admin.js').read_text(encoding='utf-8')
 page = (ROOT / 'frontend/tenant-admin.html').read_text(encoding='utf-8')
 
 checks = [
-    ("BUILD_VERSION='v57.11-free-key-five-minute-ttl'" in w, 'Worker build version bumped'),
-    ('allowUnapprovedDiagnostic' in w, 'diagnostic-only Link4M API probe can run independently from reward approval'),
-    ("if(providerName==='link4m'&&!cfg.link4mApproved&&!options.allowUnapprovedDiagnostic)" in w, 'real reward flow remains gated by provider approval'),
+    ("BUILD_VERSION='v57.12-link4m-destination-key-page'" in w, 'Worker build version bumped'),
+    ("destinationPage:'/free-key.html'" in w, 'shortener destination is TeoStudio result page'),
+    ("if(providerName==='link4m'&&!cfg.link4mApproved&&!options.allowUnapprovedDiagnostic)" not in w, 'Link4M flow no longer waits on an unused approval flag'),
     ('async function testBypassShortener' in w, 'provider probe uses the server-side credentials'),
     ('resultDomain:new URL(result).hostname' in w, 'response returns host only, not the full generated short URL'),
     ('safeShortenerDiagnosticError' in w and "value.split(secret).join('[redacted]')" in w, 'provider errors redact API secrets'),
     ('const completionVerified=false' in w and 'providerCompletionVerified:completionVerified' in w, 'shortener success is not reported as ad-completion verification'),
-    ('rewardFlowReady,verificationMode' in w, 'API health and reward eligibility are separate fields'),
+    ('returnFlowReady' in w and "verificationMode:'one-time-return-state-key'" in w, 'diagnostic distinguishes return-page flow from ad-completion proof'),
     ("for(const providerName of ['bumx','link4m'])" in w, 'diagnostic tests both providers'),
     ('does not open the generated URL' in w and 'does not' in w, 'diagnostic does not open the shortlink or create rewards'),
     ('formatBypassApiTest' in ui, 'Free gate and settings show per-provider diagnostic detail'),
     ('HTTP ${v.httpStatus' in ui, 'UI shows provider HTTP result'),
-    ('v57.11-free-key-five-minute-ttl' in page, 'tenant admin cache-busting version bumped'),
+    ('v57.12-link4m-destination-key-page' in page, 'tenant admin cache-busting version bumped'),
 ]
 failed = []
 for ok, label in checks:
