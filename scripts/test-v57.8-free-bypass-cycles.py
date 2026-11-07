@@ -15,9 +15,9 @@ topup = (ROOT / 'frontend/topup.html').read_text(encoding='utf-8')
 wrangler = (ROOT / 'cloudflare/wrangler.toml').read_text(encoding='utf-8')
 
 # Build/version and server-side migration.
-assert "BUILD_VERSION='v57.12-link4m-destination-key-page'" in w
-assert "BUILD_VERSION:'v57.12-link4m-destination-key-page'" in config
-assert 'v57.12-link4m-destination-key-page' in page and 'v57.12-link4m-destination-key-page' in admin_page
+assert "BUILD_VERSION='v58.0-mobile-studio-notes'" in w
+assert "BUILD_VERSION:'v58.0-mobile-studio-notes'" in config
+assert 'v58.0-mobile-studio-notes' in page and 'v58.0-mobile-studio-notes' in admin_page
 assert "'free_bypass_cycle_1_at','INTEGER DEFAULT NULL'" in w
 assert "'free_bypass_cycle_2_at','INTEGER DEFAULT NULL'" in w
 assert "'client_proof_hash','TEXT DEFAULT NULL'" in w
@@ -43,11 +43,11 @@ assert "status='key_issued',key_issued_at=?,expires_at=?" in w
 assert 'BYPASS_CLIENT_PROOF_REQUIRED' in w and 'BYPASS_CLIENT_PROOF_MISMATCH' in w
 assert 'client_proof_hash' in w and '&proof=${encodeURIComponent(clientProof)}' in w
 assert 'sessionStorage.getItem(proofKey)' in k and 'sessionStorage.removeItem(proofKey)' in k
-assert "linkExpiresAt=Number(q.get('exp')||0)" in k and 'expireReturnLink()' in k
-assert 'cleanReturnUrl()' in k and 'đồng hồ 5 phút vẫn tiếp tục chạy' in k
+assert "linkExpiresAt=Number(pending?.exp||0)" in k and 'function expireReturnLink()' in k
+assert 'cleanReturnUrl()' in k and 'nhập trong 5 phút' in k
 assert 'BYPASS_SESSION_MISMATCH' in w and 'BYPASS_TENANT_SESSION_MISMATCH' in w
 assert 'history.replaceState' in k and 'cleanReturnUrl()' in k
-assert "if(!state||!tenant||!clientProof){" in k and 'create.disabled=true' in k
+assert "if(!state||!tenant||!clientProof||!linkExpiresAt){" in k and 'create.disabled=!retry' in k
 assert "attempt.status!=='key_issued'" in w
 assert 'used_at IS NULL AND expires_at>?' in w
 
@@ -56,15 +56,15 @@ assert "quota.completedLast24h>=2" in w
 assert 'FREE_BYPASS_DAILY_LIMIT' in w
 assert 'freeBypassCyclesLast24h' in w and 'freeBypassNextAllowedAt' in w
 assert 'freeEarnStart' in t and 'freeBypassEarnPanel' in t
-assert 'makeFreeBypassProof()' in t and 'sessionStorage.setItem(freeBypassProofKey' in t
+assert 'makeFreeBypassProof()' in t and 'function persistFreeBypassProof' in t and 'sessionStorage.setItem(k,proof)' in t
 assert 'Có thể hoàn tất tối đa 2 chu kỳ trong 24 giờ' in t
 assert 'Mỗi chu kỳ hoàn thành <b>BumX → Link4M</b> được cộng thêm 7 ngày' in t
-assert 'BumX' in page and 'Link4M' in page and '2 chu kỳ BumX + Link4M trong 24 giờ' in page
+assert 'MÃ NHẬN 7 NGÀY FREE' in page and 'BumX' in t and 'Link4M' in t and 'Tối đa 2 chu kỳ trong 24 giờ' in t
 
 # The shortener APIs in this project do not return a cryptographically verifiable ad-completion callback.
 # The build must disclose that limitation rather than claim independent proof of a completed view.
 assert 'callback' in w or 'callback' in t
-assert 'không xác minh lượt xem quảng cáo' in t
+assert 'adCompletionVerified:false' in w and 'completionVerified:false' in w
 assert 'LINK4M_REWARDED_TRAFFIC_APPROVED' not in w
 assert "if(provider==='link4m'&&!cfg.link4mApproved)" not in w
 assert "if(step===2&&!bypassProviderConfig(e).link4mApproved)" not in w

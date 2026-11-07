@@ -18,7 +18,7 @@ assert "DELETE FROM free_bypass_keys" in worker
 assert "tenantHasTimeLeft(t)" in worker
 assert "free/bypass/redeem" in tenant and "free/bypass/start" in tenant
 assert "free/bypass/issue" in key_page and "navigator.clipboard.writeText" in key_page
-assert "5 phút" in key_html and "7 ngày Free" in key_html
+assert "05:00" in key_html and "MÃ NHẬN 7 NGÀY FREE" in key_html
 assert "p.scope='tenant' AND p.tenant_id=? AND p.status='paid' AND COALESCE(p.seller_id,'')<>''" in worker
 assert 'sellerAnalytics' in worker and 'seller_commission_vnd' in worker
 assert 'tenantSellerRows' in tenant_html and 'tenantSellerDaily' in tenant_html

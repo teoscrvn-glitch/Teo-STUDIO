@@ -55,3 +55,22 @@ img{max-width:100%}
 .teo-skip-link{position:fixed;left:12px;top:8px;z-index:12000;transform:translateY(-160%);padding:10px 14px;background:#fff;color:#111;border-radius:10px;font-size:13px;font-weight:800}.teo-skip-link:focus{transform:translateY(0)}
 
 .teo-policy-footer-links{display:flex;flex-wrap:wrap;align-items:center;gap:9px 16px;margin-top:12px}.teo-policy-footer-inner{align-items:center}
+
+
+/* V58.0 · Account page layout: keep the auth/profile card inside main content,
+   before the policy footer. Avoid a viewport-sized spacer on short phones. */
+.teo-account-page-main{padding-bottom:clamp(18px,3vh,34px)!important;min-height:0!important}
+.teo-account-page-mode #teoAccountMount{display:block;width:100%;min-height:0;margin:0;padding:0}
+.teo-account-page-mode #teoAccountModal{display:flex!important;width:100%;min-height:0;margin:0;padding:0;position:static;inset:auto}
+.teo-account-page-mode #teoAccountPanel{min-width:0;width:100%;max-width:100%;max-height:none;overflow:visible}
+.teo-account-page-mode .teo-modal-body{min-width:0;overflow-wrap:anywhere}
+.teo-account-page-mode .teo-account-tabs{gap:7px;overflow:visible}
+.teo-account-page-mode .teo-account-tabs button{max-width:100%;white-space:normal}
+@media(max-width:520px){
+ .teo-account-page-main{padding:18px 12px 24px!important}
+ .teo-account-page-intro{margin-bottom:16px}
+ .teo-account-page-intro p{font-size:14px;line-height:1.55}
+ .teo-account-page-mode .teo-account-panel{border-radius:18px}
+ .teo-account-page-mode .teo-modal-head{padding:18px 16px}
+ .teo-account-page-mode .teo-modal-body{padding:14px!important}
+}

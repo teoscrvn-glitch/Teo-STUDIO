@@ -101,3 +101,6 @@ body::before{content:"";position:fixed;inset:-30%;pointer-events:none;z-index:-1
 
 /* V57.3 one-time Free bypass key */
 .free-gate-redeem{margin-top:16px;padding:14px;border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.025)}.free-gate-redeem label{display:block;font-weight:700;margin-bottom:8px}.free-gate-redeem input{width:100%;box-sizing:border-box;padding:13px 12px;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.24);color:inherit;font:700 16px ui-monospace,monospace;letter-spacing:.06em;text-align:center;text-transform:uppercase}.free-gate-redeem button{margin-top:10px}
+
+/* V58 Notes editor */
+.tenant-note-admin{margin:12px 0}.tenant-note-admin .card-head>div:first-child{display:grid;gap:5px;min-width:0}.tenant-note-admin .card-head small{color:var(--muted);font-size:11px}.tenant-notes-admin-list{display:grid;gap:10px;margin-top:12px}.tenant-note-admin p{overflow-wrap:anywhere;white-space:pre-wrap}

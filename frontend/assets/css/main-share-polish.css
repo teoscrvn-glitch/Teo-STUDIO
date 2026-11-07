@@ -29,3 +29,10 @@ html{scroll-behavior:smooth}
 /* Keep Share File cards in two columns on narrow phones. */
 @media(max-width:390px){.product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.product-body{padding:8px}.product-body h3{font-size:12px}.product-body p{font-size:10px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.product-card,.earn-feature{transition:none}}
+
+/* V58 Studio Notes cards */
+.tenant-notes-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:14px}
+.tenant-note-card{min-width:0;padding:18px;border:1px solid var(--teo-ui-line);border-radius:18px;background:linear-gradient(145deg,rgba(19,22,39,.98),rgba(13,16,28,.98));box-shadow:0 12px 34px rgba(0,0,0,.14)}
+.tenant-note-card h3{margin:10px 0 8px}.tenant-note-card p{line-height:1.7;overflow-wrap:anywhere}.tenant-note-meta{display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--muted);font-size:12px}.tenant-note-meta .tag{padding:5px 9px;border-radius:999px;border:1px solid var(--teo-ui-line)}
+.tenant-note-steps{display:grid;gap:9px;margin-top:14px;padding-top:12px;border-top:1px solid var(--teo-ui-line)}.tenant-note-step{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px;border:1px solid var(--teo-ui-line);border-radius:12px}.tenant-note-step>div{display:grid;gap:5px;min-width:0}.tenant-note-step a,.tenant-note-ad{font-size:12px;color:#c4b5fd;overflow-wrap:anywhere}.tenant-note-step .btn{font-size:11px;padding:8px 10px;white-space:normal}.tenant-note-main{display:inline-flex;margin-top:6px}.tenant-note-ad{display:inline-block;margin-top:12px}.tenant-note-disclaimer{display:block;margin-top:14px;color:var(--muted);font-size:10px;line-height:1.5}
+@media(max-width:480px){.tenant-note-card{padding:13px}.tenant-note-step{align-items:flex-start;flex-direction:column}.tenant-note-step .btn{width:100%}}

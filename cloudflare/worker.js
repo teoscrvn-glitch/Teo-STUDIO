@@ -50,7 +50,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v57.13-free-key-cross-tab-return';
+const BUILD_VERSION='v58.0-mobile-studio-notes';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -733,7 +733,15 @@ async function accountApi(r,e,p){
     if(studioName.length<2||!/^[a-z0-9_-]{2,60}$/.test(slug))return J({ok:false,error:'INVALID_STUDIO_NAME',message:'Tên studio ít nhất 2 ký tự; đường dẫn chỉ dùng chữ không dấu, số, gạch ngang hoặc gạch dưới.'},400);
     if(!['free','paid'].includes(plan))return J({ok:false,error:'INVALID_STUDIO_PLAN'},400);
     const existing=await e.DB.prepare("SELECT id,plan_type,locked,pending_order_id FROM tenant_accounts WHERE lower(slug)=lower(?) AND (deleted_at IS NULL OR deleted_at='') LIMIT 1").bind(slug).first();if(existing)return J({ok:false,error:'STUDIO_SLUG_EXISTS',message:'Đường dẫn studio đã được dùng. Hãy đổi tên studio.'},409);
-    const owned=await e.DB.prepare("SELECT COUNT(*) AS n FROM tenant_accounts WHERE lower(email)=lower(?) AND (deleted_at IS NULL OR deleted_at='')").bind(buyer.email).first();if(Number(owned?.n||0)>=5)return J({ok:false,error:'STUDIO_LIMIT_REACHED',message:'Mỗi tài khoản hiện tạo tối đa 5 studio. Hãy nâng cấp/quản lý các studio hiện có.'},429);
+    // The Studio limit is an account entitlement, not a client-selected plan.
+    // A buyer becomes eligible for 3 Studios only while they own at least one
+    // active, unlocked, unexpired paid Studio. A pending VIP order does not grant
+    // the entitlement; this prevents opening multiple pending orders to bypass it.
+    const ownedRows=(await e.DB.prepare("SELECT id,tenant_id,slug,plan_type,locked,expires_at,deleted_at FROM tenant_accounts WHERE (owner_user_id=? OR (owner_user_id IS NULL AND lower(email)=lower(?))) AND (deleted_at IS NULL OR deleted_at='')").bind(String(buyer.id),buyer.email).all()).results||[];
+    const ownedCount=ownedRows.length;
+    const vipEntitled=ownedRows.some(x=>String(x.plan_type||'paid')!=='free'&&Number(x.locked)===0&&tenantHasTimeLeft(x));
+    const studioLimit=vipEntitled?3:1;
+    if(ownedCount>=studioLimit)return J({ok:false,error:'STUDIO_LIMIT_REACHED',limit:studioLimit,current:ownedCount,requestedPlan:plan,vipEntitled,message:vipEntitled?'Tài khoản VIP đang quản lý tối đa 3 Studio. Hãy lưu trữ Studio không còn dùng trước khi tạo thêm.':'Tài khoản Free chỉ được tạo 1 Studio. Hãy nâng cấp Studio hiện tại lên VIP để mở giới hạn 3 Studio.'},429);
     await ensureTenantSchema(e);const keyCol=await tenantAccountKeyColumn(e);if(!keyCol)return J({ok:false,error:'TENANT_SCHEMA_KEY_MISSING'},500);
     const id='t-'+slug+'-'+crypto.randomUUID().slice(0,8),now=isoSqlDate(),expires=now,passwordHash=await sha256(crypto.randomUUID()+crypto.randomUUID()),cols=(await e.DB.prepare('PRAGMA table_info(tenant_accounts)').all()).results||[],names=new Set(cols.map(v=>v.name));
     let order=null;
@@ -820,8 +828,9 @@ async function accountApi(r,e,p){
   return J({ok:false,error:'ACCOUNT_ENDPOINT_NOT_FOUND'},404);
 }
 async function buyerStudios(e,buyer){
-  await ensureTenantSchema(e);const rows=(await e.DB.prepare("SELECT id,slug,plan_type,starts_at,expires_at,created_at,studio_name FROM tenant_accounts WHERE lower(email)=lower(?) AND (deleted_at IS NULL OR deleted_at='') ORDER BY created_at DESC LIMIT 20").bind(buyer.email).all()).results||[];
-  return rows.map(t=>({id:t.id,slug:t.slug,studioName:t.studio_name||t.slug,planType:String(t.plan_type||'free'),startsAt:t.starts_at,expiresAt:t.expires_at,adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share?tenant=${encodeURIComponent(t.slug)}`}));
+  await ensureTenantSchema(e);
+  const rows=(await e.DB.prepare("SELECT id,slug,plan_type,starts_at,expires_at,created_at,studio_name,locked FROM tenant_accounts WHERE (owner_user_id=? OR (owner_user_id IS NULL AND lower(email)=lower(?))) AND (deleted_at IS NULL OR deleted_at='') ORDER BY created_at DESC LIMIT 20").bind(String(buyer.id),buyer.email).all()).results||[];
+  return rows.map(t=>{const planType=String(t.plan_type||'free'),vipActive=planType!=='free'&&Number(t.locked)===0&&tenantHasTimeLeft(t);return {id:t.id,slug:t.slug,studioName:t.studio_name||t.slug,planType,locked:Number(t.locked)===1,vipActive,startsAt:t.starts_at,expiresAt:t.expires_at,adminUrl:`${PUBLIC_ORIGIN}/tenant-admin.html?tenant=${encodeURIComponent(t.slug)}`,shareUrl:`${PUBLIC_ORIGIN}/share?tenant=${encodeURIComponent(t.slug)}`}});
 }
 function aiProviderErrorMessage(status,detail=''){
   const n=Number(status)||0,provider=/openrouter\.ai/i.test(String(detail))?'OpenRouter':'nhà cung cấp AI';
@@ -1131,6 +1140,14 @@ async function ensureTenantSchema(e){
       id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, parent_id TEXT DEFAULT NULL,
       created_at TEXT NOT NULL DEFAULT(datetime('now'))
     )`);
+    await tenantExec(e,`CREATE TABLE IF NOT EXISTS tenant_notes (
+      id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, title TEXT NOT NULL, note_body TEXT NOT NULL DEFAULT '',
+      tag TEXT NOT NULL DEFAULT '', button_label TEXT NOT NULL DEFAULT '', button_url TEXT NOT NULL DEFAULT '',
+      steps_json TEXT NOT NULL DEFAULT '[]', ad_mode TEXT NOT NULL DEFAULT 'none', ad_url TEXT NOT NULL DEFAULT '',
+      visible INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT(datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT(datetime('now'))
+    )`);
+    await tenantExec(e,`CREATE INDEX IF NOT EXISTS idx_tenant_notes_public ON tenant_notes(tenant_id,visible,updated_at)`);
     await tenantExec(e,`CREATE TABLE IF NOT EXISTS tenant_comments (
       id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, text TEXT NOT NULL,
       image TEXT DEFAULT '', created_at TEXT NOT NULL DEFAULT(datetime('now')), visible INTEGER NOT NULL DEFAULT 1
@@ -1447,6 +1464,11 @@ async function tenantProducts(e,t,admin=false){
   });
 }
 async function tenantTags(e,t){const k=tenantInSql(t);return (await e.DB.prepare(`SELECT id,name,parent_id,video_url,created_at FROM tenant_tags WHERE ${k.clause} ORDER BY name COLLATE NOCASE`).bind(...k.vals).all()).results||[]}
+function normalizeTenantNoteSteps(value){let input=value;if(typeof input==='string'){try{input=JSON.parse(input||'[]')}catch{input=[]}}if(!Array.isArray(input))input=[];return input.slice(0,8).map((step,i)=>{const x=step&&typeof step==='object'?step:{};const title=clean(x.title||`Bước ${i+1}`,100),url=safeHttpUrl(x.url||'',1000);return title&&url?{title,url,buttonLabel:clean(x.buttonLabel||'Mở liên kết',40)}:null}).filter(Boolean)}
+function tenantNoteInput(b){const title=clean(b.title||'',120),body=clean(b.body||b.note_body||'',3000),tag=clean(b.tag||'',100),buttonLabel=clean(b.buttonLabel||b.button_label||'',60),buttonUrl=safeHttpUrl(b.buttonUrl||b.button_url||'',1000),steps=normalizeTenantNoteSteps(b.steps||b.steps_json||[]),adMode=['none','optional'].includes(String(b.adMode||b.ad_mode||'none'))?String(b.adMode||b.ad_mode||'none'):'none',adUrl=safeHttpUrl(b.adUrl||b.ad_url||'',1000);return {title,body,tag,buttonLabel,buttonUrl,steps,adMode,adUrl,visible:b.visible===false||Number(b.visible)===0?0:1}}
+async function tenantNotes(e,t,publicOnly=false){const k=tenantInSql(t),where=publicOnly?` AND visible=1`:'';const rows=(await e.DB.prepare(`SELECT id,tenant_id,title,note_body,tag,button_label,button_url,steps_json,ad_mode,ad_url,visible,created_at,updated_at FROM tenant_notes WHERE ${k.clause}${where} ORDER BY updated_at DESC,created_at DESC LIMIT 100`).bind(...k.vals).all()).results||[];return rows.map(x=>({...x,body:x.note_body,buttonLabel:x.button_label,buttonUrl:x.button_url,steps:normalizeTenantNoteSteps(x.steps_json),adMode:x.ad_mode,adUrl:x.ad_url,visible:Number(x.visible)!==0}))}
+async function saveTenantNote(e,t,input,id=''){input=input&&typeof input==='object'?input:{};const d=tenantNoteInput(input),rawButton=input.buttonUrl??input.button_url??'',rawAd=input.adUrl??input.ad_url??'';if(!d.title)return {error:'TITLE_REQUIRED'};if(rawButton&&!d.buttonUrl)return {error:'INVALID_BUTTON_URL'};if(rawAd&&!d.adUrl)return {error:'INVALID_AD_URL'};let rawSteps=input.steps??input.steps_json??[];if(typeof rawSteps==='string'){try{rawSteps=JSON.parse(rawSteps||'[]')}catch{return {error:'INVALID_STEPS'}}}if(Array.isArray(rawSteps)&&rawSteps.length>8)return {error:'TOO_MANY_STEPS'};if(Array.isArray(rawSteps)&&rawSteps.some(x=>!safeHttpUrl(x?.url||'',1000)))return {error:'INVALID_STEP_URL'};if(id){const k=tenantInSql(t);const result=await e.DB.prepare(`UPDATE tenant_notes SET title=?,note_body=?,tag=?,button_label=?,button_url=?,steps_json=?,ad_mode=?,ad_url=?,visible=?,updated_at=datetime('now') WHERE ${k.clause} AND id=?`).bind(d.title,d.body,d.tag,d.buttonLabel,d.buttonUrl,JSON.stringify(d.steps),d.adMode,d.adUrl,d.visible,...k.vals,id).run();return result.meta?.changes?{id}:{error:'NOTE_NOT_FOUND'}}const newId=crypto.randomUUID();await e.DB.prepare(`INSERT INTO tenant_notes(id,tenant_id,title,note_body,tag,button_label,button_url,steps_json,ad_mode,ad_url,visible) VALUES(?,?,?,?,?,?,?,?,?,?,?)`).bind(newId,String(t.id),d.title,d.body,d.tag,d.buttonLabel,d.buttonUrl,JSON.stringify(d.steps),d.adMode,d.adUrl,d.visible).run();return {id:newId}}
+
 async function tenantComments(e,t,admin=false){const k=tenantInSql(t);const cols=admin?'c.id,c.name,c.text,c.image,c.created_at,c.visible,c.email_normalized,c.client_ip,c.buyer_id,b.avatar':'c.id,c.name,c.text,c.image,c.created_at,c.visible,b.avatar';return ((await e.DB.prepare(`SELECT ${cols} FROM tenant_comments c LEFT JOIN buyer_accounts b ON b.id=c.buyer_id WHERE ${k.clause.replaceAll('tenant_id','c.tenant_id')} ${admin?'':'AND c.visible=1'} ORDER BY c.created_at DESC`).bind(...k.vals).all()).results||[]).map(x=>({...x,avatar:x.avatar?safeImageValue(x.avatar,800000):'',image:x.image?safeImageValue(x.image,600000):''}))}
 async function tenantAuditColumns(e){
   try{return ((await e.DB.prepare('PRAGMA table_info(tenant_audit_log)').all()).results||[]).map(x=>x.name)}catch{return []}
@@ -2018,7 +2040,7 @@ async function handleTenantPublic(r,e){
   if(!t||tenantStatus(t)==='deleted'||(tenantStatus(t)==='expired'&&String(t.plan_type||'paid')!=='free'))return J({ok:false,error:'TENANT_NOT_FOUND'},404);
   if(tenantStatus(t)==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);
   if(await tenantSecurityBlocked(e,t.id,'ip',clientIp(r)))return blockedNotFound(r);
-  if(r.method==='GET'&&parts.length===3){await tenantBump(e,t,'visit','',r,u.searchParams.get('source')||'');let layout=[];try{await ensureV55Schema(e);const ll=await e.DB.prepare('SELECT layout_json FROM tenant_site_layouts WHERE tenant_id=?').bind(String(t.id)).first();layout=JSON.parse(ll?.layout_json||'[]')}catch{}return J({ok:true,tenant:tenantInfo(t),settings:await tenantSettings(e,t),tags:await tenantTags(e,t),products:await tenantProducts(e,t),layout})}
+  if(r.method==='GET'&&parts.length===3){await tenantBump(e,t,'visit','',r,u.searchParams.get('source')||'');let layout=[];try{await ensureV55Schema(e);const ll=await e.DB.prepare('SELECT layout_json FROM tenant_site_layouts WHERE tenant_id=?').bind(String(t.id)).first();layout=JSON.parse(ll?.layout_json||'[]')}catch{}return J({ok:true,tenant:tenantInfo(t),settings:await tenantSettings(e,t),tags:await tenantTags(e,t),products:await tenantProducts(e,t),notes:await tenantNotes(e,t,true),layout})}
   if(parts[3]==='recent-sales'&&r.method==='GET'){
     await ensureV55Schema(e);
     const tenantKeys=tenantKeyValues(t),tenantPlaceholders=tenantKeys.map(()=>'?').join(',');
@@ -2102,6 +2124,12 @@ async function handleTenantAdmin(r,e){
   if(status==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);
   if(status==='expired'&&!(String(t.plan_type||'paid')==='free'&&Number(t.free_admin_unlocked)!==1))return J({ok:false,error:'TENANT_EXPIRED'},403);
   const u=new URL(r.url),p=u.pathname;
+
+  if(p==='/api/tenant/notes'&&r.method==='GET')return J({ok:true,notes:await tenantNotes(e,t,false)});
+  if(p==='/api/tenant/notes'&&r.method==='POST'){const b=await r.json().catch(()=>({})),saved=await saveTenantNote(e,t,b);if(saved.error)return J({ok:false,error:saved.error},saved.error==='TITLE_REQUIRED'?400:400);return J({ok:true,id:saved.id},201)}
+  const tenantNoteMatch=p.match(/^\/api\/tenant\/notes\/([^/]+)$/);
+  if(tenantNoteMatch&&r.method==='PUT'){const b=await r.json().catch(()=>({})),saved=await saveTenantNote(e,t,b,decodeURIComponent(tenantNoteMatch[1]));if(saved.error)return J({ok:false,error:saved.error},saved.error==='NOTE_NOT_FOUND'?404:400);return J({ok:true})}
+  if(tenantNoteMatch&&r.method==='DELETE'){const k=tenantInSql(t),id=decodeURIComponent(tenantNoteMatch[1]),result=await e.DB.prepare(`DELETE FROM tenant_notes WHERE ${k.clause} AND id=?`).bind(...k.vals,id).run();return result.meta?.changes?J({ok:true}):J({ok:false,error:'NOTE_NOT_FOUND'},404)}
 
   if(p==='/api/tenant/telegram/link-code'&&r.method==='POST'){
     await ensureTenantTelegramSchema(e);
@@ -2380,6 +2408,10 @@ async function handleMasterTenant(r,e){
   await ensureTenantSchema(e);
   const u=new URL(r.url),p=u.pathname,key=await tenantAccountKeyColumn(e);
   if(!key)return J({ok:false,error:'TENANT_SCHEMA_KEY_MISSING',detail:'tenant_accounts must contain id or tenant_id'},500);
+  if(p==='/api/admin/tenant-notes'&&r.method==='GET'){const slug=tenantSlug(u.searchParams.get('tenant')||'');if(!slug)return J({ok:false,error:'TENANT_REQUIRED'},400);const t=await tenantBySlug(e,slug);if(!t)return J({ok:false,error:'TENANT_NOT_FOUND'},404);return J({ok:true,tenant:{slug:t.slug,name:t.studio_name||t.slug},notes:await tenantNotes(e,t,false)})}
+  if(p==='/api/admin/tenant-notes'&&r.method==='POST'){const b=await r.json().catch(()=>({})),slug=tenantSlug(b.tenant||b.slug||''),t=slug?await tenantBySlug(e,slug):null;if(!t)return J({ok:false,error:'TENANT_NOT_FOUND'},404);const saved=await saveTenantNote(e,t,b);if(saved.error)return J({ok:false,error:saved.error},400);return J({ok:true,id:saved.id},201)}
+  const masterNoteMatch=p.match(/^\/api\/admin\/tenant-notes\/([^/]+)$/);
+  if(masterNoteMatch&&['PUT','DELETE'].includes(r.method)){const id=decodeURIComponent(masterNoteMatch[1]);const row=await e.DB.prepare('SELECT tenant_id FROM tenant_notes WHERE id=? LIMIT 1').bind(id).first();if(!row)return J({ok:false,error:'NOTE_NOT_FOUND'},404);const raw=await tenantByIdentifier(e,row.tenant_id),t=raw?await normalizeTenantRow(e,raw):null;if(!t)return J({ok:false,error:'TENANT_NOT_FOUND'},404);if(r.method==='DELETE'){await e.DB.prepare('DELETE FROM tenant_notes WHERE id=?').bind(id).run();return J({ok:true})}const b=await r.json().catch(()=>({})),saved=await saveTenantNote(e,t,b,id);if(saved.error)return J({ok:false,error:saved.error},400);return J({ok:true})}
   if(p==='/api/admin/tenants/stats'&&r.method==='GET'){
     const rl=limited(r,'admin-tenant-rental-stats',60,60000);if(rl)return rl;
     const month=String(u.searchParams.get('month')||dayVN().slice(0,7));
@@ -3047,7 +3079,7 @@ export default{async scheduled(controller,e){if(String(controller?.cron||'')==='
     }
   }
   if(p.startsWith('/api/tenant/')&&p!=='/api/tenant/login')return await handleTenantAdmin(r,e);
-  if(p.startsWith('/api/admin/tenants'))return await handleMasterTenant(r,e);
+  if(p.startsWith('/api/admin/tenants')||p.startsWith('/api/admin/tenant-notes'))return await handleMasterTenant(r,e);
   if(p.startsWith('/api/admin/withdrawals')){
     if(!(await isAdmin(r,e)))return J({ok:false,error:'ADMIN_REQUIRED'},401);
     await ensureTenantSchema(e);

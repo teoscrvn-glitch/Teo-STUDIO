@@ -9,7 +9,7 @@ k = (root / 'frontend/assets/js/free-key.js').read_text()
 page = (root / 'frontend/free-key.html').read_text()
 topup = (root / 'frontend/topup.html').read_text()
 
-assert "BUILD_VERSION='v57.7-free-bypass-session-fix'" in w
+assert "BUILD_VERSION='v58.0-mobile-studio-notes'" in w
 assert "provider=step===1?'bumx':'link4m'" in w
 assert 'free_bypass_last_at' in w and '86400000' in w
 assert 'now+7*86400000' in w
@@ -20,8 +20,8 @@ assert "b.id||b.tenant||b.slug||b.tenantId" in w
 assert "unscopedHeaders.delete('x-tenant-slug')" in w
 assert "scopedHeaders.set(" + chr(39) + "x-tenant-slug" + chr(39) + ",slug)" in w
 assert "canonical keys matches" in w
-assert 'v57.7-free-bypass-session-fix' in (root / 'frontend/assets/js/config.js').read_text()
-assert 'tenant-admin.js?v=57.7' in (root / 'frontend/tenant-admin.html').read_text()
+assert 'v58.0-mobile-studio-notes' in (root / 'frontend/assets/js/config.js').read_text()
+assert 'tenant-admin.js?v=58.0' in (root / 'frontend/tenant-admin.html').read_text()
 assert "authorization:'Bearer '+tenantToken" in k
 assert 'LINK4M_REWARDED_TRAFFIC_APPROVED' in w
 assert 'FREE_BYPASS_VERIFY_URL' not in w and 'FREE_BYPASS_API_KEY' not in w
