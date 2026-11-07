@@ -9,8 +9,8 @@ echo '[2/24] Frontend JavaScript syntax'
 find frontend/assets/js -type f -name '*.js' -exec node --check '{}' \;
 echo '[3/24] Version and image asset'
 grep -q "ensureAssistantActivitySchema" cloudflare/worker.js
-grep -q "v58.0-mobile-studio-notes" cloudflare/worker.js
-grep -q "v58.0-mobile-studio-notes" frontend/assets/js/config.js
+grep -q "v58.1-note-designer-flow" cloudflare/worker.js
+grep -q "v58.1-note-designer-flow" frontend/assets/js/config.js
 test -s frontend/assets/img/teo-linh.webp
 grep -q "new URL('../img/teo-linh.webp',SCRIPT_URL)" frontend/assets/js/assistant.js
 grep -q 'safeYouTubeUrl' cloudflare/worker.js
@@ -94,6 +94,6 @@ echo '[22/24] V57.13 Free key 5-minute link/key expiry and destination page chec
 python scripts/test-v57.13-free-key-five-minute-ttl.py
 echo '[23/24] V57.13 destination page return behavior'
 node scripts/test-v57.13-free-key-return-page.mjs
-echo '[24/24] V58.0 account layout, Notes and Studio entitlement checks'
+echo '[24/24] V58.1 Note designer, secure flow, mobile layout and Studio entitlement checks'
 python scripts/test-v58-mobile-notes-limits.py
 echo 'PASS: syntax, local helper behavior and static checks only. Live Cloudflare, D1, social preview crawlers and phone UI are NOT tested here.'

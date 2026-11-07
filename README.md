@@ -1,3 +1,7 @@
+# TeoStudio V58.1 — Note Designer & Secure Flow
+
+Current release notes: see `CHANGELOG_V58.1_NOTE_DESIGNER_FLOW.md`, `DEPLOY_V58.1_NOTE_DESIGNER_FLOW.md` and `TEST_REPORT_V58.1_NOTE_DESIGNER_FLOW.md`.
+
 # TeoStudio V57.10 — Link4M API diagnostic
 
 See `VERSION_V57.10.md`, `DEPLOY_V57.10_LINK4M_API_DIAGNOSTIC.md`, and `TEST_REPORT_V57.10_LINK4M_API_DIAGNOSTIC.md` for this release.

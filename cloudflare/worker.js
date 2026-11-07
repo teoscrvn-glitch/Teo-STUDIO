@@ -50,7 +50,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v58.0-mobile-studio-notes';
+const BUILD_VERSION='v58.2-topup-qr-ux-fix';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -1147,7 +1147,25 @@ async function ensureTenantSchema(e){
       visible INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT(datetime('now')),
       updated_at TEXT NOT NULL DEFAULT(datetime('now'))
     )`);
+    // Additive Note Studio migrations: keep existing Notes and links intact.
+    await tenantAddColumn(e,'tenant_notes','subtitle',"TEXT NOT NULL DEFAULT ''");
+    await tenantAddColumn(e,'tenant_notes','cover_image',"TEXT NOT NULL DEFAULT ''");
+    await tenantAddColumn(e,'tenant_notes','theme_key',"TEXT NOT NULL DEFAULT 'notebook'");
+    await tenantAddColumn(e,'tenant_notes','accent_color',"TEXT NOT NULL DEFAULT '#179b63'");
+    await tenantAddColumn(e,'tenant_notes','ad_placement',"TEXT NOT NULL DEFAULT 'none'");
     await tenantExec(e,`CREATE INDEX IF NOT EXISTS idx_tenant_notes_public ON tenant_notes(tenant_id,visible,updated_at)`);
+    await tenantExec(e,`CREATE TABLE IF NOT EXISTS tenant_note_progress (
+      id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, note_id TEXT NOT NULL, visitor_hash TEXT NOT NULL,
+      step_index INTEGER NOT NULL DEFAULT 0, opened_step INTEGER NOT NULL DEFAULT -1,
+      opened_at_ms INTEGER DEFAULT NULL, step_ticket_hash TEXT DEFAULT NULL,
+      step_ticket_expires_ms INTEGER DEFAULT NULL, ticket_used_at_ms INTEGER DEFAULT NULL,
+      status TEXT NOT NULL DEFAULT 'active', created_at_ms INTEGER NOT NULL, updated_at_ms INTEGER NOT NULL,
+      UNIQUE(tenant_id,note_id,visitor_hash)
+    )`);
+    await tenantExec(e,`CREATE INDEX IF NOT EXISTS idx_tenant_note_progress_note ON tenant_note_progress(tenant_id,note_id,status,updated_at_ms)`);
+    await tenantAddColumn(e,'tenant_note_progress','step_ticket_hash','TEXT DEFAULT NULL');
+    await tenantAddColumn(e,'tenant_note_progress','step_ticket_expires_ms','INTEGER DEFAULT NULL');
+    await tenantAddColumn(e,'tenant_note_progress','ticket_used_at_ms','INTEGER DEFAULT NULL');
     await tenantExec(e,`CREATE TABLE IF NOT EXISTS tenant_comments (
       id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, text TEXT NOT NULL,
       image TEXT DEFAULT '', created_at TEXT NOT NULL DEFAULT(datetime('now')), visible INTEGER NOT NULL DEFAULT 1
@@ -1464,10 +1482,93 @@ async function tenantProducts(e,t,admin=false){
   });
 }
 async function tenantTags(e,t){const k=tenantInSql(t);return (await e.DB.prepare(`SELECT id,name,parent_id,video_url,created_at FROM tenant_tags WHERE ${k.clause} ORDER BY name COLLATE NOCASE`).bind(...k.vals).all()).results||[]}
-function normalizeTenantNoteSteps(value){let input=value;if(typeof input==='string'){try{input=JSON.parse(input||'[]')}catch{input=[]}}if(!Array.isArray(input))input=[];return input.slice(0,8).map((step,i)=>{const x=step&&typeof step==='object'?step:{};const title=clean(x.title||`Bước ${i+1}`,100),url=safeHttpUrl(x.url||'',1000);return title&&url?{title,url,buttonLabel:clean(x.buttonLabel||'Mở liên kết',40)}:null}).filter(Boolean)}
-function tenantNoteInput(b){const title=clean(b.title||'',120),body=clean(b.body||b.note_body||'',3000),tag=clean(b.tag||'',100),buttonLabel=clean(b.buttonLabel||b.button_label||'',60),buttonUrl=safeHttpUrl(b.buttonUrl||b.button_url||'',1000),steps=normalizeTenantNoteSteps(b.steps||b.steps_json||[]),adMode=['none','optional'].includes(String(b.adMode||b.ad_mode||'none'))?String(b.adMode||b.ad_mode||'none'):'none',adUrl=safeHttpUrl(b.adUrl||b.ad_url||'',1000);return {title,body,tag,buttonLabel,buttonUrl,steps,adMode,adUrl,visible:b.visible===false||Number(b.visible)===0?0:1}}
-async function tenantNotes(e,t,publicOnly=false){const k=tenantInSql(t),where=publicOnly?` AND visible=1`:'';const rows=(await e.DB.prepare(`SELECT id,tenant_id,title,note_body,tag,button_label,button_url,steps_json,ad_mode,ad_url,visible,created_at,updated_at FROM tenant_notes WHERE ${k.clause}${where} ORDER BY updated_at DESC,created_at DESC LIMIT 100`).bind(...k.vals).all()).results||[];return rows.map(x=>({...x,body:x.note_body,buttonLabel:x.button_label,buttonUrl:x.button_url,steps:normalizeTenantNoteSteps(x.steps_json),adMode:x.ad_mode,adUrl:x.ad_url,visible:Number(x.visible)!==0}))}
-async function saveTenantNote(e,t,input,id=''){input=input&&typeof input==='object'?input:{};const d=tenantNoteInput(input),rawButton=input.buttonUrl??input.button_url??'',rawAd=input.adUrl??input.ad_url??'';if(!d.title)return {error:'TITLE_REQUIRED'};if(rawButton&&!d.buttonUrl)return {error:'INVALID_BUTTON_URL'};if(rawAd&&!d.adUrl)return {error:'INVALID_AD_URL'};let rawSteps=input.steps??input.steps_json??[];if(typeof rawSteps==='string'){try{rawSteps=JSON.parse(rawSteps||'[]')}catch{return {error:'INVALID_STEPS'}}}if(Array.isArray(rawSteps)&&rawSteps.length>8)return {error:'TOO_MANY_STEPS'};if(Array.isArray(rawSteps)&&rawSteps.some(x=>!safeHttpUrl(x?.url||'',1000)))return {error:'INVALID_STEP_URL'};if(id){const k=tenantInSql(t);const result=await e.DB.prepare(`UPDATE tenant_notes SET title=?,note_body=?,tag=?,button_label=?,button_url=?,steps_json=?,ad_mode=?,ad_url=?,visible=?,updated_at=datetime('now') WHERE ${k.clause} AND id=?`).bind(d.title,d.body,d.tag,d.buttonLabel,d.buttonUrl,JSON.stringify(d.steps),d.adMode,d.adUrl,d.visible,...k.vals,id).run();return result.meta?.changes?{id}:{error:'NOTE_NOT_FOUND'}}const newId=crypto.randomUUID();await e.DB.prepare(`INSERT INTO tenant_notes(id,tenant_id,title,note_body,tag,button_label,button_url,steps_json,ad_mode,ad_url,visible) VALUES(?,?,?,?,?,?,?,?,?,?,?)`).bind(newId,String(t.id),d.title,d.body,d.tag,d.buttonLabel,d.buttonUrl,JSON.stringify(d.steps),d.adMode,d.adUrl,d.visible).run();return {id:newId}}
+function normalizeTenantNoteSteps(value){let input=value;if(typeof input==='string'){try{input=JSON.parse(input||'[]')}catch{input=[]}}if(!Array.isArray(input))input=[];const platforms=['youtube','telegram','tiktok','instagram','facebook','x','zalo','discord','custom','destination'];return input.slice(0,8).map((step,i)=>{const x=step&&typeof step==='object'?step:{};const title=clean(x.title||`Bước ${i+1}`,100),url=safeHttpUrl(x.url||'',1000),platform=platforms.includes(String(x.platform||''))?String(x.platform):'custom';return title&&url?{title,url,buttonLabel:clean(x.buttonLabel||'Mở liên kết',40),platform}:null}).filter(Boolean)}
+function tenantNoteInput(b){const title=clean(b.title||'',120),subtitle=clean(b.subtitle||'',180),body=clean(b.body||b.note_body||'',5000),tag=clean(b.tag||'',100),buttonLabel=clean(b.buttonLabel||b.button_label||'',60),buttonUrl=safeHttpUrl(b.buttonUrl||b.button_url||'',1000),steps=normalizeTenantNoteSteps(b.steps||b.steps_json||[]),adMode=['none','optional'].includes(String(b.adMode||b.ad_mode||'none'))?String(b.adMode||b.ad_mode||'none'):'none',adUrl=safeHttpUrl(b.adUrl||b.ad_url||'',1000),coverImage=safeImageValue(b.coverImage||b.cover_image||'',700000),themeKey=['notebook','editorial','arcade','midnight','pastel'].includes(String(b.themeKey||b.theme_key||''))?String(b.themeKey||b.theme_key):'notebook',accentColor=/^#[0-9a-f]{6}$/i.test(String(b.accentColor||b.accent_color||''))?String(b.accentColor||b.accent_color):'#179b63',adPlacement=['none','note_open','after_step','before_unlock','cta_click'].includes(String(b.adPlacement||b.ad_placement||'none'))?String(b.adPlacement||b.ad_placement||'none'):'none';return {title,subtitle,body,tag,buttonLabel,buttonUrl,steps,adMode,adUrl,coverImage,themeKey,accentColor,adPlacement,visible:b.visible===false||Number(b.visible)===0?0:1}}
+async function tenantNotes(e,t,publicOnly=false){const k=tenantInSql(t),where=publicOnly?` AND visible=1`:'';const rows=(await e.DB.prepare(`SELECT id,tenant_id,title,subtitle,note_body,tag,cover_image,theme_key,accent_color,button_label,button_url,steps_json,ad_mode,ad_url,ad_placement,visible,created_at,updated_at FROM tenant_notes WHERE ${k.clause}${where} ORDER BY updated_at DESC,created_at DESC LIMIT 100`).bind(...k.vals).all()).results||[];return rows.map(x=>{const steps=normalizeTenantNoteSteps(x.steps_json),base={id:x.id,title:x.title,subtitle:x.subtitle||'',body:x.note_body,tag:x.tag||'',coverImage:x.cover_image?safeImageValue(x.cover_image,700000):'',themeKey:x.theme_key||'notebook',accentColor:x.accent_color||'#179b63',buttonLabel:x.button_label||'',steps:publicOnly?steps.map((v,i)=>({title:v.title,buttonLabel:v.buttonLabel,platform:v.platform,index:i})):steps,stepCount:steps.length,adMode:x.ad_mode,adUrl:publicOnly?safeHttpUrl(x.ad_url,1000):x.ad_url,adPlacement:x.ad_placement||'none',visible:Number(x.visible)!==0,created_at:x.created_at,updated_at:x.updated_at};if(!publicOnly){base.tenant_id=x.tenant_id;base.buttonUrl=x.button_url||'';}else{base.buttonUrl=steps.length?'':safeHttpUrl(x.button_url,1000);}return base})}
+async function saveTenantNote(e,t,input,id=''){input=input&&typeof input==='object'?input:{};const d=tenantNoteInput(input),rawButton=input.buttonUrl??input.button_url??'',rawAd=input.adUrl??input.ad_url??'',rawCover=input.coverImage??input.cover_image??'';if(!d.title)return {error:'TITLE_REQUIRED'};if(rawButton&&!d.buttonUrl)return {error:'INVALID_BUTTON_URL'};if(rawAd&&!d.adUrl)return {error:'INVALID_AD_URL'};if(rawCover&&!d.coverImage)return {error:'INVALID_COVER_IMAGE'};let rawSteps=input.steps??input.steps_json??[];if(typeof rawSteps==='string'){try{rawSteps=JSON.parse(rawSteps||'[]')}catch{return {error:'INVALID_STEPS'}}}if(Array.isArray(rawSteps)&&rawSteps.length>8)return {error:'TOO_MANY_STEPS'};if(Array.isArray(rawSteps)&&rawSteps.some(x=>!safeHttpUrl(x?.url||'',1000)))return {error:'INVALID_STEP_URL'};if(id){const k=tenantInSql(t);const result=await e.DB.prepare(`UPDATE tenant_notes SET title=?,subtitle=?,note_body=?,tag=?,cover_image=?,theme_key=?,accent_color=?,button_label=?,button_url=?,steps_json=?,ad_mode=?,ad_url=?,ad_placement=?,visible=?,updated_at=datetime('now') WHERE ${k.clause} AND id=?`).bind(d.title,d.subtitle,d.body,d.tag,d.coverImage,d.themeKey,d.accentColor,d.buttonLabel,d.buttonUrl,JSON.stringify(d.steps),d.adMode,d.adUrl,d.adPlacement,d.visible,...k.vals,id).run();return result.meta?.changes?{id}:{error:'NOTE_NOT_FOUND'}}const newId=crypto.randomUUID();await e.DB.prepare(`INSERT INTO tenant_notes(id,tenant_id,title,subtitle,note_body,tag,cover_image,theme_key,accent_color,button_label,button_url,steps_json,ad_mode,ad_url,ad_placement,visible) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(newId,String(t.id),d.title,d.subtitle,d.body,d.tag,d.coverImage,d.themeKey,d.accentColor,d.buttonLabel,d.buttonUrl,JSON.stringify(d.steps),d.adMode,d.adUrl,d.adPlacement,d.visible).run();return {id:newId}}
+function tenantNoteVisitorCookieValue(r){const raw=String(r.headers.get('cookie')||'');for(const item of raw.split(';')){const part=item.trim();if(part.startsWith('teo_note_visitor=')){const token=part.slice('teo_note_visitor='.length);return /^[a-f0-9]{64}$/i.test(token)?token:''}}return ''}
+async function tenantNoteVisitorHash(r,t,noteId,token=''){const visitor=String(token||tenantNoteVisitorCookieValue(r));if(!/^[a-f0-9]{64}$/i.test(visitor))return '';const ua=clean(r.headers.get('user-agent')||'',220);return await sha256(`teo-note-flow-v2|${String(t.id)}|${String(noteId)}|${visitor}|${ua}`)}
+async function tenantNoteSessionSignature(e,t,noteId,visitorHash,expires){
+ const secret=String(e?.NOTE_FLOW_SECRET||e?.LOGIN_RATE_HASH_KEY||e?.ADMIN_KEY||e?.TURNSTILE_SECRET||'');if(!secret)return '';
+ const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+ const message=new TextEncoder().encode(`teo-note-session-v1|${String(t.id)}|${String(noteId)}|${String(visitorHash)}|${Number(expires)}`);
+ const sig=new Uint8Array(await crypto.subtle.sign('HMAC',key,message));return [...sig].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+function tenantNoteCookieValue(r){const raw=String(r.headers.get('cookie')||'');for(const item of raw.split(';')){const part=item.trim();if(part.startsWith('teo_note_flow='))return part.slice('teo_note_flow='.length)}return ''}
+async function tenantNoteSessionValid(r,e,t,noteId,visitorHash){
+ const value=tenantNoteCookieValue(r),parts=value.split('.'),expires=Number(parts[0]||0),sig=String(parts[1]||'');if(!Number.isSafeInteger(expires)||expires<Date.now()||expires>Date.now()+86400000||!/^[a-f0-9]{64}$/i.test(sig))return false;
+ const expected=await tenantNoteSessionSignature(e,t,noteId,visitorHash,expires);if(!expected||expected.length!==sig.length)return false;
+ let diff=0;for(let i=0;i<expected.length;i++)diff|=expected.charCodeAt(i)^sig.charCodeAt(i);return diff===0;
+}
+function tenantNoteSetCookie(slug,noteId,expires,sig){const path=`/api/public-tenant/${encodeURIComponent(slug)}/notes/${encodeURIComponent(noteId)}`;return `teo_note_flow=${expires}.${sig}; Path=${path}; Max-Age=86400; Secure; HttpOnly; SameSite=Lax`}
+function tenantNoteVisitorSetCookie(slug,noteId,token){const path=`/api/public-tenant/${encodeURIComponent(slug)}/notes/${encodeURIComponent(noteId)}`;return `teo_note_visitor=${token}; Path=${path}; Max-Age=86400; Secure; HttpOnly; SameSite=Lax`}
+function tenantNoteAppendCookie(response,cookie){const headers=new Headers(response.headers);headers.append('set-cookie',cookie);return new Response(response.body,{status:response.status,statusText:response.statusText,headers})}
+async function handleTenantNoteFlow(r,e,t,parts){
+ let decodedNoteId='';try{decodedNoteId=decodeURIComponent(parts[4]||'')}catch{return J({ok:false,error:'NOTE_NOT_FOUND'},404)}
+ const noteId=clean(decodedNoteId,100),method=r.method,action=parts[5]||'';
+ if(!/^[A-Za-z0-9._:-]{1,100}$/.test(noteId))return J({ok:false,error:'NOTE_NOT_FOUND'},404);
+ const k=tenantInSql(t),note=await e.DB.prepare(`SELECT id,title,button_label,button_url,steps_json,visible FROM tenant_notes WHERE ${k.clause} AND id=? AND visible=1 LIMIT 1`).bind(...k.vals,noteId).first();
+ if(!note)return J({ok:false,error:'NOTE_NOT_FOUND'},404);
+ const steps=normalizeTenantNoteSteps(note.steps_json),total=steps.length;
+ // External step links are issued as single-use, short-lived redirects. Merely loading
+ // the public Note or calling the progress API never reveals the destination URLs.
+ if(action==='step-go'&&method==='GET'){
+   const ticket=clean(new URL(r.url).searchParams.get('ticket')||'',120);if(ticket.length<32)return J({ok:false,error:'NOTE_TICKET_INVALID'},404);
+   const rl=limited(r,'tenant-note-step-go',40,60000);if(rl)return rl;
+   const visitorHash=await tenantNoteVisitorHash(r,t,noteId);if(!visitorHash||!(await tenantNoteSessionValid(r,e,t,noteId,visitorHash)))return J({ok:false,error:'NOTE_SESSION_REQUIRED',message:'Phiên Note không hợp lệ hoặc đã hết hạn. Hãy quay lại Note và bắt đầu lại.'},403);
+   const hash=await sha256(`teo-note-step-ticket-v1|${ticket}`),row=await e.DB.prepare(`SELECT * FROM tenant_note_progress WHERE tenant_id=? AND note_id=? AND visitor_hash=? AND step_ticket_hash=? LIMIT 1`).bind(String(t.id),noteId,visitorHash,hash).first();
+   if(!row||Number(row.step_ticket_expires_ms||0)<Date.now()||Number(row.ticket_used_at_ms||0)>0)return J({ok:false,error:'NOTE_TICKET_EXPIRED'},410);
+   const idx=Number(row.step_index)||0;if(idx<0||idx>=total||Number(row.opened_step)!==idx)return J({ok:false,error:'NOTE_STEP_ORDER'},409);
+   const openedAt=Date.now(),used=await e.DB.prepare(`UPDATE tenant_note_progress SET opened_at_ms=?,ticket_used_at_ms=?,step_ticket_hash=NULL,step_ticket_expires_ms=NULL,updated_at_ms=? WHERE id=? AND step_ticket_hash=? AND (ticket_used_at_ms IS NULL OR ticket_used_at_ms=0)`).bind(openedAt,openedAt,openedAt,row.id,hash).run();
+   if(!used.meta?.changes)return J({ok:false,error:'NOTE_TICKET_USED'},410);
+   const destination=safeHttpUrl(steps[idx].url,1000);if(!destination)return J({ok:false,error:'NOTE_STEP_DESTINATION_INVALID'},404);
+   return new Response(null,{status:302,headers:{'location':destination,'cache-control':'no-store, private, max-age=0','referrer-policy':'no-referrer','x-content-type-options':'nosniff'}});
+ }
+ let visitorToken=tenantNoteVisitorCookieValue(r),newVisitorCookie=false;
+ if(action==='start'&&!visitorToken){visitorToken=Array.from(crypto.getRandomValues(new Uint8Array(32)),b=>b.toString(16).padStart(2,'0')).join('');newVisitorCookie=true}
+ const visitorHash=await tenantNoteVisitorHash(r,t,noteId,visitorToken);
+ if(!visitorHash)return J({ok:false,error:'NOTE_VISITOR_REQUIRED',message:'Hãy bật cookie của trình duyệt rồi tải lại trang Note.'},400);
+ if(action!=='start'&&!(await tenantNoteSessionValid(r,e,t,noteId,visitorHash)))return J({ok:false,error:'NOTE_SESSION_REQUIRED',message:'Phiên Note không hợp lệ hoặc đã hết hạn. Hãy nhấn Bắt đầu lại.'},403);
+ const getProgress=()=>e.DB.prepare('SELECT step_index,opened_step,opened_at_ms,ticket_used_at_ms,status FROM tenant_note_progress WHERE tenant_id=? AND note_id=? AND visitor_hash=? LIMIT 1').bind(String(t.id),noteId,visitorHash).first();
+ if(action==='progress'&&method==='GET'){
+   const row=await getProgress(),stepIndex=Math.min(total,Number(row?.step_index)||0),openedAt=Number(row?.opened_at_ms)||0;
+   return J({ok:true,stepIndex,total,complete:total===0||String(row?.status)==='completed'||stepIndex>=total,openedStep:Number(row?.opened_step??-1),openedAt,canComplete:!!openedAt&&Number(row?.opened_step)===stepIndex&&Date.now()-openedAt>=5000,status:row?.status||'new'});
+ }
+ if(action==='start'&&method==='POST'){
+   const rl=limited(r,'tenant-note-start',20,60000);if(rl)return rl;
+   const now=Date.now();await e.DB.prepare(`INSERT OR IGNORE INTO tenant_note_progress(id,tenant_id,note_id,visitor_hash,step_index,opened_step,opened_at_ms,step_ticket_hash,step_ticket_expires_ms,ticket_used_at_ms,status,created_at_ms,updated_at_ms) VALUES(?,?,?,?,0,-1,NULL,NULL,NULL,NULL,'active',?,?)`).bind(crypto.randomUUID(),String(t.id),noteId,visitorHash,now,now).run();
+   const row=await getProgress(),expires=Date.now()+86400000,sig=await tenantNoteSessionSignature(e,t,noteId,visitorHash,expires);if(!sig)return J({ok:false,error:'NOTE_FLOW_SECRET_MISSING',message:'Máy chủ chưa cấu hình khóa bảo mật Note.'},503);
+   let response=J({ok:true,stepIndex:Math.min(total,Number(row?.step_index)||0),total,complete:total===0||String(row?.status)==='completed'||Number(row?.step_index)>=total},200,{'set-cookie':tenantNoteSetCookie(t.slug,noteId,expires,sig)});
+   if(newVisitorCookie)response=tenantNoteAppendCookie(response,tenantNoteVisitorSetCookie(t.slug,noteId,visitorToken));
+   return response;
+ }
+ if(action==='steps'&&parts[6]&&['open','complete'].includes(parts[7]||'')&&method==='POST'){
+   const idx=Number(parts[6]);if(!Number.isInteger(idx)||idx<0||idx>=total)return J({ok:false,error:'INVALID_STEP'},400);
+   const rl=limited(r,`tenant-note-${parts[7]}`,parts[7]==='open'?30:20,60000);if(rl)return rl;
+   const row=await getProgress();if(!row)return J({ok:false,error:'NOTE_FLOW_NOT_STARTED'},409);
+   const current=Number(row.step_index)||0;if(idx!==current)return J({ok:false,error:'NOTE_STEP_ORDER',stepIndex:current},409);
+   if(parts[7]==='open'){
+     const now=Date.now(),ticket=Array.from(crypto.getRandomValues(new Uint8Array(32)),b=>b.toString(16).padStart(2,'0')).join(''),hash=await sha256(`teo-note-step-ticket-v1|${ticket}`),expires=now+10*60*1000;
+     const updated=await e.DB.prepare(`UPDATE tenant_note_progress SET opened_step=?,opened_at_ms=NULL,step_ticket_hash=?,step_ticket_expires_ms=?,ticket_used_at_ms=NULL,updated_at_ms=? WHERE tenant_id=? AND note_id=? AND visitor_hash=? AND step_index=? AND status='active'`).bind(idx,hash,expires,now,String(t.id),noteId,visitorHash,idx).run();
+     if(!updated.meta?.changes)return J({ok:false,error:'NOTE_STEP_OPEN_FAILED'},409);
+     const goUrl=`/api/public-tenant/${encodeURIComponent(t.slug)}/notes/${encodeURIComponent(noteId)}/step-go?ticket=${encodeURIComponent(ticket)}`;
+     return J({ok:true,index:idx,title:steps[idx].title,goUrl,expiresAt:expires,waitMs:5000});
+   }
+   if(Number(row.opened_step)!==idx||!Number(row.opened_at_ms)||!Number(row.ticket_used_at_ms||0))return J({ok:false,error:'NOTE_STEP_NOT_OPENED'},409);
+   const elapsed=Date.now()-Number(row.opened_at_ms);if(elapsed<5000)return J({ok:false,error:'NOTE_STEP_WAIT',retryAfterMs:5000-elapsed},429);
+   const now=Date.now(),next=idx+1,status=next>=total?'completed':'active';
+   const result=await e.DB.prepare(`UPDATE tenant_note_progress SET step_index=?,opened_step=-1,opened_at_ms=NULL,step_ticket_hash=NULL,step_ticket_expires_ms=NULL,ticket_used_at_ms=NULL,status=?,updated_at_ms=? WHERE tenant_id=? AND note_id=? AND visitor_hash=? AND step_index=? AND opened_step=? AND opened_at_ms=? AND status='active'`).bind(next,status,now,String(t.id),noteId,visitorHash,idx,idx,Number(row.opened_at_ms)).run();
+   if(!result.meta?.changes)return J({ok:false,error:'NOTE_PROGRESS_RACE'},409);
+   return J({ok:true,stepIndex:next,total,complete:next>=total});
+ }
+ if(action==='reveal'&&method==='POST'){
+   const rl=limited(r,'tenant-note-reveal',10,60000);if(rl)return rl;
+   const row=await getProgress();if(!row||Number(row.step_index)<total||String(row.status)!=='completed')return J({ok:false,error:'NOTE_LOCKED',stepIndex:Number(row?.step_index)||0,total},403);
+   const destination=safeHttpUrl(note.button_url,1000);
+   return J({ok:true,url:destination||'',buttonLabel:clean(note.button_label||'Mở nội dung',60),complete:true,hasDestination:!!destination});
+ }
+ return J({ok:false,error:'NOT_FOUND'},404);
+}
 
 async function tenantComments(e,t,admin=false){const k=tenantInSql(t);const cols=admin?'c.id,c.name,c.text,c.image,c.created_at,c.visible,c.email_normalized,c.client_ip,c.buyer_id,b.avatar':'c.id,c.name,c.text,c.image,c.created_at,c.visible,b.avatar';return ((await e.DB.prepare(`SELECT ${cols} FROM tenant_comments c LEFT JOIN buyer_accounts b ON b.id=c.buyer_id WHERE ${k.clause.replaceAll('tenant_id','c.tenant_id')} ${admin?'':'AND c.visible=1'} ORDER BY c.created_at DESC`).bind(...k.vals).all()).results||[]).map(x=>({...x,avatar:x.avatar?safeImageValue(x.avatar,800000):'',image:x.image?safeImageValue(x.image,600000):''}))}
 async function tenantAuditColumns(e){
@@ -2041,6 +2142,7 @@ async function handleTenantPublic(r,e){
   if(tenantStatus(t)==='locked')return J({ok:false,error:'TENANT_LOCKED'},403);
   if(await tenantSecurityBlocked(e,t.id,'ip',clientIp(r)))return blockedNotFound(r);
   if(r.method==='GET'&&parts.length===3){await tenantBump(e,t,'visit','',r,u.searchParams.get('source')||'');let layout=[];try{await ensureV55Schema(e);const ll=await e.DB.prepare('SELECT layout_json FROM tenant_site_layouts WHERE tenant_id=?').bind(String(t.id)).first();layout=JSON.parse(ll?.layout_json||'[]')}catch{}return J({ok:true,tenant:tenantInfo(t),settings:await tenantSettings(e,t),tags:await tenantTags(e,t),products:await tenantProducts(e,t),notes:await tenantNotes(e,t,true),layout})}
+  if(parts[3]==='notes'&&parts[4])return await handleTenantNoteFlow(r,e,t,parts);
   if(parts[3]==='recent-sales'&&r.method==='GET'){
     await ensureV55Schema(e);
     const tenantKeys=tenantKeyValues(t),tenantPlaceholders=tenantKeys.map(()=>'?').join(',');
