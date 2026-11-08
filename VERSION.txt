@@ -1,4 +1,4 @@
 TeoStudio
-Build: v58.5-seller-marketplace-commission
+Build: v58.6-telegram-idempotency-notifications
 Release date: 2026-11-08
-Base: V58.4 Card Merchant Ads Agent
+Base: V58.5 Seller Marketplace & Commission
