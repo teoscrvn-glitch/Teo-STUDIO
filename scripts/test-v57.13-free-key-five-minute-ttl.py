@@ -8,7 +8,7 @@ page = (ROOT / 'frontend/free-key.html').read_text(encoding='utf-8')
 config = (ROOT / 'frontend/assets/js/config.js').read_text(encoding='utf-8')
 
 checks = [
-    ("BUILD_VERSION='v58.1-note-designer-flow'" in w, 'Worker build version bumped'),
+    ("BUILD_VERSION='v58.4-card-merchant-ads-agent'" in w, 'Worker build version bumped'),
     ("expires=now+5*60*1000,sessionHash=await sha256(sessionToken)" in w, 'new return-link state expires after five minutes'),
     ('&proof=${encodeURIComponent(clientProof)}&exp=${expires}' in w, 'return page receives the server expiry timestamp for its visible countdown'),
     ("SET status='key_issued',key_issued_at=?,expires_at=? WHERE id=? AND status='pending' AND expires_at>?" in w, 'issuing a key consumes the state atomically and aligns its expiry to the key expiry'),
@@ -19,7 +19,7 @@ checks = [
     ('cleanReturnUrl()' in ui and 'stateInvalidated=true' in ui and 'history.replaceState' in ui, 'sensitive URL query is scrubbed and expired state invalidated'),
     ('expireKey()' in ui and 'copyFreeKey' in ui and 'issuedKey='';input.value=''' not in ui, 'key timer remains active and key stays available for recopy after copy'),
     ('issueKey()' in ui and 'else if(expireReturnLink())issueKey();' in ui, 'valid return page automatically issues the key'),
-    ('v58.1-note-designer-flow' in config and 'v58.1-note-designer-flow' in page, 'front-end cache version is updated'),
+    ('v58.4-card-merchant-ads-agent' in config and 'v58.4-product-notes-key-vault' in page, 'front-end version meta is updated'),
 ]
 failed = []
 for ok, label in checks:

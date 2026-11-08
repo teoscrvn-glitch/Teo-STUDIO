@@ -24,7 +24,7 @@ note_page_html = read('frontend/note.html')
 note_page_js = read('frontend/assets/js/tenant-note-page.js')
 
 checks = [
-    ("BUILD_VERSION='v58.1-note-designer-flow'" in w and "BUILD_VERSION:'v58.1-note-designer-flow'" in config, 'Worker and frontend versions are V58.1'),
+    ("BUILD_VERSION='v58.4-card-merchant-ads-agent'" in w and "BUILD_VERSION:'v58.4-card-merchant-ads-agent'" in config, 'Worker and frontend versions are V58.3'),
     ('#teoAccountMount' in account and 'parent.appendChild(overlay)' in account, 'account modal mounts inside the account page main content'),
     ('<div id="teoAccountMount"></div>' in account_html, 'account page exposes the in-flow mount before footer injection'),
     ('.teo-account-page-main{padding-bottom:clamp(18px,3vh,34px)!important;min-height:0!important}' in css, 'account layout avoids a viewport-sized spacer'),
@@ -117,4 +117,4 @@ for theme in ['notebook','editorial','arcade','midnight','pastel']:
     assert '<script' not in content.lower()
     print(f'PASS: original SVG art {theme}')
 
-print(f'PASS V58.1: {len(checks)} static checks, D1 smoke test, HTML IDs, JS syntax and 5 original SVGs.')
+print(f'PASS V58.3: {len(checks)} static checks, D1 smoke test, HTML IDs, JS syntax and 5 original SVGs.')

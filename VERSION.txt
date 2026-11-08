@@ -1,1 +1,4 @@
-TeoStudio V57.13 — Free key cross-tab return + clean UI
+TeoStudio
+Build: v58.5-seller-marketplace-commission
+Release date: 2026-11-08
+Base: V58.4 Card Merchant Ads Agent

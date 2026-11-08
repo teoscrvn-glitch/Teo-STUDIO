@@ -13,10 +13,10 @@ for secret in ['THECAOSIEUTOC_PARTNER_ID', 'THECAOSIEUTOC_PARTNER_KEY', 'CARD_DA
 assert 'https://thecaosieutoc.vn/chargingws/v2' in worker
 assert 'callback_sign' in worker and '/api/webhook/card-provider' in worker
 assert 'AES-GCM' in worker and 'cards_ciphertext' in worker
-assert "withdrawalMode:'manual'" in worker
+assert "withdrawalMode:e?.THECAOSIEUTOC_TOKEN?'api':'manual'" in worker
 assert 'async function providerCardBuy' not in worker
-assert 'THECAOSIEUTOC_TOKEN' not in worker
-assert 'không gọi API tự mua thẻ' in worker
+assert 'THECAOSIEUTOC_TOKEN' in worker and '/api/admin/merchant/overview' in worker
+assert 'không tự động mua thẻ' in worker
 assert 'Admin chính duyệt' in admin and 'không tự động mua thẻ' in seller
 assert 'không tự động mua thẻ' in tenant
 assert '/api/admin/card-withdrawals' in worker
@@ -31,9 +31,9 @@ assert "created_at>=datetime('now','-1 minute'))<3" in worker
 assert "limitedForAccount('wallet-card-topup',buyer.id,3,60000)" in worker
 assert "limitedForAccount('seller-card-withdrawal',buyer.id,2,3600000)" in worker
 
-# Fee table from the user screenshot; unknown rates remain Admin-configurable.
-assert 'const partner=[17.1,14.6,14.6,11.1,9.6,9.6]' in worker
-assert 'member=[17.3,14.8,14.8,11.3,9.8,9.8]' in worker
+# Fee table is now synchronized from TheCaoSieuToc API; no screenshot-derived manual tiers.
+assert 'chargingws/v2/getfee?partner_id=' in worker
+assert 'providerFee' in worker and 'member_rate' in worker
 assert 'vcoin' in worker
 
 # Edge protection and request constraints remain enabled.
@@ -49,7 +49,7 @@ assert 'free_bypass_keys' in worker and 'session_hash' in worker
 account = (ROOT / 'frontend/assets/js/account.js').read_text(encoding='utf-8')
 share = (ROOT / 'frontend/share.html').read_text(encoding='utf-8')
 public_tenant = worker[worker.find("if(parts[3]==='comments'&&r.method==='GET')"):worker.find("if(parts[3]==='comments'&&r.method==='GET')") + 1200]
-assert "BUILD_VERSION='v58.1-note-designer-flow'" in worker
+assert "BUILD_VERSION='v58.4-card-merchant-ads-agent'" in worker
 assert 'session_device_key' in worker and 'teo-device-v2|' in worker
 assert 'ip_address=?,device_label=?' in worker and 'x-teo-device-id' in worker
 assert 'buyer_known_devices' in worker

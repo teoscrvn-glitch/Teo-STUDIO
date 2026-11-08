@@ -15,9 +15,9 @@ topup = (ROOT / 'frontend/topup.html').read_text(encoding='utf-8')
 wrangler = (ROOT / 'cloudflare/wrangler.toml').read_text(encoding='utf-8')
 
 # Build/version and server-side migration.
-assert "BUILD_VERSION='v58.1-note-designer-flow'" in w
-assert "BUILD_VERSION:'v58.1-note-designer-flow'" in config
-assert 'v58.1-note-designer-flow' in page and 'v58.1-note-designer-flow' in admin_page
+assert "BUILD_VERSION='v58.4-card-merchant-ads-agent'" in w
+assert "BUILD_VERSION:'v58.4-card-merchant-ads-agent'" in config
+assert 'v58.4-product-notes-key-vault' in page and 'v58.4-product-notes-key-vault' in admin_page
 assert "'free_bypass_cycle_1_at','INTEGER DEFAULT NULL'" in w
 assert "'free_bypass_cycle_2_at','INTEGER DEFAULT NULL'" in w
 assert "'client_proof_hash','TEXT DEFAULT NULL'" in w
@@ -78,7 +78,7 @@ assert 'name="guardianConsent" required' in a
 assert 'd.guardianConsent=e.target.elements.guardianConsent.checked===true' in a
 assert 'b.guardianConsent!==true' in w
 assert 'THECAOSIEUTOC_PARTNER_ID' in w and 'THECAOSIEUTOC_PARTNER_KEY' in w
-assert 'teo-account-page-mode' in topup and 'assets/js/account.js?v=57.8' in topup
+assert 'teo-account-page-mode' in topup and 'assets/js/account.js?v=58.4' in topup
 assert 'CARD_ALREADY_SUBMITTED' in w and 'CARD_PROVIDER_REJECTED' in w
 assert '(?:start|issue|redeem|complete)' in w
 assert 'crons = ["0 * * * *", "*/5 * * * *"]' in wrangler
