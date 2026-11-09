@@ -7,7 +7,7 @@ c=(root/'frontend/assets/js/account.js').read_text()
 r=(root/'frontend/assets/js/card-rates-admin.js').read_text()
 wr=(root/'cloudflare/wrangler.toml').read_text()
 checks={
- 'version marker':'v58.5-seller-marketplace-commission' in w,
+ 'version marker':'v58.8-stability-experience' in w,
  'provider fee API refresh':'/chargingws/v2/getfee?partner_id=' in w,
  'exact provider amount credit':'credit=providerAmount' in w,
  'idempotent card ledger':"'card-topup:'+String(row.id)" in w,

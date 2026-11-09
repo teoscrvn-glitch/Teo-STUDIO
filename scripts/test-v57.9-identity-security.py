@@ -29,7 +29,7 @@ check("if(p==='/api/tenant/security-login'&&r.method==='POST')" in WORKER and "i
 check(WORKER.count('verifyTurnstile(e,b.turnstileToken,r)') >= 1 and "verifyTurnstile(e,b.turnstileToken,r);if(!cap.ok)return J({ok:false,error:'TURNSTILE_REQUIRED',message:'Hãy xác minh chống bot trước khi mở Admin.'},400)" in WORKER, 'saved-device Admin re-auth requires Turnstile')
 check("tenant-security-account" in WORKER and "recordLoginFailure(e,securityHash)" in WORKER, 'saved-device Admin password has a stable tenant cooldown')
 check("clientNetworkPrefix(r)" in WORKER and 'ipv6ExpandedGroups' in WORKER, 'network prefix is normalized for IPv4/IPv6')
-check("config.js?v=58.4" in (ROOT/'frontend/account.html').read_text(), 'frontend config cache token is bumped')
+check("config.js?v=58.8" in (ROOT/'frontend/account.html').read_text(), 'frontend config cache token is bumped')
 
 # Exercise the actual Worker IP parsing and prefix helpers in Node.
 node_test = r'''

@@ -43,7 +43,7 @@ assert "sellerCreatedLink" in seller_js
 assert "prompt(" not in seller_js and "alert(" not in seller_js
 assert "seller-premium.css?v=56.68" in seller_html
 assert "seller-hero.webp" in seller_html
-assert "hoa hồng 5%" in seller_html.lower() or "Hoa hồng 5%" in seller_html
+assert "mỗi file có mức hoa hồng riêng" in seller_html.lower() or "hoa hồng theo từng file" in seller_html.lower()
 
 for asset in [
     'seller-hero.webp', 'seller-mascot.webp', 'sakura-night.webp',

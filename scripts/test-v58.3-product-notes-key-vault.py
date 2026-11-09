@@ -13,7 +13,7 @@ share=read('frontend/assets/js/tenant-share.js')
 account=read('frontend/assets/js/account.js')
 htmls={p.name:p.read_text(encoding='utf-8') for p in [ROOT/'frontend/tenant-admin.html',ROOT/'frontend/tenant-detail.html',ROOT/'frontend/share.html',ROOT/'frontend/note.html']}
 checks=[
-("BUILD_VERSION='v58.5-seller-marketplace-commission'" in w and "BUILD_VERSION:'v58.5-seller-marketplace-commission'" in config,'Worker/frontend release identity is V58.5 (Note/Key Vault retained)'),
+("BUILD_VERSION='v58.8-stability-experience'" in w and "BUILD_VERSION:'v58.8-stability-experience'" in config,'Worker/frontend release identity is V58.5 (Note/Key Vault retained)'),
 ("note_id:clean(row.note_id||'',100)" in w and "delete out.fixed_key_ciphertext;delete out.fixed_key_hash" in w,'product API exposes Note reference but never fixed key ciphertext/hash'),
 ("const noteId=clean(b.note_id||'',100)" in w and "tenant_notes WHERE tenant_id=? AND id=? AND visible=1" in w,'product Note selection is verified against the same tenant and visible Note'),
 ("attached=new Set(products.map(x=>String(x.note_id||'')).filter(Boolean))" in w and "requestedNote" in w,'Notes linked to products are removed from standalone Share list but can still be opened by their own Note URL'),

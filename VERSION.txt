@@ -1,4 +1,4 @@
 TeoStudio
-Build: v58.6-telegram-idempotency-notifications
+Build: v58.8-stability-experience
 Release date: 2026-11-08
-Base: V58.5 Seller Marketplace & Commission
+Base: V58.7 Telegram Support Ticket Replies

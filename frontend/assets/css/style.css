@@ -274,3 +274,6 @@ body.admin-body #teoAccountLauncher{display:none!important}
 .teo-support-reply{margin-top:12px;padding:12px;border:1px solid rgba(120,100,255,.35);border-radius:12px;background:rgba(100,80,220,.08)}
 .teo-support-reply p{white-space:pre-wrap;margin:8px 0 0}
 .teo-support-reply small{display:block;opacity:.7;margin-top:4px}
+
+/* V58.8 user-initiated background music dock */
+.teo-music-dock{position:fixed;z-index:90;right:16px;bottom:104px;display:flex;flex-direction:column;align-items:flex-end;gap:8px;max-width:min(92vw,360px);font:inherit}.teo-music-toggle{border:1px solid rgba(167,139,250,.55);border-radius:999px;background:rgba(12,17,34,.94);color:var(--text,#f4f4f8);padding:10px 14px;box-shadow:0 8px 30px rgba(0,0,0,.28);cursor:pointer}.teo-music-panel{width:min(320px,90vw);padding:12px;border:1px solid rgba(167,139,250,.35);border-radius:16px;background:rgba(12,17,34,.97);box-shadow:0 12px 36px rgba(0,0,0,.35);color:var(--text,#f4f4f8)}.teo-music-panel iframe{display:block;width:100%;height:180px;border:0;border-radius:10px}.teo-music-panel audio{width:100%;max-width:100%}.teo-music-panel a{color:#a5c8ff}.teo-music-panel small{display:block;margin-top:6px;opacity:.75;font-size:11px}@media(max-width:640px){.teo-music-dock{right:12px;bottom:88px}}
