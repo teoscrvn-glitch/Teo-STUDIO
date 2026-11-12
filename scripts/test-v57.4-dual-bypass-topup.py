@@ -9,7 +9,7 @@ k = (root / 'frontend/assets/js/free-key.js').read_text()
 page = (root / 'frontend/free-key.html').read_text()
 topup = (root / 'frontend/topup.html').read_text()
 
-assert "BUILD_VERSION='v58.8-stability-experience'" in w
+assert "BUILD_VERSION='v58.13-withdrawal-vietqr'" in w
 assert "provider=step===1?'bumx':'link4m'" in w
 assert 'free_bypass_last_at' in w and '86400000' in w
 assert 'now+7*86400000' in w
@@ -20,8 +20,8 @@ assert "b.id||b.tenant||b.slug||b.tenantId" in w
 assert "unscopedHeaders.delete('x-tenant-slug')" in w
 assert "scopedHeaders.set(" + chr(39) + "x-tenant-slug" + chr(39) + ",slug)" in w
 assert "canonical keys matches" in w
-assert 'v58.8-stability-experience' in (root / 'frontend/assets/js/config.js').read_text()
-assert 'tenant-admin.js?v=58.8' in (root / 'frontend/tenant-admin.html').read_text()
+assert 'v58.13-withdrawal-vietqr' in (root / 'frontend/assets/js/config.js').read_text()
+assert 'tenant-admin.js?v=58.9' in (root / 'frontend/tenant-admin.html').read_text()
 assert "authorization:'Bearer '+tenantToken" in k
 assert 'LINK4M_REWARDED_TRAFFIC_APPROVED' in w
 assert 'FREE_BYPASS_VERIFY_URL' not in w and 'FREE_BYPASS_API_KEY' not in w
@@ -36,7 +36,7 @@ assert 'name="guardianConsent" required' in a
 assert 'd.guardianConsent=e.target.elements.guardianConsent.checked===true' in a
 assert 'b.guardianConsent!==true' in w
 assert 'THECAOSIEUTOC_PARTNER_ID' in w and 'THECAOSIEUTOC_PARTNER_KEY' in w
-assert 'teo-account-page-mode' in topup and 'assets/js/account.js?v=58.8' in topup
+assert 'teo-account-page-mode' in topup and 'assets/js/account.js?v=58.9' in topup
 assert 'CARD_ALREADY_SUBMITTED' in w and 'CARD_PROVIDER_REJECTED' in w
 assert '(?:start|issue|redeem|complete)' in w
 assert 'crons = ["0 * * * *", "*/5 * * * *"]' in (root / 'cloudflare/wrangler.toml').read_text()

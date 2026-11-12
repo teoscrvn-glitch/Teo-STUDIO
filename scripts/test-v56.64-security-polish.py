@@ -25,7 +25,11 @@ assert "EMAIL_VERIFICATION_REQUIRED" in worker
 assert 'function limitedForAccount(key,accountId,limit,windowMs)' in worker
 assert "limited(r,'seller-link-create'" not in worker
 assert "seller_enabled" in worker and "visible=1" in worker
-assert "if(b.sellerToken)" in worker
+assert "if(!attribution&&b.sellerToken)" in worker
+assert "buyer_seller_referrals" in worker
+assert "INSERT OR IGNORE INTO buyer_seller_referrals" in worker
+assert "accountReferral" in worker
+assert "balanceBefore" in worker and "balanceAfter" in worker
 assert "Math.floor(amount*0.05)" in worker
 
 # Product-detail seller entry points exist for both main catalogue and tenant catalogue.
@@ -41,7 +45,7 @@ assert "esc=v=>String(v??'')" in seller_js
 assert "navigator.share" in seller_js
 assert "sellerCreatedLink" in seller_js
 assert "prompt(" not in seller_js and "alert(" not in seller_js
-assert "seller-premium.css?v=56.68" in seller_html
+assert "seller-premium.css?v=58.9" in seller_html
 assert "seller-hero.webp" in seller_html
 assert "mỗi file có mức hoa hồng riêng" in seller_html.lower() or "hoa hồng theo từng file" in seller_html.lower()
 

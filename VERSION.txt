@@ -1,4 +1,5 @@
 TeoStudio
-Build: v58.8-stability-experience
-Release date: 2026-11-08
-Base: V58.7 Telegram Support Ticket Replies
+Build: v58.12-ai-brain-github-rag
+Release date: 2026-11-12
+Base: v58.11 AI Tool Calling & Knowledge Upgrade
+Frontend visual system: v58.10-page-specific-visual-system

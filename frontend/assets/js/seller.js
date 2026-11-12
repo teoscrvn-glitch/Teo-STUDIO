@@ -2,6 +2,14 @@
   'use strict';
   const cfg=window.TEO_CONFIG||{}, api=p=>(cfg.API_BASE_URL||'').replace(/\/$/,'')+p;
   const $=s=>document.querySelector(s), esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const drawer=$('#sellerDrawer'),drawerBackdrop=$('#sellerDrawerBackdrop'),drawerToggle=$('#sellerMenuToggle');
+  const closeDrawer=()=>{drawer?.classList.remove('is-open');drawerBackdrop?.classList.remove('is-open');drawer?.setAttribute('aria-hidden','true');drawerToggle?.setAttribute('aria-expanded','false');document.body.classList.remove('seller-drawer-open')};
+  const openDrawer=()=>{drawer?.classList.add('is-open');drawerBackdrop?.classList.add('is-open');drawer?.setAttribute('aria-hidden','false');drawerToggle?.setAttribute('aria-expanded','true');document.body.classList.add('seller-drawer-open')};
+  drawerToggle?.addEventListener('click',()=>drawer?.classList.contains('is-open')?closeDrawer():openDrawer());
+  drawerBackdrop?.addEventListener('click',closeDrawer);$('#sellerDrawerClose')?.addEventListener('click',closeDrawer);
+  drawer?.querySelectorAll('a[href^="#"]').forEach(link=>link.addEventListener('click',()=>{closeDrawer();const target=document.querySelector(link.getAttribute('href'));target?.scrollIntoView({behavior:'smooth',block:'start'})}));
+  document.addEventListener('keydown',event=>{if(event.key==='Escape')closeDrawer()});
+
   const money=v=>Math.max(0,Number(v)||0).toLocaleString('vi-VN')+'đ';
   function getTeoDeviceId(){try{let id=localStorage.getItem('TEO_DEVICE_ID')||'';if(!/^[A-Za-z0-9._:-]{12,100}$/.test(id)){id=crypto.randomUUID?crypto.randomUUID():Array.from(crypto.getRandomValues(new Uint8Array(24))).map(x=>x.toString(16).padStart(2,'0')).join('');localStorage.setItem('TEO_DEVICE_ID',id)}return id}catch{return ''}}
   const readToken=()=>localStorage.getItem('TEO_BUYER_SESSION')||sessionStorage.getItem('TEO_BUYER_SESSION')||'';
@@ -55,7 +63,7 @@
     const visible=products.filter(p=>!query||String(p.title||'').toLocaleLowerCase('vi').includes(query)||String(p.tenantName||'').toLocaleLowerCase('vi').includes(query));
     visible.sort((a,b)=>sort==='commission'?(Number(b.commissionPct||0)-Number(a.commissionPct||0)||Number(b.commissionVnd||0)-Number(a.commissionVnd||0)):sort==='earning'?(Number(b.commissionVnd||0)-Number(a.commissionVnd||0)||Number(b.priceVnd||0)-Number(a.priceVnd||0)):String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
     if(!visible.length){root.innerHTML=products.length?'<div class="seller-empty">Không tìm thấy file phù hợp với bộ lọc.</div>':'<div class="seller-empty">Chưa có file nào đang bật Seller.<br>Chủ Studio / Admin có thể bật Seller trong phần chỉnh sửa file trả phí.</div>';return}
-    root.innerHTML=visible.map((p,i)=>`<article class="seller-catalog-item"><div class="seller-product-icon">${p.scope==='tenant'?'▤':'✦'}</div><div class="seller-product-info"><b>${esc(p.title||'File không tên')}</b><small>${esc(p.tenantName||'TeoStudio')} · Giá ${money(p.priceVnd)}</small><small class="seller-commission-line">✦ ${Number(p.commissionPct||0)}% hoa hồng · dự kiến ${money(p.commissionVnd||0)}/đơn</small></div><button type="button" class="seller-btn seller-btn-secondary" data-seller-create="${i}">Tạo link riêng ↗</button></article>`).join('');
+    root.innerHTML=visible.map((p,i)=>`<article class="seller-catalog-item"><div class="seller-product-icon">${p.thumb?`<img src="${esc(p.thumb)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`:p.scope==='tenant'?'▤':'✦'}</div><div class="seller-product-info"><b>${esc(p.title||'File không tên')}</b><small>${esc(p.tenantName||'TeoStudio')} · Giá ${money(p.priceVnd)}</small>${p.description?`<p class="seller-product-description">${esc(p.description)}</p>`:''}<small class="seller-commission-line">✦ ${Number(p.commissionPct||0)}% hoa hồng · dự kiến ${money(p.commissionVnd||0)}/đơn</small></div><button type="button" class="seller-btn seller-btn-secondary" data-seller-create="${i}">Tạo link riêng ↗</button></article>`).join('');
     root.querySelectorAll('[data-seller-create]').forEach(button=>button.addEventListener('click',async()=>{
       const p=visible[Number(button.dataset.sellerCreate)];if(!p)return;
       button.disabled=true;button.textContent='Đang tạo…';

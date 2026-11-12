@@ -1,20 +1,32 @@
 <!doctype html>
 <html lang="vi">
-<head>
-  <meta name="teo-frontend-version" content="v58.8-stability-experience">
+<head><meta name="teo-visual-version" content="v58.10-page-specific-visual-system">
+  <meta name="teo-frontend-version" content="v58.13-withdrawal-vietqr">
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#090b18"><meta name="robots" content="noindex,nofollow">
   <title>Seller Center — TeoStudio</title>
   <link rel="icon" type="image/png" href="assets/img/favicon.png">
   <link rel="preload" as="image" href="assets/img/teo/seller-hero.webp">
   <link rel="stylesheet" href="assets/css/style.css?v=57.0">
-  <link rel="stylesheet" href="assets/css/seller-premium.css?v=56.68">
-<link rel="stylesheet" href="assets/css/pre-public-polish.css?v=57.0"></head>
+  <link rel="stylesheet" href="assets/css/seller-premium.css?v=58.9">
+<link rel="stylesheet" href="assets/css/pre-public-polish.css?v=57.0"><link rel="stylesheet" href="/assets/css/teo-visual-system.css?v=58.10">
+<script defer src="/assets/js/teo-visual-system.js?v=58.10"></script></head>
 <body class="seller-body">
   <header class="seller-topbar">
+    <button class="seller-menu-btn" id="sellerMenuToggle" type="button" aria-label="Mở menu Seller" aria-expanded="false" aria-controls="sellerDrawer">☰</button>
     <a class="seller-brand" href="/share.html" aria-label="Quay lại Share File"><img src="assets/img/teostudio-icon.png" alt=""><span>Teo<span>Studio</span><small>SELLER CENTER</small></span></a>
     <div class="seller-top-actions"><a class="seller-top-link" href="/share.html">← Quay lại Share File</a><span class="seller-secure-label"><i></i> Kết nối bảo mật</span></div>
   </header>
+  <div class="seller-drawer-backdrop" id="sellerDrawerBackdrop"></div>
+  <nav class="seller-drawer" id="sellerDrawer" aria-label="Điều hướng Seller" aria-hidden="true">
+    <div class="seller-drawer-head"><b>SELLER CENTER</b><button type="button" id="sellerDrawerClose" aria-label="Đóng menu">×</button></div>
+    <a href="#sellerOverview">◈ Tổng quan Seller</a>
+    <a href="#sellerCatalogSection">▤ File có thể giới thiệu</a>
+    <a href="#sellerPayoutSection">↗ Rút hoa hồng & nhận tiền</a>
+    <a href="#sellerLedgerSection">▥ Lịch sử hoa hồng</a>
+    <a href="/share.html">⌂ Quay lại Share File</a>
+    <p>Hoa hồng chỉ ghi nhận theo giao dịch đã được máy chủ xác nhận.</p>
+  </nav>
   <main class="seller-wrap">
     <section class="seller-hero-card">
       <div class="seller-hero-copy">
@@ -32,7 +44,7 @@
     </section>
 
     <div id="sellerApp" hidden>
-      <section class="seller-stat-grid" aria-label="Tổng quan Seller">
+      <section class="seller-stat-grid" id="sellerOverview" aria-label="Tổng quan Seller">
         <article class="seller-stat seller-stat-pending"><span class="seller-stat-icon">◷</span><small>Hoa hồng chờ đối soát</small><strong id="sellerPending">0đ</strong><span class="seller-stat-foot">Tạm giữ 7 ngày sau đơn mua</span></article>
         <article class="seller-stat seller-stat-ready"><span class="seller-stat-icon">₫</span><small>Số dư có thể rút</small><strong id="sellerAvailable">0đ</strong><span class="seller-stat-foot">Sau khi trừ khoản đã giữ / rút</span></article>
         <article class="seller-stat seller-stat-total"><span class="seller-stat-icon">↗</span><small>Hoa hồng ròng</small><strong id="sellerTotalCommission">0đ</strong><span class="seller-stat-foot">Đã trừ các khoản hoàn hợp lệ</span></article>
@@ -40,7 +52,7 @@
       </section>
 
       <div class="seller-main-grid">
-        <section class="seller-panel seller-catalog-panel">
+        <section class="seller-panel seller-catalog-panel" id="sellerCatalogSection">
           <div class="seller-panel-head"><div><span class="seller-kicker">BẮT ĐẦU KIẾM TIỀN</span><h2>File có thể giới thiệu</h2><p>Chỉ file được Admin / chủ Studio bật Seller mới xuất hiện tại đây.</p></div><span class="seller-panel-icon">⌁</span></div>
           <div id="sellerSelectedHint" class="seller-selected-hint" hidden></div>
           <div class="seller-catalog-tools"><label for="sellerSort">Sắp xếp</label><select id="sellerSort"><option value="newest">Mới nhất</option><option value="commission">Hoa hồng % cao nhất</option><option value="earning">Hoa hồng dự kiến cao nhất</option></select><input id="sellerSearch" type="search" placeholder="Tìm tên file hoặc Studio…" autocomplete="off"></div>
@@ -48,17 +60,17 @@
           <div class="seller-howto"><div class="seller-howto-title"><img src="assets/img/teo/seller-mascot.webp" alt=""><div><b>Chia sẻ đúng cách</b><small>Đừng tự mua bằng link của chính mình.</small></div></div><ol><li>Đăng nhập và tạo link riêng cho từng file.</li><li>Chia sẻ link qua kênh của bạn, ghi rõ nội dung file.</li><li>Khách đăng nhập, xác minh email và mua thành công.</li><li>Hoa hồng theo tỷ lệ từng file được ghi vào sổ chờ 7 ngày để xử lý hoàn tiền / chargeback.</li></ol></div>
         </section>
 
-        <div class="seller-side-column">
+        <div class="seller-side-column" id="sellerPayoutSection">
           <section class="seller-panel">
             <div class="seller-panel-head compact"><div><span class="seller-kicker">THANH TOÁN</span><h2>Thông tin nhận tiền</h2><p>Thông tin được lưu riêng cho tài khoản Seller của bạn.</p></div><span class="seller-panel-icon">⌂</span></div>
             <form id="sellerProfile" class="seller-form">
-              <label>Hình thức nhận tiền<select name="method" id="sellerPayoutMethod"><option value="bank">Ngân hàng</option><option value="wallet">Ví điện tử</option></select></label>
-              <label id="sellerBankField">Ngân hàng<input name="bank_name" maxlength="100" autocomplete="off" placeholder="Ví dụ: Vietcombank"></label>
+              <label>Hình thức nhận tiền<select name="method" id="sellerPayoutMethod"><option value="bank">Ngân hàng · VietQR bắt buộc</option></select></label>
+              <label id="sellerBankField">Mã BIN VietQR (6 chữ số)<input name="bank_name" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" autocomplete="off" placeholder="Ví dụ: 970422"></label>
               <label>Số tài khoản / số ví<input name="account_number" maxlength="50" required autocomplete="off" inputmode="text" placeholder="Nhập số tài khoản hoặc số ví"></label>
               <label>Chủ tài khoản<input name="account_holder" maxlength="100" required autocomplete="name" placeholder="Tên chủ tài khoản"></label>
               <label id="sellerWalletField" hidden>Tên ví điện tử<input name="wallet_provider" maxlength="80" autocomplete="off" placeholder="Ví dụ: MoMo"></label>
               <button class="seller-btn seller-btn-secondary" type="submit">Lưu thông tin nhận tiền</button>
-              <p class="seller-form-note">Hệ thống lưu ảnh chụp thông tin nhận tiền tại thời điểm gửi yêu cầu rút; thay đổi hồ sơ sau đó không tự sửa yêu cầu cũ.</p>
+              <p class="seller-form-note">Nhập mã BIN VietQR 6 chữ số (không nhập tên ngân hàng). Hệ thống tự tạo QR theo số tiền và nội dung từng yêu cầu rút.</p>
             </form>
           </section>
 
@@ -76,7 +88,7 @@
         </div>
       </div>
 
-      <section class="seller-panel seller-ledger-panel">
+      <section class="seller-panel seller-ledger-panel" id="sellerLedgerSection">
         <div class="seller-panel-head compact"><div><span class="seller-kicker">MINH BẠCH GIAO DỊCH</span><h2>Lịch sử hoa hồng</h2><p>Các khoản cộng, giữ, hoàn và điều chỉnh được ghi thành từng dòng riêng.</p></div><button type="button" class="seller-refresh" id="sellerRefresh">↻ Làm mới</button></div>
         <div id="sellerLedger" class="seller-ledger-list"><p class="seller-muted">Đang tải dữ liệu…</p></div>
       </section>
@@ -85,7 +97,7 @@
     <div id="sellerToast" class="seller-toast" role="status" aria-live="polite"></div>
     <footer class="seller-footer"><span>TeoStudio · Seller Program</span><span>Chỉ ghi nhận đơn hợp lệ được máy chủ xác nhận.</span></footer>
   </main>
-  <script src="assets/js/config.js?v=58.8"></script>
-  <script src="assets/js/seller.js?v=58.5"></script>
+  <script src="assets/js/config.js?v=58.9"></script>
+  <script src="assets/js/seller.js?v=58.9"></script>
 <script src="assets/js/legal-ui.js?v=57.0" defer></script></body>
 </html>

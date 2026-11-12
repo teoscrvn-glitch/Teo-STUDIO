@@ -1,3 +1,15 @@
+# TeoStudio — V58.11 AI Tool Calling & Knowledge Upgrade
+
+Latest backend release: **V58.11**. Téo AI now supports bounded OpenAI-compatible tool calling for public file search, approved knowledge lookup, optional web search, and permission-scoped account/Studio read operations. All AI tools are read-only; purchases, wallet mutations, payouts, key issuance and destructive actions remain in their existing authenticated workflows.
+
+See `CHANGELOG_V58.11_AI_TOOLS.md`, `DEPLOY_V58.11_AI_TOOLING.md`, and `AI_TOOLING_GITHUB_RESEARCH.md`.
+
+# TeoStudio — V58.10 Visual System
+
+Current frontend visual layer: **V58.10** (page-specific visual identities, local illustrations, selective lightweight 3D depth). Backend/API build remains **V58.9** because this visual patch does not change Worker routes or server behavior.
+
+See `VERSION_V58.10.md`, `CHANGELOG_V58.10.md`, and run `sh scripts/check-build.sh` before deploying. V58.9 transaction/Seller/Task changes remain part of this package.
+
 # TeoStudio — V58.4
 
 Latest release: **V58.4 Card Gateway, Merchant Center, Ads Configuration & Agent**.

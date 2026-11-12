@@ -11,23 +11,36 @@
       const q=new URLSearchParams(location.search),code=String(q.get('seller')||'').trim(),productId=String(q.get('id')||'').trim(),tenant=String(q.get('tenant')||'').trim();
       if(!code||!productId||!(/^[A-Za-z0-9_-]{1,100}$/).test(productId))return;
       const scope=tenant?'tenant':'main',key='TEO_SELLER_ATTR_'+scope+'_'+(tenant||'main')+'_'+productId;
-      const prev=JSON.parse(localStorage.getItem(key)||'null');if(prev?.code===code&&Number(prev.expiresAt)>Date.now())return;
-      const r=await fetch(api('/api/seller/attribute'),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code}),cache:'no-store'}),x=await r.json().catch(()=>({}));
-      if(r.ok&&x.ok&&x.token)localStorage.setItem(key,JSON.stringify({code,token:x.token,expiresAt:Number(x.expiresAt)||Date.now()+30*86400000}));
+      const prev=JSON.parse(localStorage.getItem(key)||'null'),authToken=localStorage.getItem('TEO_BUYER_SESSION')||sessionStorage.getItem('TEO_BUYER_SESSION')||'';if(prev?.code===code&&Number(prev.expiresAt)>Date.now()&&(!authToken||prev.boundToAccount))return;
+      const headers={'content-type':'application/json'};if(authToken)headers.authorization='Bearer '+authToken;const r=await fetch(api('/api/seller/attribute'),{method:'POST',headers,body:JSON.stringify({code}),cache:'no-store'}),x=await r.json().catch(()=>({}));
+      if(r.ok&&x.ok&&x.token)localStorage.setItem(key,JSON.stringify({code,token:x.token,expiresAt:Number(x.expiresAt)||Date.now()+30*86400000,boundToAccount:!!x.boundToAccount}));
+    }catch{}
+  }
+  async function bindPendingSellerAttributions(){
+    try{
+      const authToken=localStorage.getItem('TEO_BUYER_SESSION')||sessionStorage.getItem('TEO_BUYER_SESSION')||'';if(!authToken)return;
+      const headers={'content-type':'application/json',authorization:'Bearer '+authToken};
+      for(const key of Object.keys(localStorage).filter(k=>k.startsWith('TEO_SELLER_ATTR_'))){
+        let prev;try{prev=JSON.parse(localStorage.getItem(key)||'null')}catch{continue}
+        if(!prev?.code||prev.boundToAccount||Number(prev.expiresAt)<=Date.now())continue;
+        const r=await fetch(api('/api/seller/attribute'),{method:'POST',headers,body:JSON.stringify({code:String(prev.code)}),cache:'no-store'}),x=await r.json().catch(()=>({}));
+        if(r.ok&&x.ok&&x.boundToAccount)localStorage.setItem(key,JSON.stringify({...prev,token:x.token||prev.token,expiresAt:Number(x.expiresAt)||prev.expiresAt,boundToAccount:true}));
+      }
     }catch{}
   }
   const sellerCapturePromise=captureSellerAttribution();
+  window.addEventListener('teo:auth-changed',()=>{captureSellerAttribution().catch(()=>{});bindPendingSellerAttributions().catch(()=>{});});
   async function sellerTokenFor(scope,tenant,productId){
     try{
       const key='TEO_SELLER_ATTR_'+scope+'_'+(tenant||'main')+'_'+productId;
       const q=new URLSearchParams(location.search),code=String(q.get('seller')||'').trim(),pageId=String(q.get('id')||'').trim(),pageTenant=String(q.get('tenant')||'').trim();
       const currentLinkMatches=!!code&&pageId===String(productId)&&(scope==='tenant'?pageTenant===String(tenant||''):!pageTenant);
       if(currentLinkMatches){
-        // The latest clicked referral link wins; do not let an older cached Seller override it.
+        // The account-bound first-touch referral is authoritative; the token is a compatibility fallback.
         await sellerCapturePromise;
         let latest=JSON.parse(localStorage.getItem(key)||'null');
         if(latest?.code===code&&Number(latest.expiresAt)>Date.now()&&latest.token)return String(latest.token);
-        const r=await fetch(api('/api/seller/attribute'),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code}),cache:'no-store'}),data=await r.json().catch(()=>({}));
+        const authToken=localStorage.getItem('TEO_BUYER_SESSION')||sessionStorage.getItem('TEO_BUYER_SESSION')||'';const headers={'content-type':'application/json'};if(authToken)headers.authorization='Bearer '+authToken;const r=await fetch(api('/api/seller/attribute'),{method:'POST',headers,body:JSON.stringify({code}),cache:'no-store'}),data=await r.json().catch(()=>({}));
         if(!r.ok||!data.ok||!data.token)return '';
         latest={code,token:data.token,expiresAt:Number(data.expiresAt)||Date.now()+30*86400000};localStorage.setItem(key,JSON.stringify(latest));return String(latest.token);
       }

@@ -9,8 +9,8 @@ share_html=(root/'frontend/tenant-admin.html').read_text()
 note_css=(root/'frontend/assets/css/note-studio.css').read_text()
 config=(root/'frontend/assets/js/config.js').read_text()
 wrangler=(root/'cloudflare/wrangler.toml').read_text()
-assert "const BUILD_VERSION='v58.8-stability-experience'" in worker
-assert "BUILD_VERSION:'v58.8-stability-experience'" in config
+assert "const BUILD_VERSION='v58.13-withdrawal-vietqr'" in worker
+assert "BUILD_VERSION:'v58.13-withdrawal-vietqr'" in config
 # Seller toggle reads from the actual HTML form, not FormData.elements.
 assert "const sellerEnabled=e.target.elements?.namedItem?.('seller_enabled')" in tenant_js
 assert "const sellerEnabled=f.elements?.namedItem" not in tenant_js

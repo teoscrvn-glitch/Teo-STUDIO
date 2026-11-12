@@ -41,3 +41,8 @@
 @media(max-width:1100px){.note-studio-grid{grid-template-columns:minmax(0,1fr)!important}.note-live-preview-wrap{position:static;grid-row:auto;width:100%;max-width:100%}.note-live-preview{width:100%;max-width:560px;margin-inline:auto}.note-studio-controls{width:100%}}
 @media(hover:hover) and (prefers-reduced-motion:no-preference){.note-editor-section,.note-preview-sticky-head,.note-theme-choice,.note-platform-grid button{transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}.note-editor-section:hover{box-shadow:0 14px 34px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.025)}.note-theme-choice:hover,.note-platform-grid button:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(0,0,0,.18)}}
 @media(prefers-reduced-motion:reduce){.note-editor-section,.note-preview-sticky-head,.note-theme-choice,.note-platform-grid button{transition:none!important;transform:none!important}}
+/* V58.9 task exit/return guard and final hand-off */
+.note-flow-warning{margin:12px 0;padding:13px 15px;border:1px solid rgba(239,68,68,.42);border-radius:13px;background:rgba(127,29,29,.17);color:#fca5a5;font-weight:750;line-height:1.55;text-align:center;box-shadow:0 8px 26px rgba(127,29,29,.1)}
+.note-flow-handoff{display:flex;align-items:center;gap:14px;margin:16px 0;padding:16px 18px;border:1px solid rgba(59,130,246,.28);border-radius:15px;background:rgba(37,99,235,.1);color:#c9dcff}
+.note-flow-handoff b{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:rgba(37,99,235,.2);font-size:25px;font-variant-numeric:tabular-nums}
+.note-flow-handoff span{font-size:14px;font-weight:700}
