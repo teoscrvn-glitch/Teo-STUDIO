@@ -1,14 +1,14 @@
 <!doctype html>
 <html lang="vi">
 <head><meta name="teo-visual-version" content="v58.10-page-specific-visual-system">
-  <meta name="teo-frontend-version" content="v58.13-withdrawal-vietqr">
+  <meta name="teo-frontend-version" content="v58.14-share-seller-ux">
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#090b18"><meta name="robots" content="noindex,nofollow">
   <title>Seller Center — TeoStudio</title>
   <link rel="icon" type="image/png" href="assets/img/favicon.png">
   <link rel="preload" as="image" href="assets/img/teo/seller-hero.webp">
   <link rel="stylesheet" href="assets/css/style.css?v=57.0">
-  <link rel="stylesheet" href="assets/css/seller-premium.css?v=58.9">
+  <link rel="stylesheet" href="assets/css/seller-premium.css?v=58.14">
 <link rel="stylesheet" href="assets/css/pre-public-polish.css?v=57.0"><link rel="stylesheet" href="/assets/css/teo-visual-system.css?v=58.10">
 <script defer src="/assets/js/teo-visual-system.js?v=58.10"></script></head>
 <body class="seller-body">
@@ -21,9 +21,12 @@
   <nav class="seller-drawer" id="sellerDrawer" aria-label="Điều hướng Seller" aria-hidden="true">
     <div class="seller-drawer-head"><b>SELLER CENTER</b><button type="button" id="sellerDrawerClose" aria-label="Đóng menu">×</button></div>
     <a href="#sellerOverview">◈ Tổng quan Seller</a>
+    <a href="#sellerCatalogSection">▦ Kho file & tạo link</a>
     <a href="#sellerCatalogSection">▤ File có thể giới thiệu</a>
     <a href="#sellerPayoutSection">↗ Rút hoa hồng & nhận tiền</a>
-    <a href="#sellerLedgerSection">▥ Lịch sử hoa hồng</a>
+    <a href="#sellerCardWithdrawSection">▣ Đổi thẻ cào</a>
+    <a href="#sellerLedgerSection">▥ Lịch sử & đối soát</a>
+    <a href="/account.html">⚙ Tài khoản TeoStudio</a>
     <a href="/share.html">⌂ Quay lại Share File</a>
     <p>Hoa hồng chỉ ghi nhận theo giao dịch đã được máy chủ xác nhận.</p>
   </nav>
@@ -74,7 +77,7 @@
             </form>
           </section>
 
-          <section class="seller-panel seller-withdraw-panel">
+          <section class="seller-panel seller-withdraw-panel" id="sellerCardWithdrawSection">
             <div class="seller-panel-head compact"><div><span class="seller-kicker">RÚT HOA HỒNG</span><h2>Yêu cầu rút tiền</h2><p id="sellerPayoutState">Đang kiểm tra trạng thái…</p></div><span class="seller-panel-icon">↗</span></div>
             <form id="sellerWithdraw" class="seller-form">
               <label>Số tiền muốn rút (VNĐ)<input name="amountVnd" type="number" min="100000" max="100000000" step="1000" placeholder="Tối thiểu 100.000đ" required></label>
@@ -98,6 +101,6 @@
     <footer class="seller-footer"><span>TeoStudio · Seller Program</span><span>Chỉ ghi nhận đơn hợp lệ được máy chủ xác nhận.</span></footer>
   </main>
   <script src="assets/js/config.js?v=58.9"></script>
-  <script src="assets/js/seller.js?v=58.9"></script>
+  <script src="assets/js/seller.js?v=58.14"></script>
 <script src="assets/js/legal-ui.js?v=57.0" defer></script></body>
 </html>

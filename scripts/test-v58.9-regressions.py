@@ -8,7 +8,7 @@ assert 'accountReferral' in w and 'String(attribution.seller_id)!==String(buyer.
 assert "headers.authorization='Bearer '+authToken" in a
 assert "window.addEventListener('teo:auth-changed'" in a and 'bindPendingSellerAttributions' in a and "k.startsWith('TEO_SELLER_ATTR_')" in a
 assert "description:clean(x.description||'',280)" in w and 'thumb:x.thumb?' in w
-assert 'seller-product-description' in s and 'sellerDrawer' in (ROOT/'frontend/seller.html').read_text() and 'openDrawer' in s and 'seller-drawer.is-open' in (ROOT/'frontend/assets/css/seller-premium.css').read_text() and 'seller-premium.css?v=58.9' in (ROOT/'frontend/seller.html').read_text()
+assert 'seller-product-description' in s and 'sellerDrawer' in (ROOT/'frontend/seller.html').read_text() and 'openDrawer' in s and 'seller-drawer.is-open' in (ROOT/'frontend/assets/css/seller-premium.css').read_text() and 'seller-premium.css?v=58.14' in (ROOT/'frontend/seller.html').read_text()
 assert 'data-step-button-label' in n and 'detectPlatformFromUrl' in n
 assert 'waitMs:10000' in w and 'elapsed<10000' in w
 assert '10000-(Date.now()-Number(p.openedAt))' in pub

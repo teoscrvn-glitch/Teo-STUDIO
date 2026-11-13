@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const worker=fs.readFileSync('cloudflare/worker.js','utf8');
+const share=fs.readFileSync('frontend/share.html','utf8');
+const seller=fs.readFileSync('frontend/seller.html','utf8');
+const css=fs.readFileSync('frontend/assets/css/seller-premium.css','utf8');
+assert.match(worker,/requestedTenant=clean\(new URL\(r\.url\)\.searchParams\.get\('tenant'\)\|\|''\,80\)/);
+assert.match(worker,/if\(!requestedTenant\)\{const target=new URL\('\/',r\.url\)/);
+assert.match(share,/Tài khoản & đơn mua/);
+assert.match(share,/Studio của tôi/);
+assert.match(seller,/href="#sellerCardWithdrawSection"/);
+assert.match(seller,/href="\/account\.html"/);
+assert.match(css,/\.seller-product-icon\{width:88px;height:78px/);
+assert.match(css,/grid-template-columns:84px minmax\(0,1fr\)/);
+console.log('PASS V58.14: bare /share fallback, expanded public navigation, Seller drawer sections and larger responsive file thumbnails.');

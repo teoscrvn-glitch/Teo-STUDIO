@@ -35,3 +35,14 @@
 @media(max-width:620px){.seller-topbar{gap:9px}.seller-top-actions .seller-secure-label{display:none}.seller-drawer{padding-top:max(18px,env(safe-area-inset-top))}}
 
 body.seller-drawer-open{overflow:hidden}
+
+/* V58.14 — larger marketplace thumbnails and clearer mobile hierarchy */
+.seller-catalog-item{gap:15px;padding:14px;align-items:center}
+.seller-product-icon{width:88px;height:78px;flex:0 0 88px;border-radius:14px;box-shadow:0 8px 22px rgba(0,0,0,.24);overflow:hidden}
+.seller-product-info b{font-size:14px;white-space:normal;line-height:1.35}
+.seller-product-info small{font-size:11px;line-height:1.45}
+.seller-product-description{font-size:11px;line-height:1.55;-webkit-line-clamp:3}
+.seller-catalog-item .seller-btn{min-height:42px}
+.seller-drawer>a{min-height:48px}
+.seller-drawer>a[href^="#"]:before{content:"";width:3px;height:20px;border-radius:4px;background:linear-gradient(#9d72ff,#fa75c8);margin-right:10px;opacity:.8}
+@media(max-width:600px){.seller-catalog-item{display:grid;grid-template-columns:84px minmax(0,1fr);gap:10px;padding:11px}.seller-product-icon{width:84px;height:84px;grid-row:span 2}.seller-product-info{max-width:none}.seller-catalog-item .seller-btn{grid-column:2;margin:0!important;justify-self:start}.seller-product-info b{font-size:13px}.seller-product-info small{font-size:10px}.seller-product-description{font-size:10px;-webkit-line-clamp:2}}
