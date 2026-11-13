@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="vi">
-<head><meta name="teo-visual-version" content="v58.10-page-specific-visual-system">
-  <meta name="teo-frontend-version" content="v58.14-share-seller-ux">
+<head><meta name="teo-experience-version" content="v59.0-interaction-experience"><meta name="teo-visual-version" content="v58.10-page-specific-visual-system">
+  <meta name="teo-frontend-version" content="v59.1-unified-account-membership">
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#090b18"><meta name="robots" content="noindex,nofollow">
   <title>Seller Center — TeoStudio</title>
@@ -9,13 +9,14 @@
   <link rel="preload" as="image" href="assets/img/teo/seller-hero.webp">
   <link rel="stylesheet" href="assets/css/style.css?v=57.0">
   <link rel="stylesheet" href="assets/css/seller-premium.css?v=58.14">
+  <link rel="stylesheet" href="assets/css/seller-performance.css?v=59.1">
 <link rel="stylesheet" href="assets/css/pre-public-polish.css?v=57.0"><link rel="stylesheet" href="/assets/css/teo-visual-system.css?v=58.10">
-<script defer src="/assets/js/teo-visual-system.js?v=58.10"></script></head>
-<body class="seller-body">
+<script defer src="/assets/js/teo-visual-system.js?v=58.10"></script><link rel="stylesheet" href="assets/css/teo-experience.css?v=59.0"></head>
+<body class="seller-body" data-seller-view="catalog">
   <header class="seller-topbar">
     <button class="seller-menu-btn" id="sellerMenuToggle" type="button" aria-label="Mở menu Seller" aria-expanded="false" aria-controls="sellerDrawer">☰</button>
-    <a class="seller-brand" href="/share.html" aria-label="Quay lại Share File"><img src="assets/img/teostudio-icon.png" alt=""><span>Teo<span>Studio</span><small>SELLER CENTER</small></span></a>
-    <div class="seller-top-actions"><a class="seller-top-link" href="/share.html">← Quay lại Share File</a><span class="seller-secure-label"><i></i> Kết nối bảo mật</span></div>
+    <a class="seller-brand" href="/" aria-label="Quay lại trang chủ"><img src="assets/img/teostudio-icon.png" alt=""><span>Teo<span>Studio</span><small>SELLER CENTER</small></span></a>
+    <div class="seller-top-actions"><a class="seller-top-link" href="/">← Trang chủ TeoStudio</a><span class="seller-secure-label"><i></i> Kết nối bảo mật</span></div>
   </header>
   <div class="seller-drawer-backdrop" id="sellerDrawerBackdrop"></div>
   <nav class="seller-drawer" id="sellerDrawer" aria-label="Điều hướng Seller" aria-hidden="true">
@@ -23,11 +24,13 @@
     <a href="#sellerOverview">◈ Tổng quan Seller</a>
     <a href="#sellerCatalogSection">▦ Kho file & tạo link</a>
     <a href="#sellerCatalogSection">▤ File có thể giới thiệu</a>
+    <a href="#sellerPerformanceSection">◉ Hiệu suất từng link</a>
+    <a href="/rankings.html">🏆 Bảng xếp hạng</a>
     <a href="#sellerPayoutSection">↗ Rút hoa hồng & nhận tiền</a>
     <a href="#sellerCardWithdrawSection">▣ Đổi thẻ cào</a>
     <a href="#sellerLedgerSection">▥ Lịch sử & đối soát</a>
     <a href="/account.html">⚙ Tài khoản TeoStudio</a>
-    <a href="/share.html">⌂ Quay lại Share File</a>
+    <a href="/">⌂ Trang chủ TeoStudio</a>
     <p>Hoa hồng chỉ ghi nhận theo giao dịch đã được máy chủ xác nhận.</p>
   </nav>
   <main class="seller-wrap">
@@ -53,6 +56,13 @@
         <article class="seller-stat seller-stat-total"><span class="seller-stat-icon">↗</span><small>Hoa hồng ròng</small><strong id="sellerTotalCommission">0đ</strong><span class="seller-stat-foot">Đã trừ các khoản hoàn hợp lệ</span></article>
         <article class="seller-stat seller-stat-orders"><span class="seller-stat-icon">▤</span><small>Đơn được giới thiệu</small><strong id="sellerReferredOrders">0</strong><span class="seller-stat-foot">Giao dịch có ghi nhận Seller</span></article>
       </section>
+
+      <nav class="seller-page-tabs" id="sellerPageTabs" aria-label="Các trang Seller">
+        <button type="button" data-seller-view="catalog" class="active">▦ Kho file & link</button>
+        <button type="button" data-seller-view="performance">◉ Hiệu suất</button>
+        <button type="button" data-seller-view="payout">↗ Rút tiền</button>
+        <button type="button" data-seller-view="ledger">▥ Lịch sử</button>
+      </nav>
 
       <div class="seller-main-grid">
         <section class="seller-panel seller-catalog-panel" id="sellerCatalogSection">
@@ -91,6 +101,12 @@
         </div>
       </div>
 
+      <section class="seller-panel seller-performance-panel" id="sellerPerformanceSection">
+        <div class="seller-panel-head compact"><div><span class="seller-kicker">LINK INTELLIGENCE</span><h2>Hiệu suất từng link Seller</h2><p>Lượt truy cập duy nhất theo ngày, tài khoản được gắn giới thiệu, đơn thanh toán và hoa hồng thực ghi nhận.</p></div><span class="seller-panel-icon">◉</span></div>
+        <div id="sellerPerformance" class="seller-performance-list"><p class="seller-muted">Đang tải hiệu suất...</p></div>
+        <p class="seller-form-note">Lượt truy cập được khử trùng lặp theo dấu vân tay kỹ thuật đã băm và ngày Việt Nam; hệ thống không lưu IP thô tại bảng thống kê. Một lượt vào link không tự tạo hoa hồng: chỉ đơn mua hợp lệ mới được ghi nhận.</p>
+      </section>
+
       <section class="seller-panel seller-ledger-panel" id="sellerLedgerSection">
         <div class="seller-panel-head compact"><div><span class="seller-kicker">MINH BẠCH GIAO DỊCH</span><h2>Lịch sử hoa hồng</h2><p>Các khoản cộng, giữ, hoàn và điều chỉnh được ghi thành từng dòng riêng.</p></div><button type="button" class="seller-refresh" id="sellerRefresh">↻ Làm mới</button></div>
         <div id="sellerLedger" class="seller-ledger-list"><p class="seller-muted">Đang tải dữ liệu…</p></div>
@@ -100,7 +116,7 @@
     <div id="sellerToast" class="seller-toast" role="status" aria-live="polite"></div>
     <footer class="seller-footer"><span>TeoStudio · Seller Program</span><span>Chỉ ghi nhận đơn hợp lệ được máy chủ xác nhận.</span></footer>
   </main>
-  <script src="assets/js/config.js?v=58.9"></script>
-  <script src="assets/js/seller.js?v=58.14"></script>
-<script src="assets/js/legal-ui.js?v=57.0" defer></script></body>
+  <script src="assets/js/config.js?v=58.15"></script>
+  <script src="assets/js/seller.js?v=59.1"></script>
+<script src="assets/js/legal-ui.js?v=57.0" defer></script><script src="assets/js/teo-experience.js?v=59.0" defer></script></body>
 </html>

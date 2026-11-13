@@ -1,0 +1,29 @@
+/* TeoStudio V59.1 — lightweight membership and unified-account surfaces. */
+.tenant-membership-section{position:relative;isolation:isolate;overflow:hidden;border:1px solid rgba(236,190,83,.24);border-radius:24px;padding:clamp(18px,3vw,30px);background:linear-gradient(132deg,rgba(10,13,25,.96),rgba(30,24,18,.92) 62%,rgba(10,13,25,.98));box-shadow:0 18px 46px rgba(0,0,0,.16)}
+.tenant-membership-section:before{content:"";position:absolute;inset:-45% auto auto 55%;width:320px;height:320px;border-radius:50%;background:radial-gradient(circle,rgba(228,177,72,.16),transparent 68%);pointer-events:none;z-index:-1}
+.tenant-membership-section .eyebrow{color:#e8c875;letter-spacing:.16em}
+.tenant-membership-section h2{color:#fff4d5}
+.membership-status{margin:14px 0;color:#e8d9b1}
+.membership-active,.membership-prompt{padding:12px 15px;border:1px solid rgba(228,190,107,.3);border-radius:14px;background:rgba(227,177,72,.09);color:#f6e7c2}
+.membership-plan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:14px;margin-top:16px}
+.membership-plan-card{position:relative;min-width:0;padding:20px;border:1px solid rgba(228,190,107,.34);border-radius:19px;background:linear-gradient(155deg,#191a20,#0b0d13 74%);color:#f8f4e9;box-shadow:0 12px 26px rgba(0,0,0,.23);transition:transform .18s ease,border-color .18s ease}
+.membership-plan-card:hover{transform:translateY(-3px);border-color:rgba(244,202,111,.7)}
+.membership-plan-card h3{margin:.45rem 0;color:#ffe6a6;font-size:1.2rem}
+.membership-plan-card p,.membership-plan-card small{color:#c5c0b5}
+.membership-plan-crown,.membership-lock-mark{display:grid;place-items:center;width:42px;height:42px;border-radius:14px;background:linear-gradient(145deg,#ffe6a6,#b77a20);color:#17120a;font-size:1.25rem;box-shadow:inset 0 1px 0 rgba(255,255,255,.65),0 7px 16px rgba(196,139,42,.2)}
+.membership-plan-price{margin:14px 0 2px;color:#ffe09a;font-size:1.6rem;font-weight:850;font-variant-numeric:tabular-nums}
+.membership-plan-card .btn{margin-top:14px;border-color:#e5b85f;background:linear-gradient(110deg,#f2cd79,#c18a35);color:#17120b;font-weight:800}
+.membership-locked-card{max-width:640px;margin:20px auto;padding:clamp(22px,5vw,38px);border:1px solid rgba(225,182,85,.38);border-radius:24px;background:radial-gradient(circle at 80% 0,rgba(219,172,70,.16),transparent 42%),linear-gradient(145deg,#111521,#0b0d13);color:#f7f3e8;text-align:center;box-shadow:0 22px 55px rgba(0,0,0,.25)}
+.membership-locked-card .membership-lock-mark{margin:0 auto 15px}
+.membership-locked-card .download-flow-kicker{color:#e8c875}
+.membership-locked-card .download-short-description{margin:14px auto 22px;max-width:52ch;color:#d5d0c5;line-height:1.7}
+.membership-locked-card .btn{margin:6px 0}
+.teo-unified-access{display:grid;grid-template-columns:1fr;gap:10px;margin:16px 0;padding:16px;border:1px solid rgba(138,154,190,.2);border-radius:18px;background:linear-gradient(145deg,rgba(24,31,48,.76),rgba(15,18,29,.94))}
+.teo-unified-access-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.teo-unified-access-head b{color:var(--text,#fff)}
+.teo-unified-access-head small{color:var(--muted,#9da8bb)}
+.teo-unified-access-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.teo-unified-access-grid a,.teo-unified-access-grid button{display:flex;align-items:center;gap:8px;min-height:42px;padding:10px 12px;border:1px solid rgba(145,162,198,.18);border-radius:12px;background:rgba(255,255,255,.035);color:inherit;text-decoration:none;font:inherit;text-align:left;cursor:pointer}
+.teo-unified-access-grid a:hover,.teo-unified-access-grid button:hover{border-color:rgba(151,173,224,.5);background:rgba(120,143,194,.1)}
+@media(max-width:520px){.teo-unified-access-grid{grid-template-columns:1fr}.tenant-membership-section{border-radius:18px;padding:16px}.membership-plan-card{padding:16px}}
+@media(prefers-reduced-motion:reduce){.membership-plan-card{transition:none}.membership-plan-card:hover{transform:none}}

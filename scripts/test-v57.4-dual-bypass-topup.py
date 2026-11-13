@@ -9,7 +9,7 @@ k = (root / 'frontend/assets/js/free-key.js').read_text()
 page = (root / 'frontend/free-key.html').read_text()
 topup = (root / 'frontend/topup.html').read_text()
 
-assert "BUILD_VERSION='v58.14-share-seller-ux'" in w
+assert "BUILD_VERSION='v59.1-unified-account-membership'" in w
 assert "provider=step===1?'bumx':'link4m'" in w
 assert 'free_bypass_last_at' in w and '86400000' in w
 assert 'now+7*86400000' in w
@@ -20,7 +20,7 @@ assert "b.id||b.tenant||b.slug||b.tenantId" in w
 assert "unscopedHeaders.delete('x-tenant-slug')" in w
 assert "scopedHeaders.set(" + chr(39) + "x-tenant-slug" + chr(39) + ",slug)" in w
 assert "canonical keys matches" in w
-assert 'v58.14-share-seller-ux' in (root / 'frontend/assets/js/config.js').read_text()
+assert 'v59.1-unified-account-membership' in (root / 'frontend/assets/js/config.js').read_text()
 assert 'tenant-admin.js?v=58.9' in (root / 'frontend/tenant-admin.html').read_text()
 assert "authorization:'Bearer '+tenantToken" in k
 assert 'LINK4M_REWARDED_TRAFFIC_APPROVED' in w

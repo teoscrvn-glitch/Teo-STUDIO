@@ -15,9 +15,9 @@ topup = (ROOT / 'frontend/topup.html').read_text(encoding='utf-8')
 wrangler = (ROOT / 'cloudflare/wrangler.toml').read_text(encoding='utf-8')
 
 # Build/version and server-side migration.
-assert "BUILD_VERSION='v58.14-share-seller-ux'" in w
-assert "BUILD_VERSION:'v58.14-share-seller-ux'" in config
-assert 'v58.14-share-seller-ux' in page and 'v58.14-share-seller-ux' in admin_page
+assert "BUILD_VERSION='v59.1-unified-account-membership'" in w
+assert "BUILD_VERSION:'v59.1-unified-account-membership'" in config
+assert 'v59.1-unified-account-membership' in page and 'v59.1-unified-account-membership' in admin_page
 assert "'free_bypass_cycle_1_at','INTEGER DEFAULT NULL'" in w
 assert "'free_bypass_cycle_2_at','INTEGER DEFAULT NULL'" in w
 assert "'client_proof_hash','TEXT DEFAULT NULL'" in w

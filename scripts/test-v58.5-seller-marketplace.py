@@ -13,7 +13,7 @@ def check(ok,msg):
     if not ok: raise AssertionError(msg)
     print('PASS',msg)
 
-check("v58.14-share-seller-ux" in w and "v58.14-share-seller-ux" in (ROOT/'VERSION.txt').read_text(),'release identity V58.5')
+check("v59.1-unified-account-membership" in w and "v59.1-unified-account-membership" in (ROOT/'VERSION.txt').read_text(),'release identity V58.5')
 check("addColumnSafe(e,'products','seller_commission_pct','REAL NOT NULL DEFAULT 5')" in w and "addColumnSafe(e,'tenant_products','seller_commission_pct','REAL NOT NULL DEFAULT 5')" in w,'additive commission migrations preserve existing products')
 check("p.seller_commission_pct" in w and "commissionPct:pct" in w and "commissionVnd:Math.floor" in w,'Seller catalog includes per-file percent and expected VND commission')
 check("createdAt:x.created_at||''" in w and "LIMIT 500" in w and "LIMIT 1000" in w,'catalog exposes recent products with bounded query sizes')

@@ -104,3 +104,7 @@ body::before{content:"";position:fixed;inset:-30%;pointer-events:none;z-index:-1
 
 /* V58 Notes editor */
 .tenant-note-admin{margin:12px 0}.tenant-note-admin .card-head>div:first-child{display:grid;gap:5px;min-width:0}.tenant-note-admin .card-head small{color:var(--muted);font-size:11px}.tenant-notes-admin-list{display:grid;gap:10px;margin-top:12px}.tenant-note-admin p{overflow-wrap:anywhere;white-space:pre-wrap}
+
+/* V58.15: external destinations inside the tenant admin tab rail */
+.tenant-tabs .tenant-tab-link{flex:0 0 auto;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;border:1px solid var(--border);background:var(--surface);color:var(--muted);padding:9px 12px;border-radius:999px;font-size:12px;font-weight:700}.tenant-tabs .tenant-tab-link:hover{border-color:var(--accent);color:var(--text)}
+.content-mode-guide{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 12px}.content-mode-guide>div{padding:11px 13px;border:1px solid var(--border);background:var(--surface);border-radius:13px;min-width:0}.content-mode-guide b,.content-mode-guide small{display:block}.content-mode-guide b{font-size:12px}.content-mode-guide small{margin-top:4px;color:var(--muted);font-size:10px;line-height:1.5}@media(max-width:650px){.content-mode-guide{grid-template-columns:1fr}}
