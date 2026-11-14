@@ -1,6 +1,8 @@
 TeoStudio
-Build: v59.1-unified-account-membership
+Build: v59.2-admin-qr-redesign
 Release date: 2026-11-14
 Base: V59.0 Interaction Experience (re-uploaded source ZIP)
 Includes: Studio-scoped membership plans and entitlements; unified buyer account membership hub; server-side member-only URL redaction and purchase gating; membership updates; attached Note membership gate; Messenger task detection; additive D1 schema.
 Validation: 35 local test groups; SQLite simulation for membership purchase, idempotency, wallet insufficiency and Studio isolation. Production D1/payment/Telegram/social-provider verification not performed.
+
+Release: V59.2 Admin UI + Multi-link QR
