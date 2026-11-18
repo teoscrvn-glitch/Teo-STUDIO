@@ -26,13 +26,14 @@ CREATE TABLE buyer_seller_referrals(buyer_id TEXT,scope TEXT,tenant_id TEXT,sell
 CREATE TABLE buyer_purchases(id TEXT,buyer_id TEXT,scope TEXT,tenant_id TEXT,product_id TEXT,title TEXT,amount_vnd INTEGER,status TEXT,seller_id TEXT,seller_commission_vnd INTEGER,created_at TEXT);
 CREATE TABLE products(id TEXT,title TEXT);
 CREATE TABLE tenant_products(tenant_id TEXT,id TEXT,title TEXT);
-CREATE TABLE tenant_accounts(id TEXT,slug TEXT,studio_name TEXT,deleted_at TEXT);
-CREATE TABLE buyer_accounts(id TEXT,display_name TEXT,login_id TEXT);
+CREATE TABLE tenant_accounts(id TEXT,slug TEXT,studio_name TEXT,deleted_at TEXT,owner_user_id TEXT,email TEXT);
+CREATE TABLE buyer_accounts(id TEXT,display_name TEXT,login_id TEXT,email TEXT,avatar TEXT,email_verified INTEGER);
 CREATE TABLE buyer_wallet_ledger(buyer_id TEXT,amount_vnd INTEGER,kind TEXT,created_at TEXT);
 ''')
-conn.execute("INSERT INTO tenant_accounts VALUES('tenant-1','studio-a','Studio A',NULL)")
-conn.execute("INSERT INTO buyer_accounts VALUES('seller-1','Seller One','seller1')")
-conn.execute("INSERT INTO buyer_accounts VALUES('buyer-1','Buyer One','buyer1')")
+conn.execute("INSERT INTO tenant_accounts VALUES('tenant-1','studio-a','Studio A',NULL,'owner-1','owner@example.test')")
+conn.execute("INSERT INTO buyer_accounts VALUES('owner-1','Studio Owner','owner1','owner@example.test','',1)")
+conn.execute("INSERT INTO buyer_accounts VALUES('seller-1','Seller One','seller1','seller@example.test','',1)")
+conn.execute("INSERT INTO buyer_accounts VALUES('buyer-1','Buyer One','buyer1','buyer@example.test','',1)")
 conn.execute("INSERT INTO tenant_products VALUES('tenant-1','product-1','Sample file')")
 conn.execute("INSERT INTO seller_referral_codes VALUES('code','seller-1','tenant','tenant-1','product-1','2026-11-13')")
 conn.execute("INSERT INTO seller_referral_visits VALUES('seller-1','tenant','tenant-1','product-1','2026-11-13','hmac-hash')")

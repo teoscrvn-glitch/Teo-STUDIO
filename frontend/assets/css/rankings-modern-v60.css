@@ -1,0 +1,28 @@
+/* V60.1 leaderboard — forest slate, paper and copper accents */
+body[data-teo-skin="share"]{background:radial-gradient(ellipse at 10% 0,rgba(126,151,112,.13),transparent 34%),radial-gradient(ellipse at 92% 10%,rgba(183,145,95,.08),transparent 30%),#151d18!important;color:#edf0e7!important}
+.rank-hero{background:linear-gradient(120deg,#273b30,#1d302a 58%,#3b3a2b)!important;border-color:rgba(161,184,143,.28)!important}
+.rank-hero:after{border-color:rgba(194,164,117,.17)!important;box-shadow:0 0 0 35px rgba(194,164,117,.035),0 0 0 75px rgba(194,164,117,.02)!important}
+.rank-eyebrow,.rank-panel-head>div>span{color:#d0b181!important}
+.rank-period button,.rank-tabs button{background:rgba(16,27,21,.68)!important;border-color:rgba(167,185,152,.19)!important;color:#c5d0c0!important}
+.rank-period button.active,.rank-tabs button.active{background:linear-gradient(110deg,rgba(111,150,117,.34),rgba(187,144,91,.2))!important;border-color:rgba(194,164,117,.5)!important;color:#f5f1e6!important;box-shadow:0 5px 17px rgba(0,0,0,.18)!important}
+.rank-panel{background:linear-gradient(145deg,#202d25,#17231d)!important;border-color:rgba(165,185,151,.2)!important}
+.rank-podium-card{background:linear-gradient(145deg,#2a3b30,#1d2b23)!important;border-color:rgba(169,190,154,.22)!important}
+.rank-podium-card.first{background:linear-gradient(145deg,#4a3a28,#27372d)!important;border-color:rgba(205,168,111,.56)!important}
+.rank-podium-card strong,.rank-value{color:#d5c091!important}
+.rank-row{background:rgba(238,239,219,.025)!important;border-color:rgba(169,190,154,.14)!important}
+.rank-row.is-current-user{border-color:rgba(210,171,111,.58)!important;background:rgba(186,145,91,.09)!important}
+.rank-number{background:rgba(137,166,126,.18)!important;color:#d5e1cd!important}
+.rank-avatar,.rank-podium-avatar{display:grid;place-items:center;overflow:hidden;flex:0 0 38px;width:38px;height:38px;border-radius:50%;border:1px solid rgba(188,199,166,.3);background:#29392d}
+.rank-avatar img,.rank-podium-avatar img{width:100%;height:100%;object-fit:cover}
+.rank-podium-avatar{width:46px;height:46px;margin-top:6px;border-color:rgba(198,164,112,.44)}
+.rank-person-copy{display:grid;gap:3px;min-width:0}.rank-person-copy b{font-size:12px;line-height:1.35;color:#edf0e7;overflow-wrap:anywhere}.rank-person-copy small{font-size:9px;color:#aebaaa;line-height:1.3;overflow-wrap:anywhere}
+.rank-row{grid-template-columns:34px 38px minmax(0,1fr) auto!important;gap:10px!important}
+.rank-person{display:none!important}
+.rank-podium-card b{margin-top:7px;color:#f0f0e6}.rank-podium-card small{color:#b4c0ae!important}
+.rank-self-card{margin:14px 0;padding:14px;border:1px solid rgba(202,164,107,.5);border-radius:15px;background:linear-gradient(120deg,rgba(179,139,83,.13),rgba(121,151,119,.1))}
+.rank-self-kicker{margin-bottom:9px;color:#d8b982;font-size:9px;font-weight:900;letter-spacing:.18em}
+.rank-self-row{display:grid;grid-template-columns:54px 38px minmax(0,1fr) auto;align-items:center;gap:10px}
+.rank-self-number{font-size:21px;color:#ead2a7}.rank-self-value{font-size:12px;color:#e3c68f;white-space:nowrap}
+.rank-list-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:18px 2px 9px;color:#e7eadf}.rank-list-head b{font-size:11px;letter-spacing:.15em}.rank-list-head small{font-size:9px;color:#9eac9e}
+.rank-footnote{background:rgba(28,43,33,.8)!important;border-color:rgba(169,190,154,.16)!important}.rank-footnote p{color:#aebbaa!important}
+@media(max-width:560px){.rank-row{grid-template-columns:30px 34px minmax(0,1fr) auto!important;gap:8px!important;padding:10px!important}.rank-avatar{width:34px;height:34px;flex-basis:34px}.rank-self-row{grid-template-columns:46px 34px minmax(0,1fr);gap:8px}.rank-self-value{grid-column:3;justify-self:start}.rank-podium-avatar{width:40px;height:40px}}

@@ -1,0 +1,49 @@
+/* TeoStudio Note Studio V60.1 — editorial field-notes design, warm paper + forest + copper */
+.note-studio-intro{border-color:rgba(147,171,145,.34)!important;background:linear-gradient(118deg,rgba(45,71,58,.96),rgba(31,54,51,.94) 62%,rgba(76,76,50,.88))!important;box-shadow:0 14px 38px rgba(0,0,0,.18)}
+.note-studio-mark{background:linear-gradient(145deg,#557f69,#bd9867)!important;box-shadow:0 8px 22px rgba(84,117,91,.24)!important}
+.note-editor-section{border-color:rgba(143,166,144,.23)!important;border-radius:19px!important;background:linear-gradient(145deg,rgba(27,42,36,.98),rgba(20,32,29,.98))!important;box-shadow:0 12px 30px rgba(0,0,0,.16)!important}
+.note-editor-section-head>span{border-color:rgba(193,158,108,.38)!important;color:#ebd2a8!important;background:rgba(193,158,108,.12)!important}
+.note-editor-section-head b{color:#eef1e7!important}
+.note-studio-form .form-grid{gap:13px!important}
+.note-studio-form label{color:#e1e9dc!important}
+.note-studio-form label small{color:#a8b8a8!important}
+.note-studio-form input:not([type=checkbox]):not([type=color]):not([type=file]),.note-studio-form textarea,.note-studio-form select{border-color:rgba(161,184,158,.23)!important;border-radius:12px!important;background:#101b18!important;color:#f0f3e9!important}
+.note-studio-form input:focus,.note-studio-form textarea:focus,.note-studio-form select:focus{border-color:#b99a6c!important;box-shadow:0 0 0 3px rgba(185,154,108,.14)!important}
+.note-upload-control{border-color:rgba(178,193,152,.42)!important;background:rgba(255,255,255,.025)!important}.note-upload-control span{color:#e8d0a5!important}
+.note-theme-choice{border-color:rgba(164,186,157,.2)!important;border-radius:13px!important;background:rgba(9,18,15,.38)!important;color:#e8eee3!important}
+.note-theme-choice.active{border-color:#c7a171!important;background:rgba(181,143,91,.13)!important;box-shadow:inset 0 0 0 1px rgba(199,161,113,.2)!important}
+.note-theme-choice b{font-size:10px}.note-theme-choice small{color:#aab8a6!important}
+.theme-swatch-notebook{background:repeating-linear-gradient(0deg,#f7f0df 0 7px,#d6dfcc 8px 9px)!important}
+.theme-swatch-editorial{background:linear-gradient(135deg,#e9e0cb 0 54%,#344b3d 55%)!important}
+.theme-swatch-arcade{background:linear-gradient(135deg,#132c2c,#318c7c 52%,#d0b47a)!important}
+.theme-swatch-midnight{background:linear-gradient(135deg,#15211d,#45614b)!important}
+.theme-swatch-pastel{background:linear-gradient(135deg,#eee8d7,#c5d2bc)!important}
+.note-accent-field input[type=color]{border-color:rgba(185,154,108,.35)!important;background:#101b18!important}
+.note-platform-grid button{border-color:rgba(161,184,158,.18)!important;background:rgba(255,255,255,.035)!important;color:#e7eee4!important;border-radius:12px!important}
+.note-platform-grid button b{color:#dbbd8d!important}
+.note-step-card{border-color:rgba(155,181,151,.2)!important;background:rgba(8,19,15,.38)!important}
+.note-step-builder-head span{color:#d8bd91!important}
+.note-security-hint{border-left-color:#bd9a68!important;background:rgba(189,154,104,.09)!important;color:#d1d9c9!important}
+.note-security-hint b{color:#f0d9b1!important}
+.note-live-preview{border-color:rgba(164,186,157,.22)!important;background:linear-gradient(150deg,#17241e,#101b18)!important}
+.note-preview-sticky-head{border-color:rgba(164,186,157,.2)!important;background:#1c2b24!important}
+.note-form-actions .btn.primary,.note-studio-form .btn.primary{background:linear-gradient(110deg,#547d65,#b28a5c)!important;color:#fff!important}
+/* Public Note uses paper first, with restrained evergreen/copper accents. */
+.note-page-body{background:radial-gradient(ellipse at 9% 0,rgba(143,162,127,.11),transparent 34%),#18231e!important;color:#27352c!important}
+.note-page-header{border-color:rgba(188,200,175,.18)!important}.note-page-brand{color:#e9eee3!important}.note-page-brand small{color:#a8b8a5!important}.note-page-back{color:#d4b98d!important}
+.note-page-shell{margin-top:24px!important}.note-page-kicker{color:#d0b184!important}.note-page-kicker i{color:#9ead9e!important}
+.note-page-article .note-preview-card,.note-page-article .tenant-note-card{border-color:rgba(71,93,72,.22)!important;box-shadow:0 22px 58px rgba(0,0,0,.28)!important}
+.note-page-article .note-card-topline{background:#f3efdf;color:#586a57}
+.note-page-article .note-card-art{background:linear-gradient(135deg,#e4e4d0,#f4ead3)!important}
+.note-page-article .note-card-content{background:#f7f3e8!important;color:#27342a!important}
+.note-page-article h1{color:#26392d!important}.note-page-article .note-public-subtitle{color:#657564!important}.note-page-article .note-public-body{color:#344338!important}
+.note-page-share-row{border-color:rgba(186,196,169,.2)!important;background:rgba(255,255,255,.05)!important;color:#d0d9cc!important}
+.note-page-share-row button{border-color:rgba(196,156,103,.4)!important;background:rgba(196,156,103,.13)!important;color:#f1d9b4!important}
+.note-page-footer{border-color:rgba(188,200,175,.15)!important;color:#8e9e8e!important}
+.note-page-loading,.note-page-error{border-color:rgba(164,186,157,.2)!important;background:#1c2b24!important;color:#e9eee3!important}.note-page-spinner{border-color:rgba(195,168,120,.22)!important;border-top-color:#c7a171!important}
+/* Theme variants now use grounded, non-neon palettes. */
+.note-theme-arcade .note-card-art,.note-theme-arcade .note-preview-art{background:linear-gradient(135deg,#d9e4d6,#b7d2c2)!important}
+.note-theme-midnight .note-card-art,.note-theme-midnight .note-preview-art{background:linear-gradient(135deg,#334b3d,#172c25)!important}
+.note-theme-editorial .note-card-art,.note-theme-editorial .note-preview-art{background:linear-gradient(135deg,#e8dfcb,#b8b69a)!important}
+.note-theme-pastel .note-card-art,.note-theme-pastel .note-preview-art{background:linear-gradient(135deg,#e7eadb,#d3ddcb)!important}
+@media(max-width:560px){.note-studio-intro{border-radius:15px!important}.note-editor-section{border-radius:15px!important}.note-page-shell{margin-top:14px!important}}

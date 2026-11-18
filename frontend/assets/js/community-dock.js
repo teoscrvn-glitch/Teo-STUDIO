@@ -17,20 +17,20 @@ function renderDock(settings){
  document.body.appendChild(root);
  const panel=$('#tcdPanel',root),launcher=$('#tcdLauncher',root),links=$('#tcdLinks',root),player=$('#tcdPlayer',root),musicBtn=$('#tcdMusic',root),clickBtn=$('#tcdClick',root);
  const items=[];
- const add=(label,url,icon,desc='',wide=false)=>{const href=safeUrl(url);if(!label||!href||href==='#')return;items.push({label,url:href,icon:icon||'↗',description:desc,wide})};
- add('Admin liên hệ',settings.adminContact,'🛟','Cần hỗ trợ hoặc báo lỗi');
- add('Nhóm cộng đồng',settings.groupLink,'👥','Trao đổi và nhận cập nhật');
- add('Thuê Share File','/rent.html','☁️','Tạo hoặc quản lý Studio');
- add('Zalo tư vấn thuê',settings.rentZalo,'💬','Liên hệ tư vấn gói Studio');
- (Array.isArray(settings.communityBoxes)?settings.communityBoxes:[]).slice(0,12).forEach((b)=>add(String(b.label||b.title||'').slice(0,48),b.url,b.icon||'↗',String(b.description||'').slice(0,100)));
- add('Tài khoản TeoStudio','/account.html','👤','Đơn mua · Ví · Bảo mật');
- add('Hội viên của tôi','/account.html?tab=memberships','✦','Gói hội viên đã mua');
- add('Bảng xếp hạng','/rankings.html','🏆','Thành tích cộng đồng');
- links.innerHTML=items.map((it,i)=>`<a class="tcd-action ${it.wide?'tcd-wide':''}" href="${esc(it.url)}" ${new URL(it.url).origin!==location.origin?'target="_blank" rel="noopener noreferrer"':''}><span class="tcd-icon">${esc(it.icon)}</span><span class="tcd-copy"><b>${esc(it.label)}</b>${it.description?`<small>${esc(it.description)}</small>`:''}</span></a>`).join('')||'<div class="tcd-editor-empty">Chưa có liên kết hỗ trợ. Chủ Studio có thể thêm trong phần Cài đặt.</div>';
- const toggle=()=>{const open=!root.classList.contains('is-open');root.classList.toggle('is-open',open);document.body.classList.toggle('teo-community-open',open);launcher.setAttribute('aria-expanded',String(open));panel.setAttribute('aria-hidden',String(!open));if(open)stopMusicIfPlayerHidden(false)};
+ const add=(label,url,icon,desc='',wide=false,group='support')=>{const href=safeUrl(url);if(!label||!href||href==='#')return;items.push({label,url:href,icon:icon||'↗',description:desc,wide,group})};
+ add('Admin liên hệ',settings.adminContact,'🛟','Cần hỗ trợ hoặc báo lỗi',false,'support');
+ add('Nhóm cộng đồng',settings.groupLink,'👥','Trao đổi và nhận cập nhật',false,'support');
+ add('Thuê Share File','/rent.html','☁️','Tạo hoặc quản lý Studio',false,'support');
+ add('Zalo tư vấn thuê',settings.rentZalo,'💬','Liên hệ tư vấn gói Studio',false,'support');
+ (Array.isArray(settings.communityBoxes)?settings.communityBoxes:[]).slice(0,12).forEach((b)=>add(String(b.label||b.title||'').slice(0,48),b.url,b.icon||'↗',String(b.description||'').slice(0,100),false,'custom'));
+ add('Tài khoản TeoStudio','/account.html','👤','Đơn mua · Ví · Bảo mật',false,'account');
+ add('Hội viên của tôi','/account.html?tab=memberships','✦','Gói hội viên đã mua',false,'account');
+ const slugForRank=tenantSlug(),rankReturn=slugForRank?'/rankings.html?tenant='+encodeURIComponent(slugForRank):(location.pathname==='/'||location.pathname==='/intro'||location.pathname==='/intro.html'?'/rankings.html?return=%2F':location.pathname==='/2'||location.pathname==='/index.html'?'/rankings.html?return=%2F2':'/rankings.html?return='+encodeURIComponent(location.pathname+location.search));add('Bảng xếp hạng',rankReturn,'🏆','Thành tích cộng đồng',false,'account');
+ const actionHtml=it=>`<a class=\"tcd-action ${it.wide?'tcd-wide':''}\" href=\"${esc(it.url)}\" ${new URL(it.url).origin!==location.origin?'target=\"_blank\" rel=\"noopener noreferrer\"':''}><span class=\"tcd-icon\">${esc(it.icon)}</span><span class=\"tcd-copy\"><b>${esc(it.label)}</b>${it.description?`<small>${esc(it.description)}</small>`:''}</span></a>`;const groups=[['support','LIÊN HỆ & CỘNG ĐỒNG'],['custom','TIỆN ÍCH STUDIO'],['account','TÀI KHOẢN & THÀNH TÍCH']];links.innerHTML=groups.map(([key,title])=>{const groupItems=items.filter(it=>it.group===key);return groupItems.length?`<div class=\"tcd-group\"><div class=\"tcd-group-title\">${title}</div>${groupItems.map(actionHtml).join('')}</div>`:''}).join('')||'<div class=\"tcd-editor-empty\">Chưa có liên kết hỗ trợ. Chủ Studio có thể thêm trong phần Cài đặt.</div>';
+ const aiWrap=()=>document.getElementById('teoAiWrap');const syncAiPosition=()=>{const ai=aiWrap();if(!ai)return;if(!root.classList.contains('is-open')){ai.style.removeProperty('--tcd-ai-bottom');return}requestAnimationFrame(()=>requestAnimationFrame(()=>{if(!root.classList.contains('is-open'))return;const rect=panel.getBoundingClientRect(),bottom=Math.max(88,Math.min(window.innerHeight-80,window.innerHeight-rect.top+12));ai.style.setProperty('--tcd-ai-bottom',bottom+'px')}))};const closeDock=()=>{root.classList.remove('is-open');document.body.classList.remove('teo-community-open');launcher.setAttribute('aria-expanded','false');panel.setAttribute('aria-hidden','true');syncAiPosition()};const toggle=()=>{const open=!root.classList.contains('is-open');root.classList.toggle('is-open',open);document.body.classList.toggle('teo-community-open',open);launcher.setAttribute('aria-expanded',String(open));panel.setAttribute('aria-hidden',String(!open));if(open)stopMusicIfPlayerHidden(false);syncAiPosition()};
  launcher.addEventListener('click',toggle);$('.tcd-close',root).addEventListener('click',toggle);
- document.addEventListener('keydown',e=>{if(e.key==='Escape'&&root.classList.contains('is-open'))toggle()});
- document.addEventListener('click',e=>{if(root.classList.contains('is-open')&&!root.contains(e.target)){root.classList.remove('is-open');document.body.classList.remove('teo-community-open');launcher.setAttribute('aria-expanded','false');panel.setAttribute('aria-hidden','true')}},{capture:true});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&root.classList.contains('is-open'))closeDock()});window.addEventListener('resize',syncAiPosition,{passive:true});
+ document.addEventListener('click',e=>{if(root.classList.contains('is-open')&&!root.contains(e.target))closeDock()},{capture:true});
  // Lightweight click sound is generated locally; opt-out persists on this device.
  let clickEnabled=true;try{clickEnabled=localStorage.getItem('teo:clickSound')!=='0'}catch{}
  let audioCtx=null,ambientNodes=[],audioEl=null;

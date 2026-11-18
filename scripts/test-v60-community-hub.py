@@ -17,7 +17,7 @@ def require(ok, message):
     if not ok:
         raise SystemExit("FAIL: " + message)
 
-require("v60.0-community-hub-landing" in WORKER and "v60.0-community-hub-landing" in CONFIG,
+require("v60.1-share-payout-rankings-fix" in WORKER and "v60.1-share-payout-rankings-fix" in CONFIG,
         "Worker/config build identifiers must match V60")
 require("new URL('/intro',r.url)" in WORKER and "p==='/index.html'" in WORKER and "new URL('/2'+u.search,r.url)" in WORKER,
         "Root landing and legacy catalogue routes missing")
@@ -43,7 +43,7 @@ require("tcd-action-in" in DOCK_CSS and "rotate(360deg)" in DOCK_CSS,
         "Hub launcher rotation and staggered reveal effects missing")
 require("-webkit-tap-highlight-color:transparent" in THEME and ".teo-ai-bubble" in THEME,
         "TeoStudio touch feedback / assistant palette missing")
-require("const rankingHome=rankingTenant?'/share?tenant='+encodeURIComponent(rankingTenant):'/'" in RANK,
+require("const rankingHome=rankingTenant?'/share?tenant='+encodeURIComponent(rankingTenant):safeReturn" in RANK,
         "Ranking Home must preserve tenant Share context or return to root landing")
 require("rankings.html?tenant=" in TENANT_ADMIN and "rankings.html?tenant=" in TENANT_SHARE,
         "Tenant Admin and tenant Share must preserve slug when opening rankings")
@@ -53,10 +53,10 @@ require("mountTenantMusicPlayer(s.backgroundMusicUrl)" not in TENANT_SHARE,
         "Old detached tenant music dock call must remain removed")
 
 pages = ["intro.html", "2.html", "share.html", "admin.html", "tenant-admin.html",
-         "seller.html", "rankings.html", "account.html", "tenant-detail.html"]
+         "seller.html", "rankings.html", "account.html", "tenant-detail.html", "note.html"]
 for name in pages:
     html = (FRONT / name).read_text(encoding="utf-8")
-    require("community-dock.js?v=60.0" in html, f"{name} missing community dock")
+    require("community-dock.js?v=60.1" in html, f"{name} missing community dock")
 require('id="support"' not in (FRONT / "2.html").read_text(encoding="utf-8"),
         "Old support/community panel must be removed from catalogue page")
 require('id="support"' not in (FRONT / "share.html").read_text(encoding="utf-8"),
@@ -68,4 +68,4 @@ require('/account.html?tab=memberships' in (FRONT / "share.html").read_text(enco
 require("themeAccent:tc.accent||'#49b8a9'" in TENANT_ADMIN and "safeAccent(t.accent)" in TENANT_SHARE,
         "Tenant theme defaults and purple/pink fallback must use Teo palette")
 
-print("PASS: V60.0 community hub, root landing, tenant-aware ranking, membership nav, music controls, touch styling and HTTPS-only custom links.")
+print("PASS: V60.1 community hub, root landing, tenant-aware ranking, membership nav, music controls, touch styling and HTTPS-only custom links.")

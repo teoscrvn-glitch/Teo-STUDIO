@@ -1,11 +1,11 @@
 /* TeoStudio V60 — warm slate, teal, clear-blue and amber system. No violet/pink theme. */
 :root{
- --bg:#10191f;--surface:#17242b;--surface2:#1c3038;--border:#2b4149;--text:#edf5f4;--muted:#9aafb3;--accent:#49b8a9;--primary:#49b8a9;--blue:#62a9e8;--green:#69c79a;
- --teo-visual-accent:#4ab9aa;--teo-visual-accent-2:#5ba8dd;--teo-visual-glow:rgba(58,165,154,.13);
- --adm-bg:#10191f;--adm-panel:rgba(24,39,47,.94);--adm-panel-2:rgba(30,50,59,.9);--adm-line:rgba(160,204,203,.17);--adm-text:#edf5f4;--adm-muted:#a1b4b8;--adm-violet:#55bcae;--adm-cyan:#63b1dc;--adm-green:#6ac99d;--adm-shadow:0 18px 48px rgba(0,0,0,.28)
+ --bg:#141c18;--surface:#202b24;--surface2:#29372e;--border:#3a4b3e;--text:#edf0e6;--muted:#aeb9a8;--accent:#8eaa8e;--primary:#8eaa8e;--blue:#88a7ae;--green:#8daf84;
+ --teo-visual-accent:#8eaa8e;--teo-visual-accent-2:#bd9a6b;--teo-visual-glow:rgba(142,170,142,.11);
+ --adm-bg:#141c18;--adm-panel:rgba(32,43,36,.96);--adm-panel-2:rgba(40,55,45,.92);--adm-line:rgba(176,192,164,.19);--adm-text:#edf0e6;--adm-muted:#b0bba9;--adm-violet:#a5b28d;--adm-cyan:#9bb6b6;--adm-green:#96b78e;--adm-shadow:0 18px 48px rgba(0,0,0,.28)
 }
-body{--teo-visual-accent:#4ab9aa!important;--teo-visual-accent-2:#5ba8dd!important;--teo-visual-glow:rgba(58,165,154,.13)!important;background-color:#10191f}
-body::before{background:radial-gradient(ellipse at 8% 4%,rgba(54,157,145,.12),transparent 34%),radial-gradient(ellipse at 94% 22%,rgba(71,146,198,.10),transparent 30%)!important}
+body{--teo-visual-accent:#8eaa8e!important;--teo-visual-accent-2:#bd9a6b!important;--teo-visual-glow:rgba(142,170,142,.11)!important;background-color:#141c18}
+body::before{background:radial-gradient(ellipse at 8% 4%,rgba(125,150,112,.12),transparent 34%),radial-gradient(ellipse at 94% 22%,rgba(176,140,96,.09),transparent 30%)!important}
 body[data-teo-skin="home"],body[data-teo-skin="share"],body[data-teo-skin="master"],body[data-teo-skin="studio"]{--teo-visual-accent:#4ab9aa!important;--teo-visual-accent-2:#5ba8dd!important;--teo-visual-glow:rgba(58,165,154,.13)!important}
 .brand-mark{background:linear-gradient(135deg,rgba(68,177,165,.2),rgba(89,155,208,.17))!important;border-color:rgba(111,194,187,.25)!important;box-shadow:0 0 22px rgba(47,151,140,.12)!important}
 .hero-glow-a,.hero-glow-b{filter:saturate(.72)}
@@ -23,7 +23,7 @@ body[data-teo-skin="home"],body[data-teo-skin="share"],body[data-teo-skin="maste
 .admin-nav:hover,.admin-nav.active{background:linear-gradient(100deg,rgba(53,175,163,.16),rgba(72,142,195,.08))!important;color:#f2fbfa!important;border-color:rgba(85,186,174,.16)!important}
 .admin-card,.stat-card,.admin-panel .settings-list,.tenant-panel .admin-card{border-color:rgba(160,204,203,.15)!important}
 .btn.primary,.btn-main,.admin-primary{background:linear-gradient(110deg,#43b3a6,#478fce)!important;color:#08252b!important;border-color:transparent!important}
-button:focus-visible,a:focus-visible{outline-color:#7bdbcf!important;outline-offset:3px}
+button:focus-visible,a:focus-visible{outline-color:#d8c09a!important;outline-offset:3px}
 button,.btn,.mini-btn,.icon-btn,.drawer>a,.product-card,.support-box{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease,background .18s ease}
 button:active,.btn:active,.mini-btn:active,.icon-btn:active{transform:scale(.975)}
 @media(max-width:640px){.admin-main{padding:15px!important}.admin-sidebar{background:#14232a!important}}

@@ -1,19 +1,19 @@
 /* TeoStudio Community Dock — compact, mobile-first, slate/cobalt/teal identity */
 :root{--tcd-ink:#101a22;--tcd-panel:#15232c;--tcd-line:rgba(190,215,225,.18);--tcd-text:#edf5f7;--tcd-muted:#9fb3bc;--tcd-blue:#3d8ee8;--tcd-teal:#35b6a6;--tcd-orange:#f2a65a}
 .teo-community-dock{position:fixed;right:16px;bottom:18px;z-index:10042;font-family:inherit;color:var(--tcd-text)}
-.tcd-launcher{width:58px;height:58px;border-radius:20px;border:1px solid rgba(255,255,255,.34);background:linear-gradient(145deg,#246f9e 0%,#1c9e96 58%,#e39b4a 130%);color:#fff;display:grid;place-items:center;box-shadow:0 12px 34px rgba(14,73,89,.42),inset 0 1px rgba(255,255,255,.32);cursor:pointer;position:relative;transition:transform .28s cubic-bezier(.2,.8,.2,1),filter .2s,box-shadow .2s;touch-action:manipulation}
-.tcd-launcher:before{content:"";position:absolute;inset:5px;border:1px solid rgba(255,255,255,.25);border-radius:15px;pointer-events:none}
+.tcd-launcher{width:60px;height:60px;border-radius:50%;border:1px solid rgba(255,255,255,.34);background:linear-gradient(145deg,#246f9e 0%,#1c9e96 58%,#e39b4a 130%);color:#fff;display:grid;place-items:center;box-shadow:0 12px 34px rgba(14,73,89,.42),inset 0 1px rgba(255,255,255,.32);cursor:pointer;position:relative;transition:transform .28s cubic-bezier(.2,.8,.2,1),filter .2s,box-shadow .2s;touch-action:manipulation}
+.tcd-launcher:before{content:"";position:absolute;inset:5px;border:1px solid rgba(255,255,255,.34);border-radius:50%;pointer-events:none}
 .tcd-launcher:hover,.tcd-launcher:focus-visible{transform:translateY(-3px) scale(1.045);filter:brightness(1.1);box-shadow:0 16px 40px rgba(14,73,89,.5),0 0 0 3px rgba(53,182,166,.18)}
 .tcd-launcher:focus-visible,.tcd-action:focus-visible,.tcd-editor button:focus-visible{outline:2px solid #8be4d6;outline-offset:3px}
 .tcd-launcher svg{width:27px;height:27px;transition:transform .55s cubic-bezier(.18,.89,.32,1.28)}
-.teo-community-dock.is-open .tcd-launcher svg{transform:rotate(360deg) scale(1.04)}
+.teo-community-dock.is-open .tcd-launcher{border-radius:18px}.teo-community-dock.is-open .tcd-launcher:before{border-radius:13px}.teo-community-dock.is-open .tcd-launcher svg{transform:rotate(360deg) scale(1.04)}
 .tcd-launcher .tcd-dot{position:absolute;right:-2px;top:-2px;width:12px;height:12px;border:2px solid #14212a;background:#9de6bb;border-radius:50%}
 .tcd-panel{position:absolute;right:0;bottom:72px;width:min(342px,calc(100vw - 28px));max-height:min(65dvh,520px);overflow:auto;padding:14px;border:1px solid var(--tcd-line);border-radius:20px;background:linear-gradient(155deg,rgba(25,44,53,.98),rgba(13,24,32,.985));box-shadow:0 24px 75px rgba(0,0,0,.52),inset 0 1px rgba(255,255,255,.05);opacity:0;visibility:hidden;transform:translateY(12px) scale(.97);transform-origin:bottom right;transition:opacity .2s,transform .26s cubic-bezier(.2,.8,.2,1),visibility .2s;backdrop-filter:blur(18px)}
 .teo-community-dock.is-open .tcd-panel{opacity:1;visibility:visible;transform:translateY(0) scale(1)}
 .tcd-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:0 2px 11px;border-bottom:1px solid var(--tcd-line)}
 .tcd-panel-head div{display:grid;gap:3px}.tcd-panel-head b{font-size:14px;letter-spacing:.01em}.tcd-panel-head small{font-size:10px;color:var(--tcd-muted)}
 .tcd-close{width:30px;height:30px;border-radius:10px;border:1px solid var(--tcd-line);background:rgba(255,255,255,.06);color:#e8f2f4;font-size:18px;cursor:pointer}
-.tcd-links{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tcd-links{display:grid;gap:12px}.tcd-group{display:grid;grid-template-columns:1fr 1fr;gap:8px}.tcd-group-title{grid-column:1/-1;padding:0 2px 2px;color:#a8c2bf;font-size:9px;font-weight:900;letter-spacing:.16em}
 .tcd-action{min-width:0;min-height:58px;display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:13px;border:1px solid rgba(180,215,220,.13);background:linear-gradient(140deg,rgba(255,255,255,.065),rgba(255,255,255,.025));color:var(--tcd-text);text-decoration:none;text-align:left;font:inherit;cursor:pointer;transition:transform .16s,border-color .16s,background .16s,box-shadow .16s}
 .tcd-action:hover,.tcd-action:focus-visible{transform:translateY(-2px) scale(1.015);border-color:rgba(86,198,187,.65);background:linear-gradient(140deg,rgba(48,142,166,.24),rgba(255,255,255,.055));box-shadow:0 7px 18px rgba(0,0,0,.18)}
 .tcd-action:active{transform:scale(.975);border-color:#68d2c4}
@@ -50,16 +50,31 @@
 .tcd-editor-row button{width:36px;height:36px;border:1px solid rgba(255,130,112,.25);border-radius:9px;background:rgba(180,60,50,.13);color:#ffb2a7;font-size:17px}
 .tcd-editor-empty{padding:10px;border:1px dashed var(--tcd-line);border-radius:12px;color:var(--tcd-muted);font-size:11px;text-align:center}
 body:not(.teo-community-open) #teoAiWrap{bottom:88px!important;transition:bottom .28s cubic-bezier(.2,.8,.2,1),transform .28s}
-body.teo-community-open #teoAiWrap{bottom:calc(100dvh - 88px)!important;transition:bottom .28s cubic-bezier(.2,.8,.2,1),transform .28s}
+body.teo-community-open #teoAiWrap{bottom:var(--tcd-ai-bottom,380px)!important;transition:bottom .28s cubic-bezier(.2,.8,.2,1),transform .28s}
 body.teo-community-open #teoAiWrap .teo-ai-panel{display:none!important}
 .teo-community-open .teo-ai-bubble{box-shadow:0 8px 24px rgba(13,57,72,.4)}
 /* Remove the previous detached music chip; music is now controlled inside the hub. */
 .teo-audio-dock,.teo-music-dock{display:none!important}
 @media(max-width:520px){
- .teo-community-dock{right:12px;bottom:13px}.tcd-launcher{width:54px;height:54px;border-radius:18px}
+ .teo-community-dock{right:12px;bottom:13px}.tcd-launcher{width:56px;height:56px;border-radius:50%}
  .tcd-panel{right:0;bottom:65px;width:min(326px,calc(100vw - 24px));max-height:62dvh;padding:12px}
  .tcd-action{min-height:55px;padding:8px}.tcd-links{gap:7px}
  .tcd-editor-row{grid-template-columns:52px minmax(0,1fr) 34px;padding:7px}
  .tcd-editor-row button{width:32px;height:32px}
 }
 @media(prefers-reduced-motion:reduce){.teo-community-dock.is-open .tcd-action{animation:none!important}.tcd-launcher,.tcd-launcher svg,.tcd-panel,.tcd-action,.tcd-tool,body.teo-community-open #teoAiWrap{transition:none!important}.tcd-action:hover{transform:none}}
+
+/* V60.1 — warmer editorial community hub */
+.tcd-launcher{background:radial-gradient(circle at 32% 24%,#f1c989 0 4%,transparent 5%),linear-gradient(145deg,#236e75,#1a8b80 62%,#c18a50);box-shadow:0 12px 28px rgba(4,38,43,.4),inset 0 1px rgba(255,255,255,.4)}
+.tcd-launcher svg{filter:drop-shadow(0 1px 2px rgba(0,0,0,.2))}
+.tcd-panel{border-radius:23px;background:linear-gradient(155deg,rgba(26,48,50,.985),rgba(14,29,32,.99));border-color:rgba(183,205,178,.24);box-shadow:0 24px 70px rgba(0,0,0,.48),inset 0 1px rgba(255,255,255,.07)}
+.tcd-panel-head{border-bottom-color:rgba(189,208,188,.2)}
+.tcd-panel-head b{font-size:15px;letter-spacing:-.02em}.tcd-panel-head small{color:#b3c3b8}
+.tcd-action{border-radius:14px;background:linear-gradient(140deg,rgba(234,239,216,.075),rgba(255,255,255,.025));border-color:rgba(184,204,181,.16)}
+.tcd-action:hover,.tcd-action:focus-visible{border-color:rgba(225,183,117,.75);background:linear-gradient(140deg,rgba(39,133,121,.24),rgba(201,151,87,.09));box-shadow:0 8px 20px rgba(0,0,0,.2)}
+.tcd-icon{border-radius:11px;background:rgba(202,164,104,.14);color:#f1d5a5}
+.tcd-copy b{font-size:11.5px}.tcd-copy small{color:#b2c3b9}
+.tcd-tool{border-radius:999px;background:rgba(238,238,212,.06)}
+.tcd-group{padding-bottom:2px}
+.tcd-group+.tcd-group{padding-top:2px}
+@media(max-width:520px){.tcd-panel{max-height:65dvh}.tcd-group{gap:7px}.tcd-launcher{width:56px;height:56px}}

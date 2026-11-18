@@ -1,0 +1,10 @@
+/* TeoStudio V60.1 — restrained touch states and mobile browser affordances */
+:root{--teo-green:#87a892;--teo-olive:#a6ad75;--teo-copper:#c79a68;--teo-ink:#111a17}
+a,button,[role="button"],.btn,.icon-btn,.tcd-launcher,.tcd-action,.rank-period button,.rank-tabs button,.note-theme-choice,.note-platform-grid button{-webkit-tap-highlight-color:transparent;tap-highlight-color:transparent}
+button,.btn,[role="button"],.tcd-launcher,.tcd-action,.rank-period button,.rank-tabs button,.note-theme-choice,.note-platform-grid button{touch-action:manipulation}
+.product-card,.product-thumb,.product-thumb img,.tenant-note-card,.note-card-art,.note-preview-art,.rank-avatar,.rank-podium-avatar,.rank-podium-card,.rank-row,.tcd-launcher,.tcd-action,.social-card,.support-box,.tenant-hero img{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.product-card img,.product-thumb img,.tenant-note-card img,.note-card-art img,.note-preview-art img,.rank-avatar img,.rank-podium-avatar img,.tenant-hero img{-webkit-user-drag:none;user-drag:none;-webkit-touch-callout:none;pointer-events:auto}
+button:focus-visible,a:focus-visible,[role="button"]:focus-visible{outline:2px solid rgba(135,168,146,.95);outline-offset:3px}
+button:active,.btn:active,.icon-btn:active,[role="button"]:active,.product-card:active,.tcd-action:active,.rank-period button:active,.rank-tabs button:active{border-color:rgba(199,154,104,.78)!important;box-shadow:0 0 0 2px rgba(199,154,104,.14),0 8px 22px rgba(0,0,0,.18)!important;transform:scale(.982)}
+input,textarea,select,[contenteditable="true"]{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
+@media(prefers-reduced-motion:reduce){button,.btn,.icon-btn,[role="button"],.product-card,.tcd-action{transition:none!important;transform:none!important}}
