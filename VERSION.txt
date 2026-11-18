@@ -1,8 +1,21 @@
 TeoStudio
-Build: v59.2-admin-qr-redesign
-Release date: 2026-11-14
-Base: V59.0 Interaction Experience (re-uploaded source ZIP)
-Includes: Studio-scoped membership plans and entitlements; unified buyer account membership hub; server-side member-only URL redaction and purchase gating; membership updates; attached Note membership gate; Messenger task detection; additive D1 schema.
-Validation: 35 local test groups; SQLite simulation for membership purchase, idempotency, wallet insufficiency and Studio isolation. Production D1/payment/Telegram/social-provider verification not performed.
-
-Release: V59.2 Admin UI + Multi-link QR
+Build: v60.0-community-hub-landing
+Release date: 2026-11-18
+Base: V59.5 Product Edit Save Fix
+Includes:
+- New marketing introduction page at / on the existing teostudio.top domain.
+- Previous resource catalogue retained at /2; /index.html redirects to /2.
+- Unified multi-function community bubble under the AI assistant on public, tenant, admin, and account pages.
+- Admin-configurable community shortcut boxes (HTTPS only, up to 12 per scope), contact/group links, and opt-in music/click-sound controls.
+- Admin contact and community boxes removed from the old public content blocks and moved into the bubble.
+- Membership shortcut in main and tenant Share menus.
+- Ranking page visual refresh and context-aware Home navigation (root for main site, tenant Share for tenant rankings).
+- Share interaction feedback with custom TeoStudio teal/blue/amber colors, tap highlight suppression, subtle scale/border animations.
+- Removed detached music widget; audio controls are inside the multifunction bubble.
+- Security hardening for custom community links: HTTPS-only, no embedded credentials, bounded count/label/icon/description, safe text escaping, noopener on external links.
+- Versioned changed JS assets with v60.0 cache keys.
+Validation:
+- Static JavaScript syntax checks passed for all frontend JS and Cloudflare Worker.
+- HTML/link/asset references and ZIP integrity checked locally.
+- Final polish: corrected AI/community bubble stacking CSS, rejects blank/hash shortcut URLs, removed duplicate membership menu entry, and separates Studio rental navigation from Zalo contact.
+- No production D1, live Cloudflare deployment, payment, or penetration test performed.

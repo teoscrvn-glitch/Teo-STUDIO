@@ -1,0 +1,44 @@
+/* TeoStudio V60 — warm slate, teal, clear-blue and amber system. No violet/pink theme. */
+:root{
+ --bg:#10191f;--surface:#17242b;--surface2:#1c3038;--border:#2b4149;--text:#edf5f4;--muted:#9aafb3;--accent:#49b8a9;--primary:#49b8a9;--blue:#62a9e8;--green:#69c79a;
+ --teo-visual-accent:#4ab9aa;--teo-visual-accent-2:#5ba8dd;--teo-visual-glow:rgba(58,165,154,.13);
+ --adm-bg:#10191f;--adm-panel:rgba(24,39,47,.94);--adm-panel-2:rgba(30,50,59,.9);--adm-line:rgba(160,204,203,.17);--adm-text:#edf5f4;--adm-muted:#a1b4b8;--adm-violet:#55bcae;--adm-cyan:#63b1dc;--adm-green:#6ac99d;--adm-shadow:0 18px 48px rgba(0,0,0,.28)
+}
+body{--teo-visual-accent:#4ab9aa!important;--teo-visual-accent-2:#5ba8dd!important;--teo-visual-glow:rgba(58,165,154,.13)!important;background-color:#10191f}
+body::before{background:radial-gradient(ellipse at 8% 4%,rgba(54,157,145,.12),transparent 34%),radial-gradient(ellipse at 94% 22%,rgba(71,146,198,.10),transparent 30%)!important}
+body[data-teo-skin="home"],body[data-teo-skin="share"],body[data-teo-skin="master"],body[data-teo-skin="studio"]{--teo-visual-accent:#4ab9aa!important;--teo-visual-accent-2:#5ba8dd!important;--teo-visual-glow:rgba(58,165,154,.13)!important}
+.brand-mark{background:linear-gradient(135deg,rgba(68,177,165,.2),rgba(89,155,208,.17))!important;border-color:rgba(111,194,187,.25)!important;box-shadow:0 0 22px rgba(47,151,140,.12)!important}
+.hero-glow-a,.hero-glow-b{filter:saturate(.72)}
+.hero h1{text-shadow:0 0 30px rgba(69,181,166,.09)!important}
+.notice-pill{box-shadow:0 0 20px rgba(53,173,158,.08)!important}
+.drawer{background:linear-gradient(175deg,#17262e,#101a20)!important;border-right:1px solid rgba(113,178,177,.25)!important;box-shadow:20px 0 65px rgba(0,0,0,.36)!important;backdrop-filter:blur(18px)}
+.drawer-head{padding-bottom:13px;border-bottom:1px solid rgba(160,204,203,.13)}
+.drawer>a{display:flex!important;align-items:center;gap:9px;min-height:46px;padding:12px 13px!important;margin:5px 0!important;border:1px solid transparent;color:#c4d5d5!important;transition:background .18s,border-color .18s,transform .18s}
+.drawer>a:hover,.drawer>a:focus-visible{background:linear-gradient(110deg,rgba(53,175,163,.15),rgba(73,139,192,.09))!important;border-color:rgba(79,185,173,.25)!important;color:#fff!important;transform:translateX(3px)}
+.admin-body{background:radial-gradient(ellipse at 12% 0%,rgba(47,137,128,.13),transparent 34%),radial-gradient(ellipse at 95% 12%,rgba(43,122,166,.11),transparent 32%),#10191f!important;color:#edf5f4!important}
+.admin-topbar{background:rgba(15,25,31,.92)!important;border-color:rgba(160,204,203,.17)!important}
+.admin-sidebar{background:linear-gradient(180deg,rgba(23,39,47,.98),rgba(13,25,31,.97))!important;border-color:rgba(160,204,203,.17)!important}
+.admin-user{background:linear-gradient(135deg,rgba(57,165,154,.16),rgba(54,131,182,.07))!important;border-color:rgba(96,186,178,.24)!important}
+.admin-user img{border-color:rgba(112,205,193,.55)!important;box-shadow:0 0 20px rgba(70,180,166,.18)!important}
+.admin-nav:hover,.admin-nav.active{background:linear-gradient(100deg,rgba(53,175,163,.16),rgba(72,142,195,.08))!important;color:#f2fbfa!important;border-color:rgba(85,186,174,.16)!important}
+.admin-card,.stat-card,.admin-panel .settings-list,.tenant-panel .admin-card{border-color:rgba(160,204,203,.15)!important}
+.btn.primary,.btn-main,.admin-primary{background:linear-gradient(110deg,#43b3a6,#478fce)!important;color:#08252b!important;border-color:transparent!important}
+button:focus-visible,a:focus-visible{outline-color:#7bdbcf!important;outline-offset:3px}
+button,.btn,.mini-btn,.icon-btn,.drawer>a,.product-card,.support-box{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease,background .18s ease}
+button:active,.btn:active,.mini-btn:active,.icon-btn:active{transform:scale(.975)}
+@media(max-width:640px){.admin-main{padding:15px!important}.admin-sidebar{background:#14232a!important}}
+@media(prefers-reduced-motion:reduce){button,.btn,.mini-btn,.icon-btn,.drawer>a{transition:none!important}}
+
+/* Consistent touch feedback: no Android blue flash; use TeoStudio teal focus/press feedback. */
+a,button,input,select,textarea,[role="button"]{-webkit-tap-highlight-color:transparent}
+button:active,.btn:active,.mini-btn:active,.icon-btn:active,.drawer>a:active,.product-card:active,.support-box:active{
+ border-color:rgba(95,205,190,.82)!important;
+ box-shadow:0 0 0 2px rgba(74,185,170,.16),0 9px 22px rgba(0,0,0,.18)!important;
+ transform:scale(.982);
+}
+input:focus,select:focus,textarea:focus{border-color:rgba(95,205,190,.72)!important;box-shadow:0 0 0 3px rgba(74,185,170,.12)!important}
+
+/* Re-skin the assistant bubble to the same TeoStudio material palette. */
+.teo-ai-bubble{background:linear-gradient(145deg,#246f9e 0%,#1c9e96 65%,#e39b4a 140%)!important;box-shadow:0 10px 30px rgba(20,111,121,.34)!important}
+.teo-ai-bubble i{background:#9de6bb!important}
+.teo-ai-bubble:focus-visible{outline:2px solid #8be4d6!important;outline-offset:4px}

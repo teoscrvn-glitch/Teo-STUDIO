@@ -9,10 +9,10 @@ share_html=(root/'frontend/tenant-admin.html').read_text()
 note_css=(root/'frontend/assets/css/note-studio.css').read_text()
 config=(root/'frontend/assets/js/config.js').read_text()
 wrangler=(root/'cloudflare/wrangler.toml').read_text()
-assert "const BUILD_VERSION='v59.1-unified-account-membership'" in worker
-assert "BUILD_VERSION:'v59.1-unified-account-membership'" in config
+assert "const BUILD_VERSION='v60.0-community-hub-landing'" in worker
+assert "BUILD_VERSION:'v60.0-community-hub-landing'" in config
 # Seller toggle reads from the actual HTML form, not FormData.elements.
-assert "const sellerEnabled=e.target.elements?.namedItem?.('seller_enabled')" in tenant_js
+assert "const sellerEnabled=form.elements?.namedItem?.('seller_enabled')" in tenant_js
 assert "const sellerEnabled=f.elements?.namedItem" not in tenant_js
 assert "sellerRequested=b.seller_enabled===true||Number(b.seller_enabled)===1" in worker
 assert "if(String(t.plan_type||'paid')==='free'&&sellerRequested)return J({ok:false,error:'VIP_REQUIRED'" in worker
@@ -37,8 +37,10 @@ assert 'tenant_telegram_updates(update_id)' in worker
 assert 'alreadyLinked:true' in worker and 'Bot này đã được liên kết với Studio' in worker
 # Music is configurable for the main site and each tenant, and HTTPS only.
 assert 'backgroundMusicUrl' in worker and "if(k==='backgroundMusicUrl'&&v0&&!/^https:\\/\\//i.test(String(v0)))" in worker
-assert 'mountBackgroundMusic(site.backgroundMusicUrl)' in (root/'frontend/assets/js/main.js').read_text()
-assert 'mountTenantMusicPlayer(s.backgroundMusicUrl)' in (root/'frontend/assets/js/tenant-share.js').read_text()
+assert 'mountBackgroundMusic(site.backgroundMusicUrl)' not in (root/'frontend/assets/js/main.js').read_text()
+assert 'community-dock.js?v=60.0' in (root/'frontend/2.html').read_text()
+assert 'mountTenantMusicPlayer(s.backgroundMusicUrl)' not in (root/'frontend/assets/js/tenant-share.js').read_text()
+assert 'tcdMusic' in (root/'frontend/assets/js/community-dock.js').read_text()
 # Note preview/editor collapses before desktop-site mobile viewport widths.
 assert '@media(max-width:1100px){.note-studio-grid' in note_css
 assert 'prefers-reduced-motion:reduce' in note_css

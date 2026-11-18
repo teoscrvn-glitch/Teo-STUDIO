@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 560" role="img" aria-labelledby="title desc">
+<title id="title">TeoStudio Seller workspace illustration</title>
+<desc id="desc">Original vector illustration of a seller dashboard, file cards, verified orders and growing commission.</desc>
+<defs>
+  <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#233a43"/><stop offset="1" stop-color="#111f28"/></linearGradient>
+  <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#70d6c8"/><stop offset="1" stop-color="#238d89"/></linearGradient>
+  <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#83c6f7"/><stop offset="1" stop-color="#347fb9"/></linearGradient>
+  <linearGradient id="amber" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffd18a"/><stop offset="1" stop-color="#c78235"/></linearGradient>
+  <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#f6fbf8"/><stop offset="1" stop-color="#d9e9e4"/></linearGradient>
+  <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feGaussianBlur in="SourceAlpha" stdDeviation="15"/><feOffset dy="18"/><feComponentTransfer><feFuncA type="linear" slope=".28"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M28 0H0V28" fill="none" stroke="#9dc8c9" stroke-opacity=".12"/></pattern>
+</defs>
+<ellipse cx="383" cy="287" rx="286" ry="214" fill="#39b9aa" opacity=".08"/>
+<ellipse cx="567" cy="127" rx="105" ry="96" fill="#5ba8dd" opacity=".12"/>
+<g opacity=".55" fill="none" stroke="#75cfc2"><ellipse cx="360" cy="284" rx="303" ry="186" stroke-opacity=".23" stroke-dasharray="5 12"/><ellipse cx="359" cy="284" rx="260" ry="225" stroke-opacity=".14" transform="rotate(-18 359 284)"/></g>
+<g filter="url(#shadow)" transform="translate(100 88) rotate(-3 260 180)">
+  <rect x="0" y="0" width="520" height="356" rx="28" fill="url(#panel)" stroke="#a9c9c8" stroke-opacity=".28" stroke-width="2"/>
+  <rect x="0" y="0" width="520" height="356" rx="28" fill="url(#grid)"/>
+  <path d="M28 0h464a28 28 0 0 1 28 28v28H0V28A28 28 0 0 1 28 0Z" fill="#243b44"/>
+  <circle cx="26" cy="28" r="5" fill="#efad62"/><circle cx="44" cy="28" r="5" fill="#6cc6ae"/><circle cx="62" cy="28" r="5" fill="#79b9e5"/>
+  <text x="91" y="32" fill="#d7e8e6" font-family="system-ui,sans-serif" font-size="11" font-weight="700" letter-spacing="2">TEOSTUDIO / SELLER CENTER</text>
+  <rect x="18" y="72" width="94" height="260" rx="17" fill="#102029" stroke="#89b8ba" stroke-opacity=".13"/>
+  <rect x="35" y="94" width="60" height="38" rx="11" fill="#2b797b" opacity=".45"/>
+  <path d="M49 113h12l7-8 9 15" fill="none" stroke="#a4e8dc" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#76949a"><rect x="37" y="153" width="55" height="6" rx="3"/><rect x="37" y="181" width="43" height="6" rx="3"/><rect x="37" y="209" width="51" height="6" rx="3"/><rect x="37" y="237" width="38" height="6" rx="3"/></g>
+  <rect x="130" y="72" width="366" height="74" rx="17" fill="#203640" stroke="#aac8c7" stroke-opacity=".14"/>
+  <text x="151" y="98" fill="#91adb1" font-family="system-ui,sans-serif" font-size="10" letter-spacing="1.4">DOANH THU ĐƯỢC XÁC NHẬN</text>
+  <text x="151" y="126" fill="#f2f7f4" font-family="system-ui,sans-serif" font-size="24" font-weight="800">2.480.000đ</text>
+  <rect x="390" y="91" width="84" height="34" rx="17" fill="#1f514c"/>
+  <path d="m405 109 7 7 14-16" fill="none" stroke="#a5e5c7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="431" y="113" fill="#a5e5c7" font-family="system-ui,sans-serif" font-size="10" font-weight="700">ỔN ĐỊNH</text>
+  <rect x="130" y="164" width="216" height="168" rx="17" fill="#12242d" stroke="#aac8c7" stroke-opacity=".14"/>
+  <text x="150" y="190" fill="#9fb8ba" font-family="system-ui,sans-serif" font-size="10" letter-spacing="1">HIỆU SUẤT 7 NGÀY</text>
+  <path d="M151 294H325M151 263H325M151 232H325" stroke="#9db9bd" stroke-opacity=".16" stroke-dasharray="4 5"/>
+  <path d="M151 283 177 270 204 276 230 243 257 250 283 213 326 198" fill="none" stroke="url(#teal)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M151 283 177 270 204 276 230 243 257 250 283 213 326 198V300H151Z" fill="#3caaa0" opacity=".12"/>
+  <g fill="#9ce1d4"><circle cx="177" cy="270" r="4"/><circle cx="230" cy="243" r="4"/><circle cx="283" cy="213" r="4"/><circle cx="326" cy="198" r="5"/></g>
+  <rect x="361" y="164" width="135" height="78" rx="16" fill="#1c343c" stroke="#aac8c7" stroke-opacity=".14"/>
+  <text x="378" y="188" fill="#92aeb3" font-family="system-ui,sans-serif" font-size="9" letter-spacing="1">LINK ĐÃ TẠO</text>
+  <text x="378" y="222" fill="#f2f7f4" font-family="system-ui,sans-serif" font-size="25" font-weight="800">128</text>
+  <rect x="361" y="254" width="135" height="78" rx="16" fill="#1c343c" stroke="#aac8c7" stroke-opacity=".14"/>
+  <text x="378" y="279" fill="#92aeb3" font-family="system-ui,sans-serif" font-size="9" letter-spacing="1">ĐƠN HỢP LỆ</text>
+  <text x="378" y="314" fill="#f2c07b" font-family="system-ui,sans-serif" font-size="25" font-weight="800">64</text>
+</g>
+<g filter="url(#shadow)" transform="translate(42 364) rotate(-8)">
+  <rect width="158" height="112" rx="18" fill="url(#paper)" stroke="#fff" stroke-opacity=".7"/>
+  <rect x="17" y="16" width="35" height="35" rx="10" fill="#d0eee6"/>
+  <path d="M27 28h15M27 35h15M27 42h10" stroke="#238d89" stroke-width="2.5" stroke-linecap="round"/>
+  <rect x="65" y="20" width="73" height="7" rx="3.5" fill="#9db7b4"/>
+  <rect x="65" y="34" width="57" height="6" rx="3" fill="#c4d6d2"/>
+  <rect x="17" y="69" width="121" height="26" rx="9" fill="#d9ece6"/>
+  <text x="77" y="86" text-anchor="middle" fill="#317e76" font-family="system-ui,sans-serif" font-size="9" font-weight="800">FILE ĐÃ CHIA SẺ</text>
+</g>
+<g filter="url(#shadow)" transform="translate(508 377) rotate(9)">
+  <circle cx="66" cy="61" r="53" fill="url(#amber)" stroke="#ffe0aa" stroke-width="3"/>
+  <circle cx="66" cy="61" r="39" fill="none" stroke="#fff2d3" stroke-opacity=".75" stroke-width="2"/>
+  <path d="M66 34v54M52 47c4-8 24-9 28 1 5 12-27 10-27 22 0 10 18 15 29 4" fill="none" stroke="#6f4b27" stroke-width="5" stroke-linecap="round"/>
+  <path d="M20 8 30 0M111 10l9 8M123 102l10 7" stroke="#f8c77e" stroke-width="4" stroke-linecap="round"/>
+</g>
+<g fill="#8dd8cb"><circle cx="627" cy="93" r="5"/><circle cx="652" cy="150" r="3"/><circle cx="80" cy="174" r="4"/></g>
+<path d="M596 240c35-25 62-19 75 8" fill="none" stroke="#69bbd4" stroke-width="3" stroke-linecap="round" stroke-dasharray="3 8"/>
+</svg>

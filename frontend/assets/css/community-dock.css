@@ -1,0 +1,65 @@
+/* TeoStudio Community Dock — compact, mobile-first, slate/cobalt/teal identity */
+:root{--tcd-ink:#101a22;--tcd-panel:#15232c;--tcd-line:rgba(190,215,225,.18);--tcd-text:#edf5f7;--tcd-muted:#9fb3bc;--tcd-blue:#3d8ee8;--tcd-teal:#35b6a6;--tcd-orange:#f2a65a}
+.teo-community-dock{position:fixed;right:16px;bottom:18px;z-index:10042;font-family:inherit;color:var(--tcd-text)}
+.tcd-launcher{width:58px;height:58px;border-radius:20px;border:1px solid rgba(255,255,255,.34);background:linear-gradient(145deg,#246f9e 0%,#1c9e96 58%,#e39b4a 130%);color:#fff;display:grid;place-items:center;box-shadow:0 12px 34px rgba(14,73,89,.42),inset 0 1px rgba(255,255,255,.32);cursor:pointer;position:relative;transition:transform .28s cubic-bezier(.2,.8,.2,1),filter .2s,box-shadow .2s;touch-action:manipulation}
+.tcd-launcher:before{content:"";position:absolute;inset:5px;border:1px solid rgba(255,255,255,.25);border-radius:15px;pointer-events:none}
+.tcd-launcher:hover,.tcd-launcher:focus-visible{transform:translateY(-3px) scale(1.045);filter:brightness(1.1);box-shadow:0 16px 40px rgba(14,73,89,.5),0 0 0 3px rgba(53,182,166,.18)}
+.tcd-launcher:focus-visible,.tcd-action:focus-visible,.tcd-editor button:focus-visible{outline:2px solid #8be4d6;outline-offset:3px}
+.tcd-launcher svg{width:27px;height:27px;transition:transform .55s cubic-bezier(.18,.89,.32,1.28)}
+.teo-community-dock.is-open .tcd-launcher svg{transform:rotate(360deg) scale(1.04)}
+.tcd-launcher .tcd-dot{position:absolute;right:-2px;top:-2px;width:12px;height:12px;border:2px solid #14212a;background:#9de6bb;border-radius:50%}
+.tcd-panel{position:absolute;right:0;bottom:72px;width:min(342px,calc(100vw - 28px));max-height:min(65dvh,520px);overflow:auto;padding:14px;border:1px solid var(--tcd-line);border-radius:20px;background:linear-gradient(155deg,rgba(25,44,53,.98),rgba(13,24,32,.985));box-shadow:0 24px 75px rgba(0,0,0,.52),inset 0 1px rgba(255,255,255,.05);opacity:0;visibility:hidden;transform:translateY(12px) scale(.97);transform-origin:bottom right;transition:opacity .2s,transform .26s cubic-bezier(.2,.8,.2,1),visibility .2s;backdrop-filter:blur(18px)}
+.teo-community-dock.is-open .tcd-panel{opacity:1;visibility:visible;transform:translateY(0) scale(1)}
+.tcd-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:0 2px 11px;border-bottom:1px solid var(--tcd-line)}
+.tcd-panel-head div{display:grid;gap:3px}.tcd-panel-head b{font-size:14px;letter-spacing:.01em}.tcd-panel-head small{font-size:10px;color:var(--tcd-muted)}
+.tcd-close{width:30px;height:30px;border-radius:10px;border:1px solid var(--tcd-line);background:rgba(255,255,255,.06);color:#e8f2f4;font-size:18px;cursor:pointer}
+.tcd-links{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tcd-action{min-width:0;min-height:58px;display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:13px;border:1px solid rgba(180,215,220,.13);background:linear-gradient(140deg,rgba(255,255,255,.065),rgba(255,255,255,.025));color:var(--tcd-text);text-decoration:none;text-align:left;font:inherit;cursor:pointer;transition:transform .16s,border-color .16s,background .16s,box-shadow .16s}
+.tcd-action:hover,.tcd-action:focus-visible{transform:translateY(-2px) scale(1.015);border-color:rgba(86,198,187,.65);background:linear-gradient(140deg,rgba(48,142,166,.24),rgba(255,255,255,.055));box-shadow:0 7px 18px rgba(0,0,0,.18)}
+.tcd-action:active{transform:scale(.975);border-color:#68d2c4}
+.tcd-icon{flex:0 0 30px;width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:rgba(53,182,166,.14);color:#a6e6dd;font-size:16px;font-weight:800}
+.tcd-copy{min-width:0;display:grid;gap:3px}.tcd-copy b{font-size:11px;line-height:1.2;white-space:normal;overflow-wrap:anywhere}.tcd-copy small{font-size:9px;color:var(--tcd-muted);line-height:1.25}
+.tcd-action.tcd-wide{grid-column:1/-1}
+.teo-community-dock.is-open .tcd-action{animation:tcd-action-in .26s cubic-bezier(.2,.8,.2,1) both}
+.teo-community-dock.is-open .tcd-action:nth-child(1){animation-delay:.025s}
+.teo-community-dock.is-open .tcd-action:nth-child(2){animation-delay:.05s}
+.teo-community-dock.is-open .tcd-action:nth-child(3){animation-delay:.075s}
+.teo-community-dock.is-open .tcd-action:nth-child(4){animation-delay:.10s}
+.teo-community-dock.is-open .tcd-action:nth-child(5){animation-delay:.125s}
+.teo-community-dock.is-open .tcd-action:nth-child(6){animation-delay:.15s}
+.teo-community-dock.is-open .tcd-action:nth-child(7){animation-delay:.175s}
+.teo-community-dock.is-open .tcd-action:nth-child(8){animation-delay:.20s}
+@keyframes tcd-action-in{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+.tcd-divider{height:1px;background:var(--tcd-line);margin:12px 0}
+.tcd-tools{display:flex;gap:8px;flex-wrap:wrap}
+.tcd-tool{display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:8px 11px;border:1px solid var(--tcd-line);border-radius:12px;background:rgba(255,255,255,.055);color:#e7f2f4;font-size:11px;font-weight:700;cursor:pointer;transition:transform .16s,border-color .16s,background .16s}
+.tcd-tool:hover{transform:translateY(-2px);border-color:#59c4b7;background:rgba(53,182,166,.14)}
+.tcd-player{margin-top:10px;padding:10px;border:1px solid var(--tcd-line);border-radius:13px;background:rgba(0,0,0,.18)}
+.tcd-player small{display:block;color:var(--tcd-muted);font-size:10px;margin-bottom:7px}
+.tcd-player audio{width:100%;height:34px}.tcd-player iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:10px}
+.tcd-footnote{margin:10px 2px 0;color:#8096a1;font-size:9px;line-height:1.4}
+.tcd-editor{margin:12px 0;padding:14px;border:1px solid rgba(53,182,166,.24);border-radius:16px;background:linear-gradient(140deg,rgba(53,182,166,.06),rgba(61,142,232,.045))}
+.tcd-editor-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:7px}
+.tcd-editor-head b{font-size:13px}.tcd-editor-head button{border:1px solid rgba(53,182,166,.35);background:rgba(53,182,166,.12);color:#b9eee6;border-radius:10px;padding:8px 10px;font-size:11px;font-weight:800}
+.tcd-editor p{font-size:10px;color:var(--tcd-muted);line-height:1.45;margin:0 0 10px}
+.tcd-editor-list{display:grid;gap:8px}
+.tcd-editor-row{display:grid;grid-template-columns:62px minmax(0,1fr) 38px;gap:7px;align-items:center;padding:9px;border:1px solid rgba(180,215,220,.13);border-radius:12px;background:rgba(0,0,0,.12)}
+.tcd-editor-row input{width:100%;min-width:0;height:36px;padding:7px 9px;border:1px solid rgba(180,215,220,.18);border-radius:9px;background:#101b23;color:#edf5f7;font:inherit;font-size:11px}
+.tcd-editor-row .tcd-row-main{display:grid;gap:6px;min-width:0}
+.tcd-editor-row button{width:36px;height:36px;border:1px solid rgba(255,130,112,.25);border-radius:9px;background:rgba(180,60,50,.13);color:#ffb2a7;font-size:17px}
+.tcd-editor-empty{padding:10px;border:1px dashed var(--tcd-line);border-radius:12px;color:var(--tcd-muted);font-size:11px;text-align:center}
+body:not(.teo-community-open) #teoAiWrap{bottom:88px!important;transition:bottom .28s cubic-bezier(.2,.8,.2,1),transform .28s}
+body.teo-community-open #teoAiWrap{bottom:calc(100dvh - 88px)!important;transition:bottom .28s cubic-bezier(.2,.8,.2,1),transform .28s}
+body.teo-community-open #teoAiWrap .teo-ai-panel{display:none!important}
+.teo-community-open .teo-ai-bubble{box-shadow:0 8px 24px rgba(13,57,72,.4)}
+/* Remove the previous detached music chip; music is now controlled inside the hub. */
+.teo-audio-dock,.teo-music-dock{display:none!important}
+@media(max-width:520px){
+ .teo-community-dock{right:12px;bottom:13px}.tcd-launcher{width:54px;height:54px;border-radius:18px}
+ .tcd-panel{right:0;bottom:65px;width:min(326px,calc(100vw - 24px));max-height:62dvh;padding:12px}
+ .tcd-action{min-height:55px;padding:8px}.tcd-links{gap:7px}
+ .tcd-editor-row{grid-template-columns:52px minmax(0,1fr) 34px;padding:7px}
+ .tcd-editor-row button{width:32px;height:32px}
+}
+@media(prefers-reduced-motion:reduce){.teo-community-dock.is-open .tcd-action{animation:none!important}.tcd-launcher,.tcd-launcher svg,.tcd-panel,.tcd-action,.tcd-tool,body.teo-community-open #teoAiWrap{transition:none!important}.tcd-action:hover{transform:none}}

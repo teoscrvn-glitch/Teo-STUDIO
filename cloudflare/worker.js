@@ -58,7 +58,7 @@ async function notificationList(e,recipientType,recipientId){
 }
 
 const PUBLIC_ORIGIN='https://teostudio.top';
-const BUILD_VERSION='v59.1-unified-account-membership';
+const BUILD_VERSION='v60.0-community-hub-landing';
 function runtimeConfigStatus(e){
   const has=k=>String(e?.[k]??'').trim().length>0;
   const check=keys=>{const missing=keys.filter(k=>!has(k));return {configured:missing.length===0,missing};};
@@ -1412,7 +1412,23 @@ async function syncCardRatesFromProvider(e){
   await e.DB.prepare("INSERT INTO settings(key,value) VALUES('cardExchangeRates',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(JSON.stringify(config)).run();
   return {ok:true,updated,carriers:Object.keys(config.providers).length,config};
 }
-async function settings(e){const a=(await e.DB.prepare('SELECT key,value FROM settings').all()).results||[];const s={};for(const x of a){if(['adminPasswordHash'].includes(x.key))continue;try{s[x.key]=JSON.parse(x.value)}catch{s[x.key]=x.value}}for(const k of ['groupLink','adminContact','rentZalo','socialTikTokUrl','socialYoutubeUrl'])if(s[k])s[k]=safeHttpUrl(s[k],4000)||'#';for(const k of ['avatar','donateQr'])if(s[k])s[k]=safeImageValue(s[k],1500000)||'';return s}
+function normalizeCommunityBoxes(value){
+  let source=value;
+  if(typeof source==='string'){try{source=JSON.parse(source)}catch{source=[]}}
+  if(!Array.isArray(source))return [];
+  return source.slice(0,12).map((item,index)=>{
+    const row=item&&typeof item==='object'?item:{};
+    const label=clean(row.label||row.title||'',48);
+    const icon=clean(row.icon||'↗',8);
+    const candidate=safeOptionalLink(row.url||'',2000);
+    let url='';
+    try{const parsed=new URL(candidate);if(parsed.protocol==='https:'&&!parsed.username&&!parsed.password)url=parsed.toString()}catch{}
+    const description=clean(row.description||'',100);
+    if(!label||!url||url==='#')return null;
+    return {id:clean(row.id||`box-${index+1}`,40),label,icon:icon||'↗',url,description};
+  }).filter(Boolean);
+}
+async function settings(e){const a=(await e.DB.prepare('SELECT key,value FROM settings').all()).results||[];const s={};for(const x of a){if(['adminPasswordHash'].includes(x.key))continue;try{s[x.key]=JSON.parse(x.value)}catch{s[x.key]=x.value}}for(const k of ['groupLink','adminContact','rentZalo','socialTikTokUrl','socialYoutubeUrl'])if(s[k])s[k]=safeHttpUrl(s[k],4000)||'#';s.communityBoxes=normalizeCommunityBoxes(s.communityBoxes);for(const k of ['avatar','donateQr'])if(s[k])s[k]=safeImageValue(s[k],1500000)||'';return s}
 async function tags(e){return (await e.DB.prepare('SELECT id,name,parent_id,video_url,created_at FROM tags ORDER BY CASE WHEN parent_id IS NULL OR parent_id=\'\' THEN 0 ELSE 1 END,name COLLATE NOCASE').all()).results||[]}
 function safeProductRow(row){if(!row)return row;return {...row,sale_mode:['free','both','paid'].includes(String(row.sale_mode||''))?String(row.sale_mode):'free',free_link_mode:String(row.free_link_mode||'direct')==='unlock'?'unlock':'direct',price_vnd:Math.max(0,Number(row.price_vnd)||0),download_link:safeHttpUrl(row.download_link,10000),original_link:safeHttpUrl(row.original_link,10000),thumb:row.thumb?safeImageValue(row.thumb,1500000):''}}
 function publicProductRow(row){const p=safeProductRow(row);if(!p)return p;const mode=p.sale_mode;if(mode==='paid'){p.download_link='';p.original_link='';}else if(mode==='both'){p.original_link='';}else{p.original_link='';}return p}
@@ -1898,7 +1914,7 @@ async function tenantFromFreeBypassSession(r,e,identifier=''){
   return null;
 }
 
-async function tenantSettings(e,t){const k=tenantInSql(t);const rows=(await e.DB.prepare(`SELECT key,value FROM tenant_settings WHERE ${k.clause}`).bind(...k.vals).all()).results||[];const out={siteName:'Lại Húp File',studio:'Téo Studio',heroTitle:'Kho Share File riêng',heroText:'Kho file riêng của bạn.',avatar:'assets/img/default-avatar.svg',avatarVideoUrl:'',groupLink:'#',adminContact:'#',announcementEnabled:true,announcementTitle:'Thông báo từ Téo Studio',announcementText:'Hãy đọc kỹ thông báo trước khi vào web.',donateTitle:'Ủng hộ Téo',donateText:'Nếu thấy web hữu ích, bạn có thể donate để Téo có thêm động lực duy trì và nâng cấp web.',donateQr:'',ownerName:'Téo Studio',ownerText:'Kho Share File được vận hành bởi Téo Studio.',adText:'',adLink:'#',heroBackground:'',backgroundMusicUrl:''};for(const x of rows){try{out[x.key]=JSON.parse(x.value)}catch{out[x.key]=x.value}}for(const key of ['groupLink','adminContact','adLink','avatarVideoUrl','socialTikTokUrl','socialYoutubeUrl','backgroundMusicUrl'])if(out[key]&&out[key]!=='#')out[key]=safeHttpUrl(out[key],4000)||'#';for(const key of ['avatar','donateQr'])if(out[key])out[key]=safeImageValue(out[key],1500000)||'';out.ownerName='Téo Studio';out.ownerText='Kho Share File được vận hành bởi Téo Studio.';return out}
+async function tenantSettings(e,t){const k=tenantInSql(t);const rows=(await e.DB.prepare(`SELECT key,value FROM tenant_settings WHERE ${k.clause}`).bind(...k.vals).all()).results||[];const out={siteName:'Lại Húp File',studio:'Téo Studio',heroTitle:'Kho Share File riêng',heroText:'Kho file riêng của bạn.',avatar:'assets/img/default-avatar.svg',avatarVideoUrl:'',groupLink:'#',adminContact:'#',announcementEnabled:true,announcementTitle:'Thông báo từ Téo Studio',announcementText:'Hãy đọc kỹ thông báo trước khi vào web.',donateTitle:'Ủng hộ Téo',donateText:'Nếu thấy web hữu ích, bạn có thể donate để Téo có thêm động lực duy trì và nâng cấp web.',donateQr:'',ownerName:'Téo Studio',ownerText:'Kho Share File được vận hành bởi Téo Studio.',adText:'',adLink:'#',heroBackground:'',backgroundMusicUrl:'',communityBoxes:[]};for(const x of rows){try{out[x.key]=JSON.parse(x.value)}catch{out[x.key]=x.value}}out.communityBoxes=normalizeCommunityBoxes(out.communityBoxes);for(const key of ['groupLink','adminContact','adLink','avatarVideoUrl','socialTikTokUrl','socialYoutubeUrl','backgroundMusicUrl'])if(out[key]&&out[key]!=='#')out[key]=safeHttpUrl(out[key],4000)||'#';for(const key of ['avatar','donateQr'])if(out[key])out[key]=safeImageValue(out[key],1500000)||'';out.ownerName='Téo Studio';out.ownerText='Kho Share File được vận hành bởi Téo Studio.';return out}
 async function tenantProducts(e,t,admin=false){
   const k=tenantInSql(t);
   const rows=((await e.DB.prepare(`SELECT * FROM tenant_products WHERE ${k.clause} ${admin?'':'AND visible=1'} ORDER BY updated_at DESC`).bind(...k.vals).all()).results||[]);
@@ -2918,7 +2934,7 @@ Kết nối Telegram hoạt động bình thường.`);
   let tc=p.match(/^\/api\/tenant\/comments\/([^/]+)$/);
   if(tc){const id=decodeURIComponent(tc[1]);if(r.method==='DELETE'){{const k=tenantInSql(t);await e.DB.prepare(`DELETE FROM tenant_comments WHERE ${k.clause} AND id=?`).bind(...k.vals,id).run()};return J({ok:true})}if(r.method==='PUT'){const b=await r.json().catch(()=>({}));if(typeof b.visible!=='boolean')return J({ok:false,error:'VISIBLE_REQUIRED'},400);{const k=tenantInSql(t);await e.DB.prepare(`UPDATE tenant_comments SET visible=? WHERE ${k.clause} AND id=?`).bind(b.visible?1:0,...k.vals,id).run()};await tenantLog(e,t.id,t.id,b.visible?'comment_show':'comment_hide',id);return J({ok:true,visible:b.visible})}}
   if(p==='/api/tenant/settings'&&r.method==='GET')return J({ok:true,settings:await tenantSettings(e,t)});
-  if(p==='/api/tenant/settings'&&r.method==='PUT'){const b=await r.json().catch(()=>({}));const keys=tenantKeyValues(t);for(const [k,v0] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','heroBackground','avatarVideoUrl','groupLink','adminContact','announcementEnabled','announcementTitle','announcementText','donateTitle','donateText','donateQr','adText','adLink','socialTikTokUrl','socialYoutubeUrl','socialTikTokMeta','socialYoutubeMeta','themeConfig','backgroundMusicUrl'].includes(k))continue;let v=v0;if(k==='backgroundMusicUrl'&&v0&&!/^https:\/\//i.test(String(v0)))return J({ok:false,error:'HTTPS_REQUIRED',field:k,message:'Nhạc nền cần liên kết HTTPS.'},400);if(['groupLink','adminContact','avatarVideoUrl','adLink','socialTikTokUrl','socialYoutubeUrl','backgroundMusicUrl'].includes(k)){v=safeOptionalLink(v0,4000);if(v0&&v0!=='#'&&!v)return J({ok:false,error:'INVALID_SETTING_URL',field:k,message:'Liên kết phải bắt đầu bằng http:// hoặc https://.'},400)}if(['avatar','donateQr'].includes(k)&&v0){v=safeImageValue(v0,1500000);if(!v)return J({ok:false,error:'INVALID_IMAGE',field:k},400)}for(const tid of keys){await e.DB.prepare('INSERT INTO tenant_settings(tenant_id,key,value) VALUES(?,?,?) ON CONFLICT(tenant_id,key) DO UPDATE SET value=excluded.value').bind(tid,k,JSON.stringify(v)).run()}}return J({ok:true})}
+  if(p==='/api/tenant/settings'&&r.method==='PUT'){const b=await r.json().catch(()=>({}));const keys=tenantKeyValues(t);for(const [k,v0] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','heroBackground','avatarVideoUrl','groupLink','adminContact','announcementEnabled','announcementTitle','announcementText','donateTitle','donateText','donateQr','adText','adLink','socialTikTokUrl','socialYoutubeUrl','socialTikTokMeta','socialYoutubeMeta','themeConfig','backgroundMusicUrl','communityBoxes'].includes(k))continue;let v=v0;if(k==='communityBoxes')v=normalizeCommunityBoxes(v0);if(k==='backgroundMusicUrl'&&v0&&!/^https:\/\//i.test(String(v0)))return J({ok:false,error:'HTTPS_REQUIRED',field:k,message:'Nhạc nền cần liên kết HTTPS.'},400);if(['groupLink','adminContact','avatarVideoUrl','adLink','socialTikTokUrl','socialYoutubeUrl','backgroundMusicUrl'].includes(k)){v=safeOptionalLink(v0,4000);if(v0&&v0!=='#'&&!v)return J({ok:false,error:'INVALID_SETTING_URL',field:k,message:'Liên kết phải bắt đầu bằng http:// hoặc https://.'},400)}if(['avatar','donateQr'].includes(k)&&v0){v=safeImageValue(v0,1500000);if(!v)return J({ok:false,error:'INVALID_IMAGE',field:k},400)}for(const tid of keys){await e.DB.prepare('INSERT INTO tenant_settings(tenant_id,key,value) VALUES(?,?,?) ON CONFLICT(tenant_id,key) DO UPDATE SET value=excluded.value').bind(tid,k,JSON.stringify(v)).run()}}return J({ok:true})}
   if(p==='/api/tenant/confirm-status'&&r.method==='GET'){
     const cols=(await e.DB.prepare('PRAGMA table_info(tenant_accounts)').all()).results||[];const names=new Set(cols.map(x=>x.name));
     const where=[],vals=[];for(const col of ['id','tenant_id','slug']){if(!names.has(col))continue;where.push(`${col} IN (${tenantKeyValues(t).map(()=>'?').join(',')})`);vals.push(...tenantKeyValues(t))}
@@ -3299,16 +3315,32 @@ export default{async scheduled(controller,e){const cron=String(controller?.cron|
     const fallback='<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Chi tiết file — TeoStudio</title><body style="margin:0;background:#0b0d14;color:#f3f4f6;font:16px system-ui;padding:10vh 7vw"><main style="max-width:620px;margin:auto"><h1>Chưa tải được giao diện chi tiết</h1><p>Máy chủ chưa trả được trang chi tiết file. File và giao dịch không bị thay đổi.</p><p><a style="color:#bba6ff" href="/">← Về trang chủ</a> · <a style="color:#bba6ff" href="'+PUBLIC_ORIGIN+'/detail?id='+encodeURIComponent(clean(u.searchParams.get('id')||'',100))+'">Thử mở lại</a></p></main></body></html>';
     return new Response(fallback,{status:200,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'no-store','x-content-type-options':'nosniff','content-security-policy':C['content-security-policy'],'x-teostudio-version':BUILD_VERSION}});
   }
-  if(crawler && (p==='/'||p==='/index.html') && e.ASSETS){try{
-    const base=u.origin;
-    const title='Lại Húp File — Téo Studio', desc='Kho file, code, script và tài nguyên của Téo Studio.';
-    const img=PUBLIC_ORIGIN+'/assets/img/og-preview.png';
-    const rr=await e.ASSETS.fetch(new Request(new URL('/index.html',r.url),r));
-    let html=await rr.text();
-    const meta=`<meta name="description" content="${desc}"><meta property="og:type" content="website"><meta property="og:title" content="${title}"><meta property="og:description" content="${desc}"><meta property="og:image" content="${img}"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:url" content="${base}/"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${img}">`;
-    html=html.replace(/<meta property="og:image"[^>]*>/i,'').replace('</head>',meta+'</head>');
-    return new Response(html,{status:rr.status,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'public, max-age=60'}});
-  }catch{}}
+  if(crawler && (p==='/'||p==='/index.html') && e.ASSETS){
+    try{
+      const base=u.origin;
+      const title='TeoStudio — Kho tài nguyên & công cụ cộng đồng';
+      const desc='Khám phá kho file, công cụ, cộng đồng, Seller và Studio cá nhân của TeoStudio.';
+      const img=PUBLIC_ORIGIN+'/assets/img/og-preview.png';
+      const rr=await e.ASSETS.fetch(new Request(new URL('/intro',r.url),r));
+      let html=await rr.text();
+      const meta=`<meta name="description" content="${title}"><meta property="og:type" content="website"><meta property="og:title" content="${title}"><meta property="og:description" content="${desc}"><meta property="og:image" content="${img}"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:url" content="${base}/"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${img}">`;
+      html=html.replace(/<meta property="og:image"[^>]*>/i,'').replace('</head>',meta+'</head>');
+      return new Response(html,{status:rr.status,headers:{'content-type':'text/html;charset=UTF-8','cache-control':'no-store','x-content-type-options':'nosniff','content-security-policy':C['content-security-policy'],'x-teostudio-version':BUILD_VERSION}});
+    }catch{}
+  }
+  // New public introduction page remains on the same domain. The previous resource catalogue
+  // is preserved at /2; old /index.html links are redirected there for backwards compatibility.
+  if(p==='/index.html'&&['GET','HEAD'].includes(r.method))return Response.redirect(new URL('/2'+u.search,r.url),302);
+  if(p==='/'&&e.ASSETS&&['GET','HEAD'].includes(r.method)){
+    const target=new URL('/intro',r.url);
+    const asset=await e.ASSETS.fetch(new Request(target,r));
+    const headers=new Headers(asset.headers);
+    headers.set('cache-control','no-store');
+    headers.set('x-content-type-options','nosniff');
+    headers.set('content-security-policy',C['content-security-policy']);
+    headers.set('x-teostudio-version',BUILD_VERSION);
+    return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
+  }
   if(p==='/api/webhook/card-provider')return await cardProviderWebhook(r,e);
   if(p==='/api/webhook/sepay')return await handleSePayWebhook(r,e);
   if(p==='/api/public-config'&&r.method==='GET')return J(paymentConfig(e));
@@ -3937,6 +3969,6 @@ export default{async scheduled(controller,e){const cron=String(controller?.cron|
   if(p==='/api/admin/tags'&&r.method==='POST'){const b=await r.json().catch(()=>({})),name=clean(b.name,100),parentId=clean(b.parent_id,100),rawVideo=clean(b.video_url||'',1000),video=safeYouTubeUrl(rawVideo)||null;if(!name)return J({ok:false,error:'name_required'},400);if(rawVideo&&!video)return J({ok:false,error:'INVALID_YOUTUBE_URL',message:'Link video phải là URL YouTube hợp lệ.'},400);const id=crypto.randomUUID();await e.DB.prepare('INSERT INTO tags(id,name,parent_id,video_url) VALUES(?,?,?,?)').bind(id,name,parentId||null,video).run();return J({ok:true,id},201)}
   let t=p.match(/^\/api\/admin\/tags\/([^/]+)$/);if(t){const id=t[1];if(r.method==='DELETE'){await e.DB.prepare('DELETE FROM tags WHERE id=? OR parent_id=?').bind(id,id).run();return J({ok:true})}if(r.method==='PUT'){const b=await r.json().catch(()=>({})),name=clean(b.name,100),rawVideo=clean(b.video_url||'',1000),video=safeYouTubeUrl(rawVideo)||null;if(!name)return J({ok:false,error:'name_required'},400);if(rawVideo&&!video)return J({ok:false,error:'INVALID_YOUTUBE_URL',message:'Link video phải là URL YouTube hợp lệ.'},400);await e.DB.prepare('UPDATE tags SET name=?,parent_id=?,video_url=? WHERE id=?').bind(name,clean(b.parent_id,100)||null,video,id).run();return J({ok:true})}}
   if(p==='/api/admin/settings'&&r.method==='GET')return J({ok:true,settings:await settings(e)});
-  if(p==='/api/admin/settings'&&r.method==='PUT'){const b=await r.json().catch(()=>({}));for(const [k,v0] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','heroBackground','registerTutorialVideoUrl','announcementTitle','announcementText','announcementEnabled','groupLink','adminContact','rentZalo','donateTitle','donateText','donateQr','socialTikTokUrl','socialYoutubeUrl','socialTikTokMeta','socialYoutubeMeta','themeConfig','backgroundMusicUrl'].includes(k))continue;let v=v0;if(k==='registerTutorialVideoUrl'){v=safeYouTubeUrl(v0||'',1000);if(v0&&!v)return J({ok:false,error:'INVALID_YOUTUBE_URL',field:k,message:'Link video phải là URL YouTube hợp lệ.'},400)}if(k==='backgroundMusicUrl'&&v0&&!/^https:\/\//i.test(String(v0)))return J({ok:false,error:'HTTPS_REQUIRED',field:k,message:'Nhạc nền cần liên kết HTTPS.'},400);if(['groupLink','adminContact','rentZalo','socialTikTokUrl','socialYoutubeUrl','backgroundMusicUrl'].includes(k)){v=safeOptionalLink(v0,4000);if(v0&&v0!=='#'&&!v)return J({ok:false,error:'INVALID_SETTING_URL',field:k},400)}if(['avatar','donateQr'].includes(k)&&v0){v=safeImageValue(v0,1500000);if(!v)return J({ok:false,error:'INVALID_IMAGE',field:k},400)}await e.DB.prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind(k,JSON.stringify(v)).run()}return J({ok:true})}
+  if(p==='/api/admin/settings'&&r.method==='PUT'){const b=await r.json().catch(()=>({}));for(const [k,v0] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','heroBackground','registerTutorialVideoUrl','announcementTitle','announcementText','announcementEnabled','groupLink','adminContact','rentZalo','donateTitle','donateText','donateQr','socialTikTokUrl','socialYoutubeUrl','socialTikTokMeta','socialYoutubeMeta','themeConfig','backgroundMusicUrl','communityBoxes'].includes(k))continue;let v=v0;if(k==='communityBoxes')v=normalizeCommunityBoxes(v0);if(k==='registerTutorialVideoUrl'){v=safeYouTubeUrl(v0||'',1000);if(v0&&!v)return J({ok:false,error:'INVALID_YOUTUBE_URL',field:k,message:'Link video phải là URL YouTube hợp lệ.'},400)}if(k==='backgroundMusicUrl'&&v0&&!/^https:\/\//i.test(String(v0)))return J({ok:false,error:'HTTPS_REQUIRED',field:k,message:'Nhạc nền cần liên kết HTTPS.'},400);if(['groupLink','adminContact','rentZalo','socialTikTokUrl','socialYoutubeUrl','backgroundMusicUrl'].includes(k)){v=safeOptionalLink(v0,4000);if(v0&&v0!=='#'&&!v)return J({ok:false,error:'INVALID_SETTING_URL',field:k},400)}if(['avatar','donateQr'].includes(k)&&v0){v=safeImageValue(v0,1500000);if(!v)return J({ok:false,error:'INVALID_IMAGE',field:k},400)}await e.DB.prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind(k,JSON.stringify(v)).run()}return J({ok:true})}
   if(e.ASSETS){const asset=await e.ASSETS.fetch(r);const headers=new Headers(asset.headers);for(const [k,v] of Object.entries({'x-content-type-options':'nosniff','x-frame-options':'SAMEORIGIN','referrer-policy':'strict-origin-when-cross-origin','permissions-policy':'camera=(),microphone=(),geolocation=()','x-permitted-cross-domain-policies':'none','cross-origin-opener-policy':'same-origin','content-security-policy':C['content-security-policy']}))headers.set(k,v);if(/\.html?$/i.test(p)||!p.includes('.'))headers.set('cache-control','no-store');else if(p.startsWith('/assets/'))headers.set('cache-control','public, max-age=3600, stale-while-revalidate=86400');return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers})}return J({ok:false,error:'NOT_FOUND'},404)
 }catch(x){console.error('TeoStudio Worker request failed',String(x?.name||'Error'),String(x?.message||'unknown'));return J({ok:false,error:'SERVER_ERROR'},500)}}};
