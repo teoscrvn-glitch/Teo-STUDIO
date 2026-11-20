@@ -17,7 +17,7 @@ def require(ok, message):
     if not ok:
         raise SystemExit("FAIL: " + message)
 
-require("v60.1-share-payout-rankings-fix" in WORKER and "v60.1-share-payout-rankings-fix" in CONFIG,
+require("v60.2-master-product-paid-link-save-fix" in WORKER and "v60.2-master-product-paid-link-save-fix" in CONFIG,
         "Worker/config build identifiers must match V60")
 require("new URL('/intro',r.url)" in WORKER and "p==='/index.html'" in WORKER and "new URL('/2'+u.search,r.url)" in WORKER,
         "Root landing and legacy catalogue routes missing")

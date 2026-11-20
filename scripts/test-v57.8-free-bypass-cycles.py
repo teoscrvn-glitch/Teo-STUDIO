@@ -15,9 +15,9 @@ topup = (ROOT / 'frontend/topup.html').read_text(encoding='utf-8')
 wrangler = (ROOT / 'cloudflare/wrangler.toml').read_text(encoding='utf-8')
 
 # Build/version and server-side migration.
-assert "BUILD_VERSION='v60.1-share-payout-rankings-fix'" in w
-assert "BUILD_VERSION:'v60.1-share-payout-rankings-fix'" in config
-assert 'v60.1-share-payout-rankings-fix' in page and 'v60.1-share-payout-rankings-fix' in admin_page
+assert "BUILD_VERSION='v60.2-master-product-paid-link-save-fix'" in w
+assert "BUILD_VERSION:'v60.2-master-product-paid-link-save-fix'" in config
+assert 'v60.2-master-product-paid-link-save-fix' in page and 'v60.2-master-product-paid-link-save-fix' in admin_page
 assert "'free_bypass_cycle_1_at','INTEGER DEFAULT NULL'" in w
 assert "'free_bypass_cycle_2_at','INTEGER DEFAULT NULL'" in w
 assert "'client_proof_hash','TEXT DEFAULT NULL'" in w

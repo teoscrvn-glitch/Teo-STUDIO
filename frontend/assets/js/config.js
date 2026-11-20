@@ -1,5 +1,5 @@
 window.TEO_CONFIG={
-  BUILD_VERSION:'v60.1-share-payout-rankings-fix',
+  BUILD_VERSION:'v60.2-master-product-paid-link-save-fix',
   API_BASE_URL:(window.location?.origin||'https://teostudio.top'),
   RENT_ZALO_URL:'',
   AVATAR_VIDEO_URL:'https://raw.githubusercontent.com/teoscrvn-glitch/-nh-video/refs/heads/main/snaptik.vn_7684570630439685384.mp4'

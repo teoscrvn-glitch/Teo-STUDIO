@@ -54,8 +54,8 @@ ok('note-modern-v60.css?v=60.1' in (F/'note.html').read_text() and 'note-modern-
 # 20: cache-busting for the files changed in this release
 for page in F.glob('*.html'):
     html=page.read_text(encoding='utf-8',errors='ignore')
-    if 'config.js?' in html: ok('config.js?v=60.1' in html, f'{page.name} uses current config cache version')
-ok('admin-v14.js?v=60.1' in (F/'admin.html').read_text(), 'Master Admin loads updated QR and payout renderer')
+    if 'config.js?' in html: ok('config.js?v=60.2' in html, f'{page.name} uses current config cache version')
+ok('admin-v14.js?v=60.2' in (F/'admin.html').read_text(), 'Master Admin loads updated QR and payout renderer')
 
 # SQLite simulation: own Studio rank uses verified account ownership and period totals.
 db=sqlite3.connect(':memory:')
