@@ -17,7 +17,7 @@ def require(ok, message):
     if not ok:
         raise SystemExit("FAIL: " + message)
 
-require("v60.2-master-product-paid-link-save-fix" in WORKER and "v60.2-master-product-paid-link-save-fix" in CONFIG,
+require("v60.3-phase0-performance-guard" in WORKER and "v60.3-phase0-performance-guard" in CONFIG,
         "Worker/config build identifiers must match V60")
 require("new URL('/intro',r.url)" in WORKER and "p==='/index.html'" in WORKER and "new URL('/2'+u.search,r.url)" in WORKER,
         "Root landing and legacy catalogue routes missing")
@@ -56,7 +56,7 @@ pages = ["intro.html", "2.html", "share.html", "admin.html", "tenant-admin.html"
          "seller.html", "rankings.html", "account.html", "tenant-detail.html", "note.html"]
 for name in pages:
     html = (FRONT / name).read_text(encoding="utf-8")
-    require("community-dock.js?v=60.1" in html, f"{name} missing community dock")
+    require("community-dock.js?v=60.3" in html, f"{name} missing community dock")
 require('id="support"' not in (FRONT / "2.html").read_text(encoding="utf-8"),
         "Old support/community panel must be removed from catalogue page")
 require('id="support"' not in (FRONT / "share.html").read_text(encoding="utf-8"),

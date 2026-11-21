@@ -9,8 +9,8 @@
 @media(max-width:700px){.tenant-created-grid,.tenant-grid{grid-template-columns:1fr}.tenant-hero{align-items:stretch;flex-direction:column}.tenant-countdown{width:auto}.tenant-row{flex-direction:column}.row-actions{justify-content:flex-start}.tag-create-form{grid-template-columns:1fr}.rental-alert{align-items:flex-start;flex-direction:column}}
 
 /* V20 admin visual layer */
-body{font-family:'Outfit',Inter,system-ui,sans-serif;background-color:#07080d;background-image:radial-gradient(800px 500px at 8% -5%,rgba(139,92,246,.16),transparent 65%),radial-gradient(800px 500px at 100% 10%,rgba(14,165,233,.12),transparent 65%),linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);background-size:auto,auto,42px 42px,42px 42px;background-attachment:fixed;animation:adminBg 20s ease-in-out infinite alternate}
-body::before{content:"";position:fixed;inset:-30%;pointer-events:none;z-index:-1;background:conic-gradient(from 90deg,transparent,rgba(139,92,246,.06),transparent,rgba(14,165,233,.05),transparent);filter:blur(50px);animation:adminAurora 24s linear infinite}
+body{font-family:'Outfit',Inter,system-ui,sans-serif;background-color:#07080d;background-image:radial-gradient(800px 500px at 8% -5%,rgba(139,92,246,.16),transparent 65%),radial-gradient(800px 500px at 100% 10%,rgba(14,165,233,.12),transparent 65%),linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);background-size:auto,auto,42px 42px,42px 42px;background-attachment:scroll;animation:none}
+body::before{content:"";position:fixed;inset:-30%;pointer-events:none;z-index:-1;background:radial-gradient(ellipse at 28% 20%,rgba(139,92,246,.07),transparent 60%),radial-gradient(ellipse at 72% 70%,rgba(14,165,233,.06),transparent 62%);filter:none;animation:none}
 .admin-sidebar{box-shadow:12px 0 50px rgba(0,0,0,.10)}
 .admin-topbar{box-shadow:0 8px 35px rgba(0,0,0,.16)}
 .admin-card{position:relative;overflow:hidden;box-shadow:0 14px 40px rgba(0,0,0,.13);transition:transform .25s cubic-bezier(.2,.8,.2,1),border-color .25s,box-shadow .25s}

@@ -19,8 +19,8 @@ htmls=list(front.glob('*.html'))
 assert htmls, 'no frontend HTML pages found'
 for p in htmls:
     s=p.read_text()
-    assert ('teo-visual-system.css?v=58.10' in s or 'teo-visual-system.css?v=60.0' in s), f'{p.name} missing visual CSS'
-    assert ('teo-visual-system.js?v=58.10' in s or 'teo-visual-system.js?v=60.0' in s), f'{p.name} missing visual JS'
+    assert ('teo-visual-system.css?v=60.3' in s or 'teo-visual-system.css?v=60.3' in s), f'{p.name} missing visual CSS'
+    assert ('teo-visual-system.js?v=60.3' in s or 'teo-visual-system.js?v=60.3' in s), f'{p.name} missing visual JS'
 for asset in ['visual-home.svg','visual-share.svg','visual-admin.svg','visual-studio.svg','visual-download.svg','visual-wallet.svg','visual-earn.svg','visual-builder.svg','visual-ai.svg']:
     assert (front/'assets/img/teo'/asset).exists(), f'missing local page artwork: {asset}'
 print(f'PASS: V58.10 visual system is wired into {len(htmls)} frontend pages; page skins, reduced-motion, capped depth and no heavy 3D dependency verified.')

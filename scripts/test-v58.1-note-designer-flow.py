@@ -24,7 +24,7 @@ note_page_html = read('frontend/note.html')
 note_page_js = read('frontend/assets/js/tenant-note-page.js')
 
 checks = [
-    ("BUILD_VERSION='v60.2-master-product-paid-link-save-fix'" in w and "BUILD_VERSION:'v60.2-master-product-paid-link-save-fix'" in config, 'Worker and frontend versions are V58.3'),
+    ("BUILD_VERSION='v60.3-phase0-performance-guard'" in w and "BUILD_VERSION:'v60.3-phase0-performance-guard'" in config, 'Worker and frontend versions are V58.3'),
     ('#teoAccountMount' in account and 'parent.appendChild(overlay)' in account, 'account modal mounts inside the account page main content'),
     ('<div id="teoAccountMount"></div>' in account_html, 'account page exposes the in-flow mount before footer injection'),
     ('.teo-account-page-main{padding-bottom:clamp(18px,3vh,34px)!important;min-height:0!important}' in css, 'account layout avoids a viewport-sized spacer'),

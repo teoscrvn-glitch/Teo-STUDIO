@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>V52 — Local validation report | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="V52 — Local validation report" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/TEST_REPORT_V52.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/TEST_REPORT_V52.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="V52 — Local validation report" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"V52 — Local validation report","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/TEST_REPORT_V52.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="v52--local-validation-report">V52 — Local validation report</h1>
+
+<p>Date: 2026-10-12</p>
+
+<h2 id="checks-performed">Checks performed</h2>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">node --check</code> passed for <code class="language-plaintext highlighter-rouge">cloudflare/worker.js</code>.</li>
+  <li><code class="language-plaintext highlighter-rouge">node --check</code> passed for every JavaScript file under <code class="language-plaintext highlighter-rouge">frontend/assets/js/</code>.</li>
+  <li><code class="language-plaintext highlighter-rouge">node --check</code> passed for all 5 non-empty inline JavaScript blocks found in HTML files.</li>
+  <li>Static checks confirmed V52 health version, SePay webhook route, rental checkout route, withdrawal admin route, same-origin write guard, Turnstile fail-closed path, URL validation helpers, and allowlisted/capped social-preview fetches.</li>
+  <li>Confirmed Worker source does not contain <code class="language-plaintext highlighter-rouge">DROP TABLE</code> or other destructive DDL strings.</li>
+</ul>
+
+<h2 id="not-tested--requires-production-verification">Not tested / requires production verification</h2>
+<ul>
+  <li>No deployment was performed from this package.</li>
+  <li>No real SePay bank transfer or provider webhook delivery was tested.</li>
+  <li>No live D1 migration was run. Keep the current database ID/binding and take a backup before any deployment.</li>
+  <li>No Cloudflare WAF/rate-limit rules were enabled from code. Worker in-memory limits are per isolate and are not a substitute for edge protection.</li>
+  <li>The package is based on the V51 archive available in this conversation, not a fresh snapshot of the current GitHub default branch; compare/merge carefully before replacing current production files.</li>
+  <li>Free bypass with 2 verified steps / 4-day grant remains disabled until a specific bypass provider’s server-verifiable callback or API is configured. Main catalog checkout outside tenant Share File is not implemented here.</li>
+</ul>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

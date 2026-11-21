@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>TeoStudio SePay/VietQR setup (V45) | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="TeoStudio SePay/VietQR setup (V45)" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/SEPAY_SETUP_V45.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/SEPAY_SETUP_V45.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="TeoStudio SePay/VietQR setup (V45)" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"TeoStudio SePay/VietQR setup (V45)","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/SEPAY_SETUP_V45.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="teostudio-sepayvietqr-setup-v45">TeoStudio SePay/VietQR setup (V45)</h1>
+
+<p>This build adds per-tenant, per-file pricing and a SePay webhook flow. It does not reset D1; pricing columns are additive and existing files default to free.</p>
+
+<h2 id="required-cloudflare-worker-secretsvars">Required Cloudflare Worker secrets/vars</h2>
+
+<p>Set these in Worker &gt; Settings &gt; Variables and Secrets:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">SEPAY_API_KEY</code> (Secret): API Key configured for the SePay webhook. Never put it in frontend code.</li>
+  <li><code class="language-plaintext highlighter-rouge">SEPAY_BANK_CODE</code> (Text): bank code supported by VietQR image endpoint, e.g. bank short code from VietQR.</li>
+  <li><code class="language-plaintext highlighter-rouge">SEPAY_ACCOUNT_NUMBER</code> (Text): receiving bank account number.</li>
+  <li><code class="language-plaintext highlighter-rouge">SEPAY_ACCOUNT_NAME</code> (Text, optional): account holder name.</li>
+</ul>
+
+<p>The configured bank account receives all payments in this first iteration. This does not automatically split payments or transfer proceeds to individual tenants.</p>
+
+<h2 id="sepay-webhook">SePay webhook</h2>
+
+<p>Create an <strong>incoming transactions only</strong> webhook in SePay:</p>
+
+<ul>
+  <li>URL: <code class="language-plaintext highlighter-rouge">https://teostudio.top/api/webhook/sepay</code></li>
+  <li>Authentication: <strong>API Key</strong></li>
+  <li>API Key: same value as Worker secret <code class="language-plaintext highlighter-rouge">SEPAY_API_KEY</code></li>
+  <li>Content type: JSON</li>
+</ul>
+
+<p>Do not select “no authentication” in production. SePay sends <code class="language-plaintext highlighter-rouge">Authorization: Apikey &lt;key&gt;</code>.</p>
+
+<h2 id="flow">Flow</h2>
+
+<ol>
+  <li>Tenant edits a file in Tenant Admin and sets a price (VND) + checks “Bật bán file trả phí”. Existing files stay free by default.</li>
+  <li>Public file detail creates an order, shows a VietQR image and unique transfer content (<code class="language-plaintext highlighter-rouge">TEO...</code>).</li>
+  <li>SePay webhook must report an incoming transaction whose description/content contains the order code and whose amount is at least the order amount.</li>
+  <li>Worker stores the transaction ID uniquely and marks the order paid idempotently. The page polls order status and only then receives the download URL.</li>
+  <li>Pending orders expire after 20 minutes.</li>
+</ol>
+
+<h2 id="important-limitations">Important limitations</h2>
+
+<ul>
+  <li>Test the webhook with SePay’s test-send feature, then a small real transfer before public launch.</li>
+  <li>Payment status is not trusted from the browser; only the authenticated webhook can mark an order paid.</li>
+  <li>This first version uses one receiving bank account for the site. Tenant revenue splitting, refunds, tax/accounting, and merchant settlement are not included.</li>
+  <li>Use Cloudflare WAF/rate limiting alongside Worker checks.</li>
+</ul>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

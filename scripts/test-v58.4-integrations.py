@@ -7,7 +7,7 @@ c=(root/'frontend/assets/js/account.js').read_text()
 r=(root/'frontend/assets/js/card-rates-admin.js').read_text()
 wr=(root/'cloudflare/wrangler.toml').read_text()
 checks={
- 'version marker':'v60.2-master-product-paid-link-save-fix' in w,
+ 'version marker':'v60.3-phase0-performance-guard' in w,
  'provider fee API refresh':'/chargingws/v2/getfee?partner_id=' in w,
  'exact provider amount credit':'credit=providerAmount' in w,
  'idempotent card ledger':"'card-topup:'+String(row.id)" in w,
@@ -32,7 +32,7 @@ checks={
  'Merchant token documented':'THECAOSIEUTOC_TOKEN' in wr,
  'existing D1 binding preserved':'binding = "DB"' in wr,
  'existing rate limit preserved':'name = "FINANCE_EDGE_LIMITER"' in wr,
- 'Note designer retained':'assets/js/note-studio.js?v=58.9' in a,
+ 'Note designer retained':'assets/js/note-studio.js?v=60.3' in a,
  'Key vault retained':'tenant_product_keys' in w,
 }
 failed=[k for k,v in checks.items() if not v]

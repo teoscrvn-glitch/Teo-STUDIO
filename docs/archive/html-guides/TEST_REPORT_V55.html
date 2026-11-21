@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>TeoStudio V55 — Local Test Report | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="TeoStudio V55 — Local Test Report" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/TEST_REPORT_V55.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/TEST_REPORT_V55.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="TeoStudio V55 — Local Test Report" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"TeoStudio V55 — Local Test Report","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/TEST_REPORT_V55.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="teostudio-v55--local-test-report">TeoStudio V55 — Local Test Report</h1>
+
+<p>Date: 2026-10-15</p>
+
+<h2 id="checks-performed">Checks performed</h2>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">node --check cloudflare/worker.js</code> — passed.</li>
+  <li><code class="language-plaintext highlighter-rouge">node --check</code> on each <code class="language-plaintext highlighter-rouge">frontend/assets/js/*.js</code> file — passed.</li>
+  <li>SQLite execution of the new V55 table/index migration definitions — passed (9 new tables, 10 indexes in the V55 migration block); additive columns <code class="language-plaintext highlighter-rouge">request_key</code>, <code class="language-plaintext highlighter-rouge">studio_name</code>, and <code class="language-plaintext highlighter-rouge">owner_user_id</code> were simulated as part of migration order. The monthly analytics SQL adds file sales and paid rental orders separately, while excluding top-ups from gross revenue.</li>
+  <li>SQLite regression test of purchase-ledger SQL strategy — passed: sample 15,000đ tenant purchase debited buyer by 15,000đ, credited seller 14,250đ and platform 750đ; a repeated idempotency key did not generate another purchase/debit/credit.</li>
+  <li>Source inspection verified public paid-product APIs suppress original download links and legacy public direct purchase creation endpoints are disabled.</li>
+</ul>
+
+<h2 id="not-tested-here">Not tested here</h2>
+
+<ul>
+  <li>Production Cloudflare Worker deployment or compatibility with the exact live repository commit.</li>
+  <li>Live D1 schema/data, real concurrent requests across Cloudflare, real SePay webhook delivery/retries, QR scanning, payment matching, refunds, SMTP/email delivery, Turnstile widget behavior, AI provider API, Telegram delivery, or the complete mobile UI across devices.</li>
+  <li>Cloudflare WAF/Rate Limiting rules. Worker in-memory throttles are only best-effort per isolate and do not replace edge rules.</li>
+</ul>
+
+<h2 id="rollout-blockerschecklist">Rollout blockers/checklist</h2>
+
+<ol>
+  <li>Back up production D1 before deploying.</li>
+  <li>Compare/merge V55 with the actual current GitHub main branch; this package is based on the supplied V54 ZIP, not a live export.</li>
+  <li>Ensure Worker runtime secrets/vars and D1 binding are preserved.</li>
+  <li>Deploy to staging if available; verify <code class="language-plaintext highlighter-rouge">/api/health</code> reports <code class="language-plaintext highlighter-rouge">v55-wallet-account-ai-builder</code>.</li>
+  <li>Test account registration/email reset, top-up with a small amount, one wallet purchase, duplicate request replay, seller ledger split, Telegram report, analytics monthly filter and builder permissions.</li>
+  <li>Verify a public request to a paid product cannot retrieve the original link, including by direct API access.</li>
+  <li>Only then roll out to production. Do not test with repeated live transfers; do not reset D1.</li>
+</ol>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

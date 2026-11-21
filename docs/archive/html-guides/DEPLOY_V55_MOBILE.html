@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>TeoStudio V55 — Hướng dẫn triển khai từ điện thoại | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="TeoStudio V55 — Hướng dẫn triển khai từ điện thoại" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/DEPLOY_V55_MOBILE.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/DEPLOY_V55_MOBILE.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="TeoStudio V55 — Hướng dẫn triển khai từ điện thoại" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"TeoStudio V55 — Hướng dẫn triển khai từ điện thoại","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/DEPLOY_V55_MOBILE.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="teostudio-v55--hướng-dẫn-triển-khai-từ-điện-thoại">TeoStudio V55 — Hướng dẫn triển khai từ điện thoại</h1>
+
+<blockquote>
+  <p><strong>Chưa deploy production.</strong> Gói này là mã nguồn để đối chiếu/triển khai có kiểm soát, không phải bằng chứng web live đã nâng cấp. Nó dựa trên ZIP V54 được cung cấp, không phải bản export trực tiếp từ GitHub main.</p>
+</blockquote>
+
+<h2 id="trước-khi-làm">Trước khi làm</h2>
+
+<ol>
+  <li>Mở Cloudflare Dashboard → <strong>Workers &amp; Pages → D1 → <code class="language-plaintext highlighter-rouge">teo-studio</code></strong> và tạo bản backup/export dữ liệu hiện tại.</li>
+  <li>Mở GitHub <code class="language-plaintext highlighter-rouge">teoscrvn-glitch/Teo-STUDIO</code> và so sánh branch production với ZIP này. Không ghi đè mù các sửa đổi mới hơn.</li>
+  <li>Chờ các đơn QR mua file cũ đang <code class="language-plaintext highlighter-rouge">pending</code> được thanh toán hoặc hết hạn. V55 chuyển luồng mua file mới sang ví nội bộ, endpoint tạo QR từng file cũ sẽ trả <code class="language-plaintext highlighter-rouge">410</code>.</li>
+  <li>Giữ nguyên database ID, D1 binding <code class="language-plaintext highlighter-rouge">DB</code>, webhook URL SePay và secret hiện có. Không xóa database, không reset schema.</li>
+</ol>
+
+<h2 id="đưa-mã-lên-github">Đưa mã lên GitHub</h2>
+
+<ol>
+  <li>Tải và giải nén ZIP; ở thư mục gốc phải thấy <code class="language-plaintext highlighter-rouge">cloudflare/</code>, <code class="language-plaintext highlighter-rouge">frontend/</code>, các file Markdown.</li>
+  <li>Cập nhật/merge đúng đường dẫn trong repository; không tạo thêm một thư mục lồng kiểu <code class="language-plaintext highlighter-rouge">TeoStudio-V55/...</code> ở trên <code class="language-plaintext highlighter-rouge">cloudflare/</code> và <code class="language-plaintext highlighter-rouge">frontend/</code>.</li>
+  <li>Cloudflare Worker Builds hiện dùng thư mục root <code class="language-plaintext highlighter-rouge">cloudflare</code> và lệnh <code class="language-plaintext highlighter-rouge">npx wrangler deploy</code>. <code class="language-plaintext highlighter-rouge">wrangler.toml</code> trỏ assets tới <code class="language-plaintext highlighter-rouge">../frontend</code> nên cần cập nhật cả <code class="language-plaintext highlighter-rouge">cloudflare/</code> và <code class="language-plaintext highlighter-rouge">frontend/</code>.</li>
+  <li>Tạo branch/commit mới và đợi build đúng commit đó. Không retry commit cũ để mong nó lấy mã mới.</li>
+  <li>Sau khi build thành công, mở <code class="language-plaintext highlighter-rouge">https://teostudio.top/api/health</code>; phải trả <code class="language-plaintext highlighter-rouge">version: "v55-wallet-account-ai-builder"</code> và <code class="language-plaintext highlighter-rouge">frontendVersion</code> tương ứng. Nếu chưa đổi version, dừng và kiểm tra build/commit.</li>
+</ol>
+
+<h2 id="runtime-variables-and-secrets">Runtime Variables and Secrets</h2>
+
+<p>Workers &amp; Pages → <code class="language-plaintext highlighter-rouge">teo-studio</code> → <strong>Settings → Variables and Secrets → Production</strong>.</p>
+
+<p>Giữ lại các biến/secret hiện tại. Xác nhận có:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">ADMIN_KEY</code> — Secret</li>
+  <li><code class="language-plaintext highlighter-rouge">SEPAY_API_KEY</code> — Secret</li>
+  <li><code class="language-plaintext highlighter-rouge">SEPAY_BANK_CODE</code> — Variable, giá trị hiện tại của tài khoản nhận tiền</li>
+  <li><code class="language-plaintext highlighter-rouge">SEPAY_ACCOUNT_NUMBER</code> — Variable, giữ nguyên tài khoản MB đang nhận tiền</li>
+  <li><code class="language-plaintext highlighter-rouge">TURNSTILE_SITE_KEY</code> — Variable</li>
+  <li><code class="language-plaintext highlighter-rouge">TURNSTILE_SECRET</code> — Secret</li>
+  <li><code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_PASS</code> — Secret; giữ các biến SMTP hiện có</li>
+</ul>
+
+<p>Tuỳ chọn, để bật tích hợp bổ sung:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">AI_API_URL</code> — Variable, endpoint HTTPS của nhà cung cấp API tương thích OpenAI</li>
+  <li><code class="language-plaintext highlighter-rouge">AI_API_KEY</code> — Secret</li>
+  <li><code class="language-plaintext highlighter-rouge">AI_MODEL</code> — Variable</li>
+  <li><code class="language-plaintext highlighter-rouge">TELEGRAM_BOT_TOKEN</code> — Secret</li>
+  <li><code class="language-plaintext highlighter-rouge">TELEGRAM_CHAT_ID</code> — Variable hoặc Secret</li>
+</ul>
+
+<p>Nếu không cấu hình AI thì bong bóng AI vẫn hiện nhưng chỉ có hướng dẫn fallback, không có mô hình AI từ xa. Nếu không cấu hình Telegram, báo cáo vẫn lưu ở D1 nhưng không gửi Telegram.</p>
+
+<h2 id="kiểm-thử-bắt-buộc">Kiểm thử bắt buộc</h2>
+
+<ul>
+  <li>Đăng ký tài khoản test → nhận mã email → xác minh → đăng nhập → thử quên mật khẩu.</li>
+  <li>Mở link trang chi tiết file trả phí khi chưa đăng nhập: không được thấy link gốc.</li>
+  <li>Thử endpoint public <code class="language-plaintext highlighter-rouge">/api/products/&lt;id&gt;</code> hoặc <code class="language-plaintext highlighter-rouge">/api/public-tenant/&lt;slug&gt;</code>: không được trả link gốc cho file trả phí.</li>
+  <li>Nạp một khoản nhỏ theo QR riêng, đợi webhook SePay xác nhận, so lại lịch sử ngân hàng và ví. Không chuyển tiền lần hai khi đơn đang xử lý.</li>
+  <li>Mua một file test: checkbox điều khoản, xác nhận lần hai, Turnstile; kiểm tra ví giảm đúng giá, seller nhận 95%, platform ghi 5%; lặp cùng request không được trừ lần hai.</li>
+  <li>Gửi một báo cáo lỗi test; xác nhận lưu trong mục Admin. Nếu Telegram secrets đã cấu hình, xác nhận bot nhận tin.</li>
+  <li>Chọn tháng ở thống kê và đối chiếu vài giao dịch với D1/SePay; số liệu mới lấy từ dữ liệu thật.</li>
+  <li>Kiểm tra Builder: gói Free không lưu được, gói trả phí có thể lưu/xem lại layout.</li>
+  <li>Kiểm tra gói thuê Free, VIP, nâng cấp và webhook bằng staging hoặc khoản thử nhỏ phù hợp.</li>
+</ul>
+
+<h2 id="lưu-ý-bảo-mật">Lưu ý bảo mật</h2>
+
+<ul>
+  <li>Không dán secret vào chat, HTML, JavaScript frontend hoặc GitHub.</li>
+  <li>Giữ nguyên webhook SePay <code class="language-plaintext highlighter-rouge">https://teostudio.top/api/webhook/sepay</code>; không tắt xác thực webhook.</li>
+  <li>V55 không chuyển tiền ngân hàng tự động khi người bán rút; vẫn cần Téo duyệt.</li>
+  <li>Worker có rate limit theo isolate nhưng chưa thay cho Cloudflare WAF/Rate Limiting. Sau deploy, cấu hình rule ở cấp Cloudflare cho các endpoint đăng nhập, tạo đơn, báo lỗi và các request API lặp bất thường.</li>
+  <li>Nếu lỗi nghiêm trọng, rollback commit về bản V54 đã lưu và giữ nguyên D1; không khôi phục bằng cách xóa database.</li>
+</ul>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

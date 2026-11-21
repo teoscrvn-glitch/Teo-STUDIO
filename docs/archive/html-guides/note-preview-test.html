@@ -1,0 +1,82 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="assets/css/note-studio.css"><style>body{margin:0;padding:20px;background:#080c17;color:#f4f5fb;font-family:system-ui,Arial,sans-serif}main{max-width:1100px;margin:auto}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.eyebrow{font-size:10px;letter-spacing:.18em;color:#aaa2ff;font-weight:900}.btn{border:1px solid #48506a;border-radius:10px;padding:10px 16px;background:#171d30;color:#fff}.btn.primary{background:#6c50dd;border-color:#8069e8}@media(max-width:700px){body{padding:10px}}</style></head><body><main><form id="tenantNoteForm" class="note-studio-form">
+  <input type="hidden" name="id">
+  <input type="hidden" name="coverImage">
+  <input type="hidden" name="themeKey" value="notebook">
+  <div class="note-studio-intro">
+    <div class="note-studio-mark">✎</div>
+    <div><span class="eyebrow">TEOSTUDIO · NOTE DESIGNER</span><h3>Thiết kế trang Note</h3><p>Tạo một trang nội dung riêng với ảnh bìa, phong cách đồ họa, nút hành động và chuỗi nhiệm vụ.</p></div>
+  </div>
+  <div class="note-studio-grid">
+    <div class="note-studio-controls">
+      <section class="note-editor-section">
+        <div class="note-editor-section-head"><span>01</span><div><b>Nội dung trang</b><small>Tiêu đề và phần giới thiệu hiển thị công khai</small></div></div>
+        <div class="form-grid">
+          <label class="wide">Tiêu đề chính<input name="title" maxlength="120" required placeholder="Ví dụ: Nhận key Skin & Súng FFTH"></label>
+          <label class="wide">Tiêu đề phụ<input name="subtitle" maxlength="180" placeholder="Ví dụ: Hoàn thành vài bước để mở khoá nội dung"></label>
+          <label>Tag / danh mục<input name="tag" maxlength="100" placeholder="Ví dụ: Free Fire · Key"></label>
+          <label class="wide">Nội dung mô tả<textarea name="body" maxlength="5000" rows="4" placeholder="Viết nội dung, hướng dẫn, lưu ý hoặc mô tả từng phần..."></textarea></label>
+        </div>
+      </section>
+      <section class="note-editor-section">
+        <div class="note-editor-section-head"><span>02</span><div><b>Ảnh bìa & phong cách</b><small>Ảnh do bạn cung cấp hoặc URL ảnh của dự án</small></div></div>
+        <div class="note-cover-tools">
+          <label class="note-upload-control"><input type="file" name="coverFile" accept="image/png,image/jpeg,image/webp,image/avif"><span>＋ Chọn ảnh từ thiết bị</span><small>Ảnh được nén trước khi lưu · tối đa 1 MB sau nén</small></label>
+          <label>Hoặc dán URL ảnh<input name="coverImageUrl" type="url" placeholder="https://.../cover.webp"></label>
+          <button type="button" class="btn ghost note-clear-cover" data-note-clear-cover>Gỡ ảnh bìa</button>
+        </div>
+        <div class="note-theme-picker">
+          <span class="note-field-label">Chọn mẫu thiết kế</span>
+          <div class="note-theme-options">
+            <button type="button" data-note-theme="notebook" class="note-theme-choice active"><i class="theme-swatch theme-swatch-notebook"></i><b>Sổ tay</b><small>Giấy sáng · nét vẽ</small></button>
+            <button type="button" data-note-theme="editorial" class="note-theme-choice"><i class="theme-swatch theme-swatch-editorial"></i><b>Tạp chí</b><small>Chữ lớn · tương phản</small></button>
+            <button type="button" data-note-theme="arcade" class="note-theme-choice"><i class="theme-swatch theme-swatch-arcade"></i><b>Arcade</b><small>Game · pixel</small></button>
+            <button type="button" data-note-theme="midnight" class="note-theme-choice"><i class="theme-swatch theme-swatch-midnight"></i><b>Midnight</b><small>Tối · sắc nét</small></button>
+            <button type="button" data-note-theme="pastel" class="note-theme-choice"><i class="theme-swatch theme-swatch-pastel"></i><b>Pastel</b><small>Mềm · nhẹ</small></button>
+          </div>
+          <label class="note-accent-field">Màu nhấn <input name="accentColor" type="color" value="#179b63"></label>
+        </div>
+      </section>
+      <section class="note-editor-section">
+        <div class="note-editor-section-head"><span>03</span><div><b>Nút chính & chuỗi mở khóa</b><small>Thêm lần lượt những hành động người xem cần làm</small></div></div>
+        <div class="form-grid">
+          <label>Nhãn nút sau cùng<input name="buttonLabel" maxlength="60" placeholder="Mở nội dung / Nhận file"></label>
+          <label class="wide">Link đích sau khi hoàn thành<input name="buttonUrl" type="url" placeholder="https://..." autocomplete="url"><small>Với Note có bước, link đích sẽ không gửi trong dữ liệu trang công khai. Worker chỉ trả link sau khi chuỗi bước hợp lệ.</small></label>
+        </div>
+        <div class="note-platform-picker">
+          <span class="note-field-label">Thêm bước nhanh</span>
+          <div class="note-platform-grid">
+            <button type="button" data-note-add-step="youtube"><span class="platform-icon platform-youtube">▶</span>YouTube <b>＋</b></button>
+            <button type="button" data-note-add-step="telegram"><span class="platform-icon platform-telegram">➤</span>Telegram <b>＋</b></button>
+            <button type="button" data-note-add-step="tiktok"><span class="platform-icon platform-tiktok">♪</span>TikTok <b>＋</b></button>
+            <button type="button" data-note-add-step="instagram"><span class="platform-icon platform-instagram">◎</span>Instagram <b>＋</b></button>
+            <button type="button" data-note-add-step="facebook"><span class="platform-icon platform-facebook">f</span>Facebook <b>＋</b></button>
+            <button type="button" data-note-add-step="x"><span class="platform-icon platform-x">𝕏</span>X <b>＋</b></button>
+            <button type="button" data-note-add-step="zalo"><span class="platform-icon platform-zalo">Z</span>Zalo <b>＋</b></button>
+            <button type="button" data-note-add-step="discord"><span class="platform-icon platform-discord">◉</span>Discord <b>＋</b></button>
+            <button type="button" data-note-add-step="custom"><span class="platform-icon platform-custom">↗</span>Tùy chỉnh <b>＋</b></button>
+            <button type="button" data-note-add-step="destination"><span class="platform-icon platform-destination">⌁</span>Điểm đến <b>＋</b></button>
+          </div>
+        </div>
+        <div class="note-step-builder-head"><b>Danh sách các bước</b><span data-note-step-count>0/8</span></div>
+        <div class="note-step-list" data-note-step-list><div class="note-step-empty">Chưa có bước nào. Chọn nền tảng phía trên để thêm.</div></div>
+        <p class="note-security-hint"><b>Chống bỏ qua:</b> từng bước được lưu tiến trình phía Worker, link đi qua vé chuyển hướng dùng một lần, có giới hạn thời gian và thứ tự. Xác nhận vẫn là tự khai báo; hệ thống không thể tự biết người xem đã follow hoặc tham gia nhóm nếu nền tảng không cấp API xác minh.</p>
+      </section>
+      <section class="note-editor-section">
+        <div class="note-editor-section-head"><span>04</span><div><b>Quảng cáo & xuất bản</b><small>Chừa sẵn vị trí tích hợp API quảng cáo sau này</small></div></div>
+        <div class="form-grid">
+          <label>Liên kết quảng cáo ngoài<select name="adMode"><option value="none">Không hiển thị</option><option value="optional">Người xem có thể chọn mở</option></select></label>
+          <label>URL quảng cáo ngoài<input name="adUrl" type="url" placeholder="https://..."></label>
+          <label class="wide">Vị trí dành cho API quảng cáo<select name="adPlacement"><option value="none">Chưa đặt quảng cáo</option><option value="note_open">Khi mở Note</option><option value="after_step">Sau một bước nhiệm vụ</option><option value="before_unlock">Trước khi mở khóa</option><option value="cta_click">Khi nhấn nút nhận nội dung</option></select><small>Đây mới là cấu hình vị trí (slot), chưa phát quảng cáo và chưa ghi nhận doanh thu. API/SDK sẽ được nối ở bản tích hợp riêng.</small></label>
+          <label class="wide note-publish-switch"><input type="checkbox" name="visible" checked> <span><b>Hiển thị Note trên trang Share</b><small>Bỏ chọn để lưu nháp và chỉ chủ Studio xem được.</small></span></label>
+        </div>
+      </section>
+      <div class="note-form-actions"><button class="btn primary" type="submit">✦ Lưu thiết kế Note</button><button class="btn ghost" type="button" data-note-cancel>Hủy</button></div>
+    </div>
+    <aside class="note-live-preview-wrap">
+      <div class="note-preview-sticky-head"><span class="eyebrow">LIVE PREVIEW</span><b>Xem trước trang</b><small>Thay đổi sẽ hiển thị ngay tại đây.</small></div>
+      <div class="note-live-preview" data-note-preview></div>
+      <div class="note-preview-caption">Mẫu xem trước · Hiển thị gần giống trang Share trên điện thoại.</div>
+    </aside>
+  </div>
+</form>
+</main><script src="assets/js/note-studio.js"></script></body></html>

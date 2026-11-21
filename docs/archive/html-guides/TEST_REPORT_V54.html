@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>V54 local validation report | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="V54 local validation report" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/TEST_REPORT_V54.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/TEST_REPORT_V54.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="V54 local validation report" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"V54 local validation report","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/TEST_REPORT_V54.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="v54-local-validation-report">V54 local validation report</h1>
+
+<p>Date: 2026-10-13</p>
+
+<h2 id="passed-locally">Passed locally</h2>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">node --check</code> passed for <code class="language-plaintext highlighter-rouge">cloudflare/worker.js</code>.</li>
+  <li><code class="language-plaintext highlighter-rouge">node --check</code> passed for every external JavaScript file under <code class="language-plaintext highlighter-rouge">frontend/assets/js/</code>.</li>
+  <li><code class="language-plaintext highlighter-rouge">node --check</code> passed for all 5 non-empty inline JavaScript blocks found in frontend HTML files.</li>
+  <li><code class="language-plaintext highlighter-rouge">zip -T</code> reported the generated archive OK.</li>
+  <li>Static assertions confirmed master Admin contains <code class="language-plaintext highlighter-rouge">Free 100%</code>, <code class="language-plaintext highlighter-rouge">Free / Mua</code>, and <code class="language-plaintext highlighter-rouge">Phí</code> modes with link/price fields.</li>
+  <li>Static assertions confirmed Tenant Admin contains the supply modes, payout profile, wallet and withdrawal forms.</li>
+  <li>Worker payout profile, wallet balance, tenant withdrawal creation and Master Admin withdrawal-review routes remain present.</li>
+  <li>Public tenant product list now empties the paid link fields for <code class="language-plaintext highlighter-rouge">paid</code> mode and redacts <code class="language-plaintext highlighter-rouge">original_link</code> for <code class="language-plaintext highlighter-rouge">both</code>/<code class="language-plaintext highlighter-rouge">unlock</code>; tenant Admin retains full data for editing.</li>
+  <li><code class="language-plaintext highlighter-rouge">/api/health</code>, HTML meta markers and asset cache keys use V54 identifiers.</li>
+  <li>Rental page missing-config copy explicitly points to runtime Worker Settings rather than Builds settings.</li>
+</ul>
+
+<h2 id="not-run--must-be-tested-after-deployment">Not run / must be tested after deployment</h2>
+
+<ul>
+  <li>No Cloudflare deployment or live D1 migration was performed.</li>
+  <li>No browser end-to-end test was run against <code class="language-plaintext highlighter-rouge">teostudio.top</code>.</li>
+  <li>No real email, Turnstile, SePay, purchase, renewal, wallet credit or withdrawal transaction was exercised.</li>
+  <li>The SePay API key and bank/account values must be configured in the runtime Worker environment; a ZIP cannot populate secret values.</li>
+  <li>Confirm the current GitHub branch includes both <code class="language-plaintext highlighter-rouge">cloudflare/</code> and <code class="language-plaintext highlighter-rouge">frontend/</code> from this archive. The existing Worker build uses <code class="language-plaintext highlighter-rouge">cloudflare/wrangler.toml</code> and an <code class="language-plaintext highlighter-rouge">ASSETS</code> binding to <code class="language-plaintext highlighter-rouge">../frontend</code>.</li>
+  <li>Verify live Worker health returns <code class="language-plaintext highlighter-rouge">v54-rental-catalog-payout</code>, HTML meta contains the same V54 marker, and a known VIP tenant sees the VIP plan and Wallet tab. Free accounts are intentionally restricted from selling files and using wallet/withdrawal.</li>
+  <li>Test webhook retries, exact amount, one wallet credit per order, and the paid-download gate using staging or a carefully reconciled low-value transaction.</li>
+  <li>Cloudflare WAF/rate limits and provider-specific Free bypass API/callback remain outside local syntax validation.</li>
+</ul>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

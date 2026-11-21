@@ -11,7 +11,7 @@ assert "localStorage.getItem('teo:clickSound')" in dock
 assert 'prefers-reduced-motion' in js
 assert 'teo-route-progress' in js and 'data-loading-label' in js
 assert 'backgroundMusicUrl' in dock and 'const playMusic=' in dock
-assert 'community-dock.js?v=60.1' in share
+assert 'community-dock.js?v=60.3' in share
 assert 'teo-audio-dock' in dock_css and 'teo-route-progress' in css
 assert "musicBtn.addEventListener('click',playMusic)" in dock and 'audioEl.play()' in dock
 html=list(front.glob('*.html'))

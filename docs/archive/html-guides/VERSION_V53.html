@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>TeoStudio V53 — Rental + main catalog purchase workflows | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="TeoStudio V53 — Rental + main catalog purchase workflows" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V53.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V53.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="TeoStudio V53 — Rental + main catalog purchase workflows" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"TeoStudio V53 — Rental + main catalog purchase workflows","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V53.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="teostudio-v53--rental--main-catalog-purchase-workflows">TeoStudio V53 — Rental + main catalog purchase workflows</h1>
+
+<p>Based on the provided <code class="language-plaintext highlighter-rouge">TeoStudio-V52-Security-Rental.zip</code>. This package is a source-code update only; it has not been deployed to Cloudflare and is not a live-production verification.</p>
+
+<h2 id="added-or-updated">Added or updated</h2>
+
+<ul>
+  <li>Public rental page now presents Free, VIP/paid, and contact-admin choices. Free signup and paid rental signup/renewal require an email code; requests also fail closed unless Turnstile is configured and verified by Worker.</li>
+  <li>Free rental account flow creates an account with separate Admin and Share links. Admin access is gated by two server-verified bypass steps. Each verified step adds two days; no days are granted by a browser redirect alone. The external provider must implement the documented server verification contract.</li>
+  <li>Rental VIP checkout remains 50,000 VND for 30 days and only activates/renews after a valid SePay webhook. A paid rental that expires switches to Free; Free Admin must complete its gate again. The public Share URL remains available for Free tenants.</li>
+  <li>Master catalog supports <code class="language-plaintext highlighter-rouge">free</code>, <code class="language-plaintext highlighter-rouge">both</code> (free link + paid purchase), and <code class="language-plaintext highlighter-rouge">paid</code> sale modes. Main catalog paid orders create a 10-minute VietQR order; the original download URL is returned only after a paid order status is confirmed by a valid SePay webhook. Tenant Share paid orders are also short-lived.</li>
+  <li>Master Admin includes Free/Paid tenant filtering, manual account creation, days-left/expiry and tenant management controls. Main admin analytics include daily/monthly paid orders/revenue and daily views for paid/mixed products. Tenant analytics include referral domains, orders/revenue and monthly rows.</li>
+  <li>Free tenants are blocked server-side from paid/mixed file modes, wallet/payout/withdrawal APIs, and payment-order routes. Paid/Free restrictions are enforced in the Worker, not only in the UI.</li>
+  <li>Expiry cleanup was changed to remove expired transient sessions/challenges/orders/deduplication entries; it no longer runs a scheduled delete of tenant product content. Archiving/deleting tenants through Master Admin remains a soft archive for audit/history.</li>
+  <li>Cache-busting keys were bumped for updated frontend files.</li>
+</ul>
+
+<h2 id="external-settings-needed">External settings needed</h2>
+
+<p>Preserve all existing Cloudflare D1 bindings and secrets. Add/check only the following in Worker settings; never commit secret values:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">SEPAY_API_KEY</code>, <code class="language-plaintext highlighter-rouge">SEPAY_BANK_CODE</code>, <code class="language-plaintext highlighter-rouge">SEPAY_ACCOUNT_NUMBER</code> for payments. <code class="language-plaintext highlighter-rouge">SEPAY_API_KEY</code> must match the SePay webhook configuration.</li>
+  <li><code class="language-plaintext highlighter-rouge">TURNSTILE_SITE_KEY</code> and <code class="language-plaintext highlighter-rouge">TURNSTILE_SECRET</code> as a matching pair for <code class="language-plaintext highlighter-rouge">teostudio.top</code>. If missing, registration and checkout deliberately fail closed.</li>
+  <li><code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_PASS</code> and appropriate <code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_HOST</code>, <code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_USER</code>, <code class="language-plaintext highlighter-rouge">EMAIL_FROM</code> for email verification.</li>
+  <li><code class="language-plaintext highlighter-rouge">FREE_BYPASS_TEMPLATE_1</code>, <code class="language-plaintext highlighter-rouge">FREE_BYPASS_TEMPLATE_2</code>, <code class="language-plaintext highlighter-rouge">FREE_BYPASS_VERIFY_URL</code>, and <code class="language-plaintext highlighter-rouge">FREE_BYPASS_API_KEY</code> for the Free 2-step bypass provider. Templates may use <code class="language-plaintext highlighter-rouge">{state}</code>, <code class="language-plaintext highlighter-rouge">{return_url}</code>, and <code class="language-plaintext highlighter-rouge">{step}</code>. The verify endpoint must accept a Bearer API key and return JSON with <code class="language-plaintext highlighter-rouge">success:true</code>, <code class="language-plaintext highlighter-rouge">completed:true</code>, and the exact submitted <code class="language-plaintext highlighter-rouge">state</code> only after server-side confirmation. A provider that cannot supply this guarantee must not be enabled.</li>
+</ul>
+
+<h2 id="safety-and-verification-limits">Safety and verification limits</h2>
+
+<ul>
+  <li>Locally verified: syntax of Worker JavaScript, all external frontend JavaScript files and inline scripts in HTML; static invariants for no <code class="language-plaintext highlighter-rouge">DROP TABLE</code>, fail-closed Turnstile verification, rental/bypass/main purchase endpoints, paid-only download release, and absence of tenant-content deletion in expiry cleanup.</li>
+  <li>Not verified here: D1 migrations against the live database, real SMTP delivery, Turnstile live hostname, SePay real transfer/webhook, idempotency against live retries, provider-specific bypass contract, production custom-domain routing, or Cloudflare WAF/rate rules.</li>
+  <li>This code’s per-isolate rate limiting is not full DDoS mitigation. Enable Cloudflare WAF/managed rules/rate limits at the edge. No source change can guarantee absolute bypass or DDoS prevention.</li>
+  <li>The Master Admin revenue panel tracks purchases from the main catalog. Tenant sales are tenant-ledger balances and are reported in their own Tenant Admin; a separate owner payout/withdrawal ledger for the main site is not created by this version.</li>
+  <li>Before replacing production code, compare against the current GitHub default branch because this ZIP is not a fresh export of that branch. Keep the existing database ID/binding and make a D1 backup. Never upload the ZIP as if Cloudflare extracts it: extract and merge repository-root paths.</li>
+</ul>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

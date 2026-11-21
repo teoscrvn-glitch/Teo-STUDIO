@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>TeoStudio V50 — OxMail + D1 Web Notifications | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="TeoStudio V50 — OxMail + D1 Web Notifications" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V50.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V50.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="TeoStudio V50 — OxMail + D1 Web Notifications" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"TeoStudio V50 — OxMail + D1 Web Notifications","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V50.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="teostudio-v50--oxmail--d1-web-notifications">TeoStudio V50 — OxMail + D1 Web Notifications</h1>
+
+<p>V50 is additive on top of V49 OxMail Integration.</p>
+
+<h2 id="included">Included</h2>
+<ul>
+  <li>Keeps the V49 OxMail SMTP integration, admin SMTP test endpoint, tenant welcome email, and withdrawal email notifications.</li>
+  <li>Adds a <code class="language-plaintext highlighter-rouge">web_notifications</code> D1 table created with <code class="language-plaintext highlighter-rouge">CREATE TABLE IF NOT EXISTS</code>; no table drops, full resets, or data wipes are performed.</li>
+  <li>Adds tenant notification APIs: <code class="language-plaintext highlighter-rouge">GET /api/tenant/notifications</code> and <code class="language-plaintext highlighter-rouge">POST /api/tenant/notifications/read</code>.</li>
+  <li>Adds admin notification APIs: <code class="language-plaintext highlighter-rouge">GET /api/admin/notifications</code> and <code class="language-plaintext highlighter-rouge">POST /api/admin/notifications/read</code>.</li>
+  <li>Adds a notification bell/dropdown to <code class="language-plaintext highlighter-rouge">admin.html</code> and <code class="language-plaintext highlighter-rouge">tenant-admin.html</code>, with unread count and click-to-mark-read behavior. UI refreshes every 30 seconds while logged in.</li>
+  <li>Writes D1 notifications when a tenant is created, when a withdrawal is requested, and when an admin approves, marks paid, or rejects a withdrawal.</li>
+  <li>Keeps Vietnam-local display formatting for notification timestamps.</li>
+</ul>
+
+<h2 id="preserved">Preserved</h2>
+<ul>
+  <li>No DROP TABLE, database reset, bulk deletion, or changes to existing wallet/SePay configuration.</li>
+  <li>Existing V49 tenant/email fields and SMTP secrets are retained.</li>
+  <li>This ZIP is source only; it has not been deployed to the production Worker, and live SMTP/D1 behavior has not been verified against production.</li>
+</ul>
+
+<h2 id="deploy-notes">Deploy notes</h2>
+<ol>
+  <li>Back up the current Worker source/configuration before deploying.</li>
+  <li>Deploy the updated <code class="language-plaintext highlighter-rouge">cloudflare/worker.js</code> and frontend files together.</li>
+  <li>Keep the existing D1 binding and SePay settings unchanged.</li>
+  <li>Keep SMTP password only in Cloudflare Worker Secrets (<code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_PASS</code>). Never put it in frontend files or source control.</li>
+  <li>Test admin email from Admin → Tenant management → Test email, then log in as admin and tenant to verify notification bell behavior.</li>
+</ol>
+
+<p>The new D1 table is created lazily by the Worker on first notification API/write. Creation is additive and preserves existing rows and tables.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

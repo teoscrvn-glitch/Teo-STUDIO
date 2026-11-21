@@ -20,7 +20,7 @@ def ok(cond,msg):
 ok("if(!slug){location.replace('/2');return}" in TS, 'Share without tenant slug has deterministic fallback')
 ok("$('#brand')?.setAttribute('href',shareHome)" in TS and "$('#shareHomeLink')?.setAttribute('href',shareHome)" in TS, 'Tenant Share home anchors are null-safe')
 ok("$('#supportBox').href" not in TS and "$('#groupBox').href" not in TS, 'Removed supportBox/groupBox elements are not dereferenced')
-ok('tenant-share.js?v=60.1' in (F/'share.html').read_text(), 'Share page cache-busts repaired tenant-share script')
+ok('tenant-share.js?v=60.3' in (F/'share.html').read_text(), 'Share page cache-busts repaired tenant-share script')
 
 # 4-8: user-uploaded payout QR, server-enforced and visible to master admin
 payout_html=(F/'tenant-admin.html').read_text()
@@ -44,18 +44,18 @@ ok("data?.self?.[kind]" in RANK and 'emailMasked' in RANK and 'rank-avatar' in R
 # 15-19: common utility dock, Note, AI placement and tactile controls across the requested surfaces
 for page in ['admin.html','tenant-admin.html','share.html','2.html','note.html','rankings.html','seller.html','account.html']:
     h=(F/page).read_text(encoding='utf-8')
-    ok('community-dock.js?v=60.1' in h, f'{page} loads shared utility bubble')
+    ok('community-dock.js?v=60.3' in h, f'{page} loads shared utility bubble')
 ok("const syncAiPosition=()=>" in DOCK and 'rect.top' in DOCK and 'bottom:var(--tcd-ai-bottom' in DOCKCSS, 'AI bubble anchors just above the expanded utility panel')
 ok("add('Admin liên hệ'" in DOCK and "add('Nhóm cộng đồng'" in DOCK and 'tcdAddBox' in DOCK, 'Contact, community and custom boxes are grouped in utility hub')
 ok('contextmenu' in INTER and 'event.preventDefault()' in INTER and 'dragstart' in INTER, 'Native long-press download/context menu is suppressed on cards/images')
 ok('-webkit-tap-highlight-color:transparent' in THEME and ':active' in THEME, 'Tap flash is removed and intentional press feedback is styled')
-ok('note-modern-v60.css?v=60.1' in (F/'note.html').read_text() and 'note-modern-v60.css?v=60.1' in (F/'tenant-admin.html').read_text(), 'Public Note and Note editor share the refreshed visual system')
+ok('note-modern-v60.css?v=60.3' in (F/'note.html').read_text() and 'note-modern-v60.css?v=60.3' in (F/'tenant-admin.html').read_text(), 'Public Note and Note editor share the refreshed visual system')
 
 # 20: cache-busting for the files changed in this release
 for page in F.glob('*.html'):
     html=page.read_text(encoding='utf-8',errors='ignore')
-    if 'config.js?' in html: ok('config.js?v=60.2' in html, f'{page.name} uses current config cache version')
-ok('admin-v14.js?v=60.2' in (F/'admin.html').read_text(), 'Master Admin loads updated QR and payout renderer')
+    if 'config.js?' in html: ok('config.js?v=60.3' in html, f'{page.name} uses current config cache version')
+ok('admin-v14.js?v=60.3' in (F/'admin.html').read_text(), 'Master Admin loads updated QR and payout renderer')
 
 # SQLite simulation: own Studio rank uses verified account ownership and period totals.
 db=sqlite3.connect(':memory:')

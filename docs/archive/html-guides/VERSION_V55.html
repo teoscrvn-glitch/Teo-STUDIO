@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>TeoStudio V55 — Unified Account, Wallet, Builder, Analytics &amp; AI | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="TeoStudio V55 — Unified Account, Wallet, Builder, Analytics &amp; AI" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V55.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V55.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="TeoStudio V55 — Unified Account, Wallet, Builder, Analytics &amp; AI" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"TeoStudio V55 — Unified Account, Wallet, Builder, Analytics &amp; AI","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V55.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="teostudio-v55--unified-account-wallet-builder-analytics--ai">TeoStudio V55 — Unified Account, Wallet, Builder, Analytics &amp; AI</h1>
+
+<h2 id="scope">Scope</h2>
+<p>This source package is an additive update based on the supplied V54 package. It has <strong>not</strong> been deployed to <code class="language-plaintext highlighter-rouge">teostudio.top</code> and is not a verified export of the live GitHub main branch. Compare/merge with the current repo before production rollout.</p>
+
+<h2 id="main-additions">Main additions</h2>
+
+<ol>
+  <li><strong>Unified buyer account</strong>
+    <ul>
+      <li>Email + password account, email verification, login/logout and email-code password reset.</li>
+      <li>Display name/avatar, purchase history, wallet history and linked studios.</li>
+      <li>Existing old tenant accounts are kept in D1; a buyer can see a legacy studio when its stored email matches their verified account email.</li>
+      <li>New studio Free/VIP creation is linked to the existing buyer account. New VIP studio checkout uses the existing SePay rental webhook.</li>
+    </ul>
+  </li>
+  <li><strong>Wallet / marketplace checkout</strong>
+    <ul>
+      <li>Buyer can create VietQR top-up orders; a wallet credit is recorded only after authenticated SePay webhook matches a pending top-up payment code and sufficient transfer amount.</li>
+      <li>Purchases require a signed-in buyer, Turnstile, accepted terms + second confirmation, current server-side price, and a stable idempotency key.</li>
+      <li>Tenant-store sale split: 95% seller ledger, 5% platform ledger. Main-store purchases credit platform ledger 100%.</li>
+      <li>A duplicate purchase request key does not debit the buyer again. Ledger rows use unique reference indexes for idempotency.</li>
+      <li>Seller withdrawal still follows the existing tenant withdrawal process and human approval; this package does not initiate bank transfers automatically.</li>
+      <li>Top-up money is received into the configured existing bank account; the D1 wallet is an internal balance, not a separate bank account.</li>
+    </ul>
+  </li>
+  <li><strong>Anti-bypass hardening</strong>
+    <ul>
+      <li>Public product/share APIs suppress original links for paid products.</li>
+      <li>Legacy public direct-QR product order creation is disabled; old order status endpoints do not return original download links.</li>
+      <li>Authenticated account purchases return the original URL only after server-side wallet debit/purchase creation.</li>
+      <li>Turnstile validation is server-side and fails closed if not configured or if hostname is not <code class="language-plaintext highlighter-rouge">teostudio.top</code> / <code class="language-plaintext highlighter-rouge">www.teostudio.top</code>.</li>
+      <li>Existing request throttles and security headers remain. These are defense-in-depth, <strong>not</strong> a guarantee against all abuse or distributed DDoS. Add Cloudflare WAF/Rate Limiting rules at the edge.</li>
+    </ul>
+  </li>
+  <li><strong>Analytics</strong>
+    <ul>
+      <li>Admin-only <code class="language-plaintext highlighter-rouge">GET /api/admin/analytics?month=YYYY-MM</code>, defaults to current Vietnam month.</li>
+      <li>Reads purchases, commissions, seller-net values, top-ups, per-day amounts/views, seller rankings and recent wallet purchases from D1.</li>
+      <li>Existing historical direct-payment orders are included in aggregate/daily totals where applicable. Historical records cannot be retroactively assigned to new buyer accounts and historical legacy tenant sales are represented as gross seller proceeds with no new 5% fee retroactively applied.</li>
+    </ul>
+  </li>
+  <li><strong>Website builder</strong>
+    <ul>
+      <li>Block/template editor supports hero, text, button, image, video, product-grid, notice, footer and divider blocks; hide/show, clone, delete, reorder with up/down buttons, basic style editing and responsive preview.</li>
+      <li>Persisted in D1 table <code class="language-plaintext highlighter-rouge">tenant_site_layouts</code>; public Share renderer reads the saved layout.</li>
+      <li>Backend validates allowed block types, colors, style ranges and URLs. Builder saves require a paid/VIP plan. This is a block editor, not a free-form HTML/JavaScript editor; ordering currently uses up/down controls rather than free drag-and-drop.</li>
+    </ul>
+  </li>
+  <li><strong>AI helper + report issues</strong>
+    <ul>
+      <li>Bottom-right AI bubble. Without AI provider credentials it gives safe fallback help; it can call an OpenAI-compatible HTTPS endpoint when <code class="language-plaintext highlighter-rouge">AI_API_URL</code>, <code class="language-plaintext highlighter-rouge">AI_API_KEY</code> and <code class="language-plaintext highlighter-rouge">AI_MODEL</code> are configured as Worker runtime values/secrets.</li>
+      <li>AI is advisory only and cannot be used by this endpoint to mutate account balances, purchases or passwords.</li>
+      <li>Support report endpoint stores reports in D1. If Telegram bot secrets are configured it sends a report notification to the specified chat.</li>
+    </ul>
+  </li>
+  <li><strong>Public sales ticker</strong>
+    <ul>
+      <li>Shows recent new-account marketplace purchases on tenant Share, with customer display name and masked email plus product/amount. It deliberately does <strong>not</strong> expose full buyer email publicly.</li>
+    </ul>
+  </li>
+</ol>
+
+<h2 id="additive-d1-migration">Additive D1 migration</h2>
+
+<p>The Worker creates new V55 tables/indexes and adds <code class="language-plaintext highlighter-rouge">studio_name</code>, <code class="language-plaintext highlighter-rouge">owner_user_id</code> and <code class="language-plaintext highlighter-rouge">request_key</code> only if absent. Do not reset or replace the D1 database. Take a D1 backup first.</p>
+
+<h2 id="runtime-settings">Runtime settings</h2>
+
+<p>Keep existing runtime variables/secrets and the D1 binding <code class="language-plaintext highlighter-rouge">DB</code> connected to the existing <code class="language-plaintext highlighter-rouge">teo-studio</code> database. Existing SePay webhook remains <code class="language-plaintext highlighter-rouge">/api/webhook/sepay</code>.</p>
+
+<p>Required existing settings for account/payment features:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">ADMIN_KEY</code> (Secret)</li>
+  <li><code class="language-plaintext highlighter-rouge">SEPAY_API_KEY</code> (Secret)</li>
+  <li><code class="language-plaintext highlighter-rouge">SEPAY_BANK_CODE</code> (Variable)</li>
+  <li><code class="language-plaintext highlighter-rouge">SEPAY_ACCOUNT_NUMBER</code> (Variable; keep the currently configured receiving account)</li>
+  <li><code class="language-plaintext highlighter-rouge">TURNSTILE_SITE_KEY</code> (Variable)</li>
+  <li><code class="language-plaintext highlighter-rouge">TURNSTILE_SECRET</code> (Secret)</li>
+  <li><code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_PASS</code> (Secret; and the existing SMTP host/user/from variables if customized)</li>
+</ul>
+
+<p>Optional integrations:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">AI_API_URL</code> (Variable, HTTPS only and trusted provider endpoint)</li>
+  <li><code class="language-plaintext highlighter-rouge">AI_API_KEY</code> (Secret)</li>
+  <li><code class="language-plaintext highlighter-rouge">AI_MODEL</code> (Variable)</li>
+  <li><code class="language-plaintext highlighter-rouge">TELEGRAM_BOT_TOKEN</code> (Secret)</li>
+  <li><code class="language-plaintext highlighter-rouge">TELEGRAM_CHAT_ID</code> (Variable or Secret)</li>
+</ul>
+
+<p>Never paste secret values into frontend JavaScript, the repository or a public issue. Do not rotate the production SePay key during this deployment.</p>
+
+<h2 id="important-limitations">Important limitations</h2>
+
+<ul>
+  <li>Not deployed or end-to-end verified against live SePay, OxMail, Turnstile, a real production D1, or Telegram in this package build.</li>
+  <li>Existing direct-paid file orders remain legacy records. They do not magically become wallet purchase history for a new buyer account.</li>
+  <li>Public new purchases use the wallet. Old direct QR purchase creation endpoints now return <code class="language-plaintext highlighter-rouge">410 WALLET_PURCHASE_REQUIRED</code>; do not deploy during an in-progress older checkout. Let pending payments settle or expire first.</li>
+  <li>Verify local business/legal requirements with the payment provider before enabling real-money wallet top-ups/payouts at scale. Internal balance is not automatically a licensed e-wallet service.</li>
+  <li>Back up the D1 database and deploy from a clean branch after comparing the current production repository.</li>
+</ul>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

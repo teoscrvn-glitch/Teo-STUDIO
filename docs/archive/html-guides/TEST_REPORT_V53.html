@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>V53 local validation report | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="V53 local validation report" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/TEST_REPORT_V53.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/TEST_REPORT_V53.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="V53 local validation report" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"V53 local validation report","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/TEST_REPORT_V53.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="v53-local-validation-report">V53 local validation report</h1>
+
+<p>Date: 2026-10-13</p>
+
+<h2 id="passed-locally">Passed locally</h2>
+
+<ul>
+  <li>Node module syntax check passed for <code class="language-plaintext highlighter-rouge">cloudflare/worker.js</code>.</li>
+  <li>Node syntax checks passed for all JavaScript files under <code class="language-plaintext highlighter-rouge">frontend/assets/js/</code>.</li>
+  <li>Inline JavaScript blocks in all frontend HTML files passed syntax checks.</li>
+  <li>Static assertions passed for V53 health version, rental Free signup, two-stage bypass completion, main catalog checkout, paid-order-only download release, Turnstile server verification, no <code class="language-plaintext highlighter-rouge">DROP TABLE</code> strings, and no tenant-product delete statement in <code class="language-plaintext highlighter-rouge">purgeExpired</code>.</li>
+  <li>The expiry cleanup now only deletes expired sessions, stale email challenges, old bypass attempts and expired view dedup rows; it updates pending rental orders to <code class="language-plaintext highlighter-rouge">expired</code> but preserves tenant file content/history.</li>
+</ul>
+
+<h2 id="not-run--must-be-tested-after-deployment">Not run / must be tested after deployment</h2>
+
+<ul>
+  <li>No Cloudflare deployment was performed. No live D1 migration or production database was touched.</li>
+  <li>No browser end-to-end test was run against the deployed hostname.</li>
+  <li>No real email, Turnstile, SePay, purchase, rental renewal, tenant wallet credit or withdrawal transaction was exercised.</li>
+  <li>The Free bypass flow requires a provider with a server-verifiable API/callback matching the contract in <code class="language-plaintext highlighter-rouge">VERSION_V53.md</code>; it remains unavailable until those Worker variables are configured.</li>
+  <li>Cloudflare WAF/rate limits and production domain routing are not configured or proven by this archive.</li>
+</ul>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

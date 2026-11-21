@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>TeoStudio V47 — tenant wallet and manual payouts | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="TeoStudio V47 — tenant wallet and manual payouts" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/WALLET_WITHDRAWALS_V47.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/WALLET_WITHDRAWALS_V47.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="TeoStudio V47 — tenant wallet and manual payouts" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"TeoStudio V47 — tenant wallet and manual payouts","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/WALLET_WITHDRAWALS_V47.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="teostudio-v47--tenant-wallet-and-manual-payouts">TeoStudio V47 — tenant wallet and manual payouts</h1>
+
+<h2 id="what-changed">What changed</h2>
+<ul>
+  <li>Additive D1 tables: <code class="language-plaintext highlighter-rouge">tenant_wallet_ledger</code>, <code class="language-plaintext highlighter-rouge">tenant_payout_profiles</code>, <code class="language-plaintext highlighter-rouge">tenant_withdrawals</code>.</li>
+  <li>A paid tenant file-sale order credits the tenant ledger once, using unique <code class="language-plaintext highlighter-rouge">(ref_type, ref_id, kind)</code> and SePay transaction de-duplication.</li>
+  <li>Tenant Admin has a <code class="language-plaintext highlighter-rouge">Ví &amp; rút tiền</code> tab, payout profile form (bank or e-wallet), balance and ledger, withdrawal form, history.</li>
+  <li>Minimum withdrawal: 100,000 VND. Normal queue has 0% priority fee; priority requests charge 10% and are marked as a 24-hour target, not guaranteed bank settlement.</li>
+  <li>Creating a withdrawal atomically checks available balance, creates the request and reserves the gross amount using a D1 batch.</li>
+  <li>Main Admin has <code class="language-plaintext highlighter-rouge">Duyệt rút tiền</code>, payout details copy, approve, mark-paid, and reject/refund actions.</li>
+  <li>Rejected requests get an idempotent refund ledger entry. Mark-paid is an admin declaration and must only be used after the real transfer is completed.</li>
+  <li>Existing D1 data is not reset. Tenant account/file data is not deleted by this feature.</li>
+</ul>
+
+<h2 id="important-scope">Important scope</h2>
+<ul>
+  <li>The ledger credits paid file sales for tenant-owned files. It does not yet credit rent renewals or sales on the main site to tenant balances.</li>
+  <li>All incoming money still goes to the owner’s single SePay-linked bank account. Payouts to tenants are manual transfers initiated by the owner.</li>
+  <li>SePay secrets remain Worker secrets. Do not put API keys in HTML or expose them to tenants.</li>
+  <li>Before production, test the webhook in SePay sandbox, then use a low-value live transaction. Verify exact payload/auth settings and D1 binding in the deployed Worker.</li>
+</ul>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Téo Studio V49 — OxMail integration | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Téo Studio V49 — OxMail integration" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/OXMAIL_SETUP_V49.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/OXMAIL_SETUP_V49.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Téo Studio V49 — OxMail integration" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Téo Studio V49 — OxMail integration","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/OXMAIL_SETUP_V49.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="téo-studio-v49--oxmail-integration">Téo Studio V49 — OxMail integration</h1>
+
+<p>This build adds an SMTP sender for Cloudflare Workers, an admin-only test endpoint, optional tenant email capture, a welcome email, and withdrawal-request/status notifications. Existing D1 data is preserved; migrations are additive.</p>
+
+<h2 id="worker-secrets--variables">Worker secrets / variables</h2>
+
+<p>Set these in Cloudflare Dashboard → Workers &amp; Pages → teo-studio → Settings → Variables and Secrets:</p>
+
+<ul>
+  <li>Secret <code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_PASS</code>: mailbox password for <code class="language-plaintext highlighter-rouge">teostudio@teostudio.top</code> (never commit this value).</li>
+  <li>Variable <code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_HOST</code>: <code class="language-plaintext highlighter-rouge">mail.teostudio.top</code> (default).</li>
+  <li>Variable <code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_PORT</code>: <code class="language-plaintext highlighter-rouge">465</code> (implicit TLS; this build requires 465).</li>
+  <li>Variable <code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_USER</code>: <code class="language-plaintext highlighter-rouge">teostudio@teostudio.top</code> (default).</li>
+  <li>Variable <code class="language-plaintext highlighter-rouge">EMAIL_FROM</code>: <code class="language-plaintext highlighter-rouge">teostudio@teostudio.top</code> (default).</li>
+  <li>Variable <code class="language-plaintext highlighter-rouge">EMAIL_ADMIN_TO</code>: <code class="language-plaintext highlighter-rouge">teostudio@teostudio.top</code> (default destination for admin notices).</li>
+</ul>
+
+<p>Do not add credentials to frontend files or wrangler.toml. Add <code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_PASS</code> as a Secret, not a plain variable.</p>
+
+<h2 id="test">Test</h2>
+
+<p>After deploying the Worker and setting the secret, sign into Admin and POST <code class="language-plaintext highlighter-rouge">/api/admin/email/test</code> with the existing Admin Bearer token and JSON body <code class="language-plaintext highlighter-rouge">{}</code>. Expected response: <code class="language-plaintext highlighter-rouge">{ "ok": true, ... }</code>. If the response is <code class="language-plaintext highlighter-rouge">EMAIL_SEND_FAILED</code>, use its sanitized SMTP error detail to troubleshoot.</p>
+
+<h2 id="tenant-emails">Tenant emails</h2>
+
+<p>The Master Admin tenant-creation form now has an optional email field. If supplied, it is stored in the additive <code class="language-plaintext highlighter-rouge">tenant_accounts.email</code> column and used for a welcome email and withdrawal status notifications. Existing tenants are unaffected and do not have an email until edited in a future admin UI change. Password-reset OTP is not yet exposed in this build because existing tenant accounts have no verified email flow; do not claim OTP reset is active.</p>
+
+<h2 id="deployment-safety">Deployment safety</h2>
+
+<ol>
+  <li>Save the current deployed Worker source as a rollback copy.</li>
+  <li>Add the secret and variables above.</li>
+  <li>Deploy the V49 Worker and frontend assets.</li>
+  <li>Sign in to Admin and run the test endpoint.</li>
+  <li>Create a test tenant with an email you control, then confirm the welcome email.</li>
+  <li>Test a withdrawal only in a safe/staging setup before relying on notifications in production.</li>
+</ol>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

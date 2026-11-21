@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>TeoStudio — Production security hardening checklist (V52) | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="TeoStudio — Production security hardening checklist (V52)" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/SECURITY_HARDENING_V52.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/SECURITY_HARDENING_V52.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="TeoStudio — Production security hardening checklist (V52)" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"TeoStudio — Production security hardening checklist (V52)","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/SECURITY_HARDENING_V52.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="teostudio--production-security-hardening-checklist-v52">TeoStudio — Production security hardening checklist (V52)</h1>
+
+<h2 id="what-code-enforces">What code enforces</h2>
+<ul>
+  <li>Browser write endpoints require same-origin (<code class="language-plaintext highlighter-rouge">https://teostudio.top</code>, optionally <code class="language-plaintext highlighter-rouge">https://www.teostudio.top</code>) and reject <code class="language-plaintext highlighter-rouge">Sec-Fetch-Site: cross-site</code> requests when Origin is absent. SePay webhook is the deliberate server-to-server exception and requires API Key authentication.</li>
+  <li>SePay credential comparison uses a fixed-length byte comparison; payment activation requires an incoming transaction, exact order code, pending/unexpired order and amount at least the expected amount. Duplicate transaction IDs are de-duplicated.</li>
+  <li>Restrictive CSP/HSTS/security headers, same-origin writes, body/URL size caps, restricted social-preview redirect hosts and bounded external response reads, API/navigation burst throttles and temporary abuse blocks help against common abuse. Worker rate limits are per-isolate, can reset/restart and can be bypassed by distributed source IPs; they are not global DDoS protection.</li>
+  <li>Turnstile Siteverify is required for rental/file-payment order creation. If either <code class="language-plaintext highlighter-rouge">TURNSTILE_SECRET</code> or <code class="language-plaintext highlighter-rouge">TURNSTILE_SITE_KEY</code> is missing, order creation fails closed; a successful Siteverify response must name <code class="language-plaintext highlighter-rouge">teostudio.top</code> or <code class="language-plaintext highlighter-rouge">www.teostudio.top</code> as the hostname. Keep the secret only in Worker Secrets and use the matching public site key.</li>
+  <li>Tenant page/product analytics are de-duplicated for 15-minute IP+user-agent+tenant+content buckets using a SHA-256 key; the raw visitor IP is not stored. This is anti-inflation, not proof that a view is human.</li>
+  <li>Master tenant deletion preserves finance records and content through soft archive instead of hard deletion. Withdrawal state transitions use conditional updates and a unique ledger reference to reduce double processing.</li>
+</ul>
+
+<h2 id="cloudflare-dashboard-rules-to-configure-edge-level-required-for-meaningful-ddos-resilience">Cloudflare Dashboard rules to configure (edge-level, required for meaningful DDoS resilience)</h2>
+<p>Cloudflare DDoS mitigation is automatic for proxied zones on all plans, but path-specific WAF/rate-limit controls vary by plan. Apply on the <code class="language-plaintext highlighter-rouge">teostudio.top</code> zone via Security rules → Rate limiting rules and WAF/Managed rules. Start with logging/simulate where available, then enforce and monitor false positives. Official references: <a href="https://developers.cloudflare.com/ddos-protection/">DDoS protection</a>, <a href="https://developers.cloudflare.com/waf/rate-limiting-rules/create-zone-dashboard/">Rate limiting rules</a>, <a href="https://developers.cloudflare.com/bots/get-started/bot-fight-mode/">Bot Fight Mode</a>, <a href="https://developers.cloudflare.com/waf/managed-rules/reference/cloudflare-managed-ruleset/">Cloudflare Managed Ruleset</a>.</p>
+
+<ol>
+  <li><strong>Managed WAF rules</strong>: enable Cloudflare Managed Ruleset; enable OWASP Core Ruleset if available on the plan. Avoid blanket blocking by user-agent because good search/social preview crawlers use user agents too.</li>
+  <li><strong>Bot controls</strong>: enable Bot Fight Mode (or Super Bot Fight Mode where available). Use managed challenge for likely automation on sensitive POST endpoints, rather than blanket blocking all visitors.</li>
+  <li><strong>Rate limit credential/order endpoints</strong> (edge rules shared across Worker isolates):
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">POST /api/admin/login</code>: e.g. 5 requests per IP per 60 seconds; Managed Challenge or block for 1–5 minutes after threshold.</li>
+      <li><code class="language-plaintext highlighter-rouge">POST /api/tenant/login</code>: e.g. 8 requests per IP per 60 seconds.</li>
+      <li><code class="language-plaintext highlighter-rouge">POST /api/rental/orders/create</code> and <code class="language-plaintext highlighter-rouge">POST /api/public-tenant/*/orders/create</code>: e.g. 5 requests per IP per 60 seconds.</li>
+      <li><code class="language-plaintext highlighter-rouge">POST /api/tenant/withdrawals</code>: e.g. 3 requests per IP per 60 seconds.</li>
+      <li><code class="language-plaintext highlighter-rouge">POST /api/comments</code> and tenant public comments: e.g. 3 requests per IP per 60 seconds.
+Adjust after observing traffic. If Cloudflare uses separate expression builder syntax, translate the path/method conditions to the available rule UI.</li>
+    </ul>
+  </li>
+  <li><strong>Do not apply aggressive generic rate limits to <code class="language-plaintext highlighter-rouge">/api/webhook/sepay</code></strong>: SePay may retry a successful bank event. Instead require API Key at the Worker, monitor 401/5xx, and optionally restrict source IPs only if SePay publishes a current authoritative IP list suitable for allowlisting.</li>
+  <li><strong>Cache safely</strong>: cache versioned static JS/CSS/images; bypass cache on <code class="language-plaintext highlighter-rouge">/api/*</code>, QR/payment status, admin pages, tenant Admin and any page with private/session data. Do not cache webhook responses or authenticated API responses.</li>
+  <li><strong>D1 recovery</strong>: enable/confirm D1 Time Travel/backup availability for this database and perform an export before schema updates; keep the existing database ID binding. Never run <code class="language-plaintext highlighter-rouge">DROP TABLE</code>, reset scripts or replace production D1 with an empty database.</li>
+  <li><strong>Logs/alerts</strong>: enable Worker Logs and exceptions in Observability, monitor 401/403/429/5xx on login, rental order create, webhook and withdrawal routes. Set alerts for sustained 5xx and unusual traffic. Avoid logging tokens, passwords, full bank account details or raw payment payloads containing private data.</li>
+  <li><strong>Domain routing</strong>: ensure <code class="language-plaintext highlighter-rouge">teostudio.top/api/*</code> reaches the deployed <code class="language-plaintext highlighter-rouge">teo-studio</code> Worker. The <code class="language-plaintext highlighter-rouge">workers.dev</code> URL by itself does not prove the custom domain route is correctly attached.</li>
+  <li><strong>How to create edge rate limits (if available)</strong>: in Cloudflare go to Security rules → Create rule → Rate limiting rules. Start with one rule each for admin login (5/min/IP), tenant login (8/min/IP), rental/file-order create (5/min/IP), comments (3/min/IP), and withdrawals (3/min/IP). Use Managed Challenge or a short block after the threshold and monitor false positives. Do not put a generic aggressive rule on <code class="language-plaintext highlighter-rouge">/api/webhook/sepay</code>; SePay retries webhooks and the Worker already authenticates the API key.</li>
+  <li><strong>Bot Fight Mode caution</strong>: it applies at domain level and can challenge legitimate API/mobile requests; enable and test with actual sign-in, Turnstile, payment and SePay webhook flows. Do not blanket-block based on User-Agent because social preview crawlers may use it.</li>
+</ol>
+
+<h2 id="limits--honest-claims">Limits / honest claims</h2>
+<p>This package has <strong>not</strong> been deployed to your live Worker or tested with a real bank transfer; Cloudflare Dashboard edge rules have not been enabled by this code. No code snippet guarantees protection against all DDoS attacks. Large volumetric attacks must be absorbed at Cloudflare’s edge; WAF/rate limits are plan-dependent. The Worker in-memory throttles are defense-in-depth only. No anti-bot check can perfectly distinguish all humans and bots. Validate with observed logs, legitimate mobile access, and payment end-to-end tests before relying on the system for income.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

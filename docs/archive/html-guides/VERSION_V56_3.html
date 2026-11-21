@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>TeoStudio V56.3 — Stability &amp; Runtime Diagnostics | Teo-STUDIO</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="TeoStudio V56.3 — Stability &amp; Runtime Diagnostics" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V56_3.html" />
+<meta property="og:url" content="https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V56_3.html" />
+<meta property="og:site_name" content="Teo-STUDIO" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="TeoStudio V56.3 — Stability &amp; Runtime Diagnostics" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"TeoStudio V56.3 — Stability &amp; Runtime Diagnostics","url":"https://teoscrvn-glitch.github.io/Teo-STUDIO/VERSION_V56_3.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/Teo-STUDIO/assets/css/style.css?v=0174595d3eea3daa1b69f5786673cddf6d3fbd29">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/Teo-STUDIO/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://teoscrvn-glitch.github.io/Teo-STUDIO/">Teo-STUDIO</a></h1>
+      
+
+      <h1 id="teostudio-v563--stability--runtime-diagnostics">TeoStudio V56.3 — Stability &amp; Runtime Diagnostics</h1>
+
+<h2 id="purpose">Purpose</h2>
+<p>V56.3 is a stabilization/configuration-diagnostics step based on the V56.2 archive. It is not a claim that production has already been deployed.</p>
+
+<h2 id="changes">Changes</h2>
+<ul>
+  <li>Uses <code class="language-plaintext highlighter-rouge">v56.3-stability-ai-config</code> as a build fingerprint from <code class="language-plaintext highlighter-rouge">/api/health</code> and the frontend meta tag.</li>
+  <li><code class="language-plaintext highlighter-rouge">/api/health</code> reports only non-secret booleans for D1, AI, SMTP, Telegram, Turnstile, and SePay.</li>
+  <li>Admin-only <code class="language-plaintext highlighter-rouge">/api/admin/config-status</code> lists missing runtime variable <em>names</em> only; never returns secret values.</li>
+  <li>Admin has a Runtime Check panel and explicit click-to-test actions for AI, SMTP email, and Telegram.</li>
+  <li>AI requests now have a 15-second timeout; admin AI connectivity test has a 12-second timeout and never returns the provider response body or key.</li>
+  <li>Frontend assets use <code class="language-plaintext highlighter-rouge">v=56.3</code> cache-busting so the browser can distinguish this build.</li>
+  <li>Keeps V56.2’s syntax correction at the monthly analytics response.</li>
+</ul>
+
+<h2 id="runtime-configuration">Runtime configuration</h2>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">DB</code>: existing D1 binding <code class="language-plaintext highlighter-rouge">teo-studio</code> (preserve the current database ID).</li>
+  <li><code class="language-plaintext highlighter-rouge">ADMIN_KEY</code>: Secret.</li>
+  <li><code class="language-plaintext highlighter-rouge">TURNSTILE_SITE_KEY</code>: Variable; <code class="language-plaintext highlighter-rouge">TURNSTILE_SECRET</code>: Secret. The two keys must belong to the same widget and allow <code class="language-plaintext highlighter-rouge">teostudio.top</code>.</li>
+  <li><code class="language-plaintext highlighter-rouge">OXMAIL_SMTP_PASS</code>: Secret. Code defaults: host <code class="language-plaintext highlighter-rouge">mail.teostudio.top</code>, port <code class="language-plaintext highlighter-rouge">465</code>, user <code class="language-plaintext highlighter-rouge">teostudio@teostudio.top</code>; optional <code class="language-plaintext highlighter-rouge">EMAIL_FROM</code> defaults to the user. Email test is available at Admin → Runtime Check.</li>
+  <li><code class="language-plaintext highlighter-rouge">AI_API_URL</code>: HTTPS endpoint compatible with OpenAI Chat Completions.</li>
+  <li><code class="language-plaintext highlighter-rouge">AI_API_KEY</code>: Secret.</li>
+  <li><code class="language-plaintext highlighter-rouge">AI_MODEL</code>: exact model ID accepted by the provider. Use Admin → Runtime Check → Test AI.</li>
+  <li><code class="language-plaintext highlighter-rouge">TELEGRAM_BOT_TOKEN</code>: Secret; <code class="language-plaintext highlighter-rouge">TELEGRAM_CHAT_ID</code>: Variable or Secret. Use Admin → Runtime Check → Test Telegram.</li>
+  <li><code class="language-plaintext highlighter-rouge">SEPAY_API_KEY</code>: Secret; <code class="language-plaintext highlighter-rouge">SEPAY_BANK_CODE</code> and <code class="language-plaintext highlighter-rouge">SEPAY_ACCOUNT_NUMBER</code>: use existing production values. Do not rotate/change them as part of this build.</li>
+</ul>
+
+<h2 id="safety-notes">Safety notes</h2>
+<ul>
+  <li>Never commit secrets to the repository or frontend.</li>
+  <li>The diagnostics panel reports presence/absence only; it does not reveal values.</li>
+  <li>Do not deploy over production until a D1 backup is made and wallet, SePay, email, Turnstile, comments, downloads, and tenant flows pass on staging.</li>
+  <li>This archive does not itself modify live Cloudflare settings, D1, DNS, provider accounts, or production.</li>
+</ul>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

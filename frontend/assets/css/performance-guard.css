@@ -1,0 +1,29 @@
+/* V60.3 performance guard: preserve visual language while reducing expensive mobile compositing. */
+@media (max-width: 820px) {
+  .site-header,
+  .admin-topbar,
+  .drawer-backdrop,
+  .modal-overlay,
+  .video-sound-btn,
+  .teo-account-launcher,
+  .teo-modal-overlay,
+  .teo-ai-panel,
+  .tcd-panel,
+  .seller-topbar,
+  .rank-topbar,
+  .tenant-tabs,
+  .art-float,
+  .teo-audio-panel,
+  .teo-qr-modal,
+  .seller-link-modal,
+  .admin-card,
+  .service-panel,
+  .teo-account-panel {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .teo-reveal { opacity: 1; transform: none; transition: none; }
+  .teo-depth-card { transform: none !important; }
+}
