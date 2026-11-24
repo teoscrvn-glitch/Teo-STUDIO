@@ -1,0 +1,29 @@
+/* V60.3.2 — detail actions and mobile layout correction */
+.detail-choice-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:22px 0;align-items:stretch}
+.detail-choice-actions .btn,.detail-body>.detail-buy-direct,.tenant-detail-content>.detail-buy-direct{min-height:54px;display:flex;align-items:center;justify-content:center;gap:8px;padding:13px 16px;border-radius:14px;font-weight:900;line-height:1.25;text-align:center;white-space:normal}
+.detail-free-action,.detail-choice-actions .detail-free-action{background:linear-gradient(135deg,#15803d,#16a34a);border:1px solid rgba(134,239,172,.72);color:#f0fdf4;box-shadow:0 8px 22px rgba(22,163,74,.18)}
+.detail-buy-direct,.detail-choice-actions .detail-buy-direct{background:#f8fafc;border:1px solid #dbe4ef;color:#111827;box-shadow:0 8px 22px rgba(255,255,255,.08)}
+.detail-body .i,.detail-body svg.i,.tenant-detail-content .i,.tenant-detail-content svg.i{width:18px;height:18px;max-width:18px;max-height:18px;display:inline-block;flex:0 0 18px;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:1.8}
+.detail-card{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);min-width:0}
+.detail-thumb{min-width:0;min-height:0;background:#0b1018;display:grid;place-items:center}
+.detail-thumb img{display:block;width:100%;height:100%;max-height:720px;object-fit:contain}
+.detail-body{min-width:0;overflow-wrap:anywhere}
+.danger-rule{display:grid;grid-template-columns:24px minmax(0,1fr);align-items:start;gap:8px;padding:14px 16px;border-radius:14px}
+.danger-rule>b{display:flex;align-items:center;gap:7px;margin:0;font-size:14px}
+.danger-rule .i{width:20px;height:20px;max-width:20px;max-height:20px}
+.teo-account-launcher{width:auto;min-width:0;max-width:min(164px,calc(100vw - 32px));min-height:48px;height:48px;padding:7px 12px;gap:8px;border-radius:999px;box-sizing:border-box;overflow:hidden}
+.teo-account-launcher>.i,.teo-account-launcher>svg{width:22px;height:22px;max-width:22px;max-height:22px;flex:0 0 22px}
+.teo-account-launcher>span:not(.teo-launch-avatar){font-size:12px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.teo-launch-avatar{width:28px;height:28px;flex:0 0 28px}
+@media(max-width:760px){.detail-page{width:min(calc(100% - 16px),680px);padding:12px 0 76px}.detail-card{grid-template-columns:minmax(0,1fr);border-radius:18px}.detail-thumb{max-height:52dvh;min-height:190px}.detail-thumb img{width:100%;height:100%;max-height:52dvh;object-fit:contain}.detail-body{padding:16px}.detail-body h1{font-size:clamp(24px,7vw,32px);line-height:1.12}.detail-choice-actions{grid-template-columns:1fr;gap:9px}.detail-choice-actions .btn{width:100%;min-height:52px}.detail-share-actions{grid-template-columns:minmax(0,1fr) auto}.detail-share-actions input{grid-column:1/-1}.teo-account-launcher{left:8px;bottom:12px}.teo-account-launcher>span:not(.teo-launch-avatar){max-width:86px}}
+
+/* V60.3.2 — unified file management cards for master and tenant admins */
+.admin-product-row>td{padding:9px;border:0}.admin-product-card,.tenant-file-card{display:grid;grid-template-columns:116px minmax(0,1fr);gap:14px;padding:14px;border:1px solid var(--line,rgba(148,163,184,.18));border-radius:17px;background:linear-gradient(145deg,rgba(24,34,49,.92),rgba(12,18,29,.96));min-width:0;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.admin-product-image,.tenant-file-image{width:116px;height:116px;object-fit:cover;border-radius:12px;background:#0a111b;border:1px solid rgba(148,163,184,.15)}
+.admin-product-main,.tenant-file-main{min-width:0;display:grid;gap:8px}.admin-product-heading,.tenant-file-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.admin-product-heading b,.tenant-file-title b{font-size:15px;overflow-wrap:anywhere}.admin-product-heading span,.tenant-file-title strong{color:#f3c47d;font-size:13px;white-space:nowrap}.admin-product-main>small,.tenant-file-main>small{color:var(--muted);font-size:11px}.admin-product-main p,.tenant-file-main p{margin:0;color:var(--muted);font-size:12px;line-height:1.45;overflow-wrap:anywhere}.admin-product-links,.tenant-file-links{display:grid;grid-template-columns:1fr 1fr;gap:8px}.admin-product-links label,.tenant-file-links label{display:grid;gap:4px;min-width:0;color:var(--muted);font-size:10px}.admin-product-links input,.tenant-file-links input{width:100%;min-width:0;box-sizing:border-box;padding:8px 9px;border:1px solid var(--line,rgba(148,163,184,.2));border-radius:9px;background:rgba(3,8,16,.65);color:var(--text);font-size:10px}.admin-product-actions,.tenant-file-actions{display:flex;flex-wrap:wrap;gap:7px;align-items:center}.admin-product-actions .table-btn,.tenant-file-actions .table-btn,.admin-product-actions .table-link,.tenant-file-actions .table-link{min-height:34px;padding:8px 10px;border-radius:9px;font-size:11px}
+@media(max-width:650px){.admin-product-card,.tenant-file-card{grid-template-columns:76px minmax(0,1fr);gap:10px;padding:10px}.admin-product-image,.tenant-file-image{width:76px;height:76px}.admin-product-heading b,.tenant-file-title b{font-size:13px}.admin-product-links,.tenant-file-links{grid-template-columns:1fr}.admin-product-actions,.tenant-file-actions{gap:6px}.admin-product-actions .table-btn,.tenant-file-actions .table-btn,.admin-product-actions .table-link,.tenant-file-actions .table-link{font-size:10px;padding:7px 8px}}
+/* Recent purchase ticker: smooth left-to-right drift with a slow, continuous hue shift. */
+.teo-sales-track{animation:teo-sales-marquee 44s linear infinite,teo-sales-hue 8s linear infinite;will-change:transform,filter}
+@keyframes teo-sales-hue{0%,100%{filter:hue-rotate(0deg)}50%{filter:hue-rotate(35deg)}}
+@media(prefers-reduced-motion:reduce){.teo-sales-track{animation:none;filter:none}}
+.admin-header-create{background:linear-gradient(135deg,#1d7fca,#2865b8);border-color:rgba(96,165,250,.55);color:white;font-weight:900;cursor:pointer}.admin-header-create:hover{filter:brightness(1.1)}
