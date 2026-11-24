@@ -1,0 +1,61 @@
+/* Motion — chỉ transform + opacity. Không filter/blur chuyển động. Không transition: all. */
+@layer motion {
+
+  /* Reveal khi cuộn (JS thêm .is-in một lần). Chỉ ẩn khi JS chạy → không JS vẫn thấy nội dung. */
+  .js [data-reveal] { opacity: 0; transform: translate3d(0, 14px, 0); }
+  .js [data-reveal].is-in {
+    opacity: 1; transform: none;
+    transition: opacity var(--t-slow) var(--ease-out), transform var(--t-slow) var(--ease-out);
+    transition-delay: calc(min(var(--i, 0), 8) * 55ms);
+  }
+  .js [data-reveal="scale"] { transform: scale(.96); }
+  .js [data-reveal="left"]  { transform: translate3d(-18px, 0, 0); }
+
+  /* Vào trang */
+  @keyframes page-in { from { opacity: 0; transform: translate3d(0, 8px, 0); } to { opacity: 1; transform: none; } }
+  .page-in { animation: page-in var(--t-slow) var(--ease-out) both; }
+
+  /* Đổi tab / panel */
+  .panel[hidden] { display: none; }
+  .panel.is-entering { animation: page-in var(--t-base) var(--ease-out) both; }
+
+  /* Nổi nhẹ — CHỈ chạy khi phần tử trong màn hình (JS bật .is-live) */
+  @keyframes float-y { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, -8px, 0); } }
+  @keyframes float-y-b { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, 6px, 0); } }
+  [data-live] { animation-play-state: paused; }
+  [data-live].is-live { animation-play-state: running; }
+  .float-a[data-live] { animation: float-y 6s ease-in-out infinite; animation-play-state: paused; }
+  .float-b[data-live] { animation: float-y-b 7s ease-in-out infinite; animation-play-state: paused; }
+
+  /* Vòng sáng quanh mascot: quay bằng transform */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .ring-spin[data-live] { animation: spin 14s linear infinite; animation-play-state: paused; }
+
+  /* Thanh tiến độ / biểu đồ */
+  .bar { height: 8px; border-radius: 8px; background: var(--surface-3); overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transform-origin: left; transform: scaleX(0); transition: transform 900ms var(--ease-out); }
+  .is-in .bar > i, .bar.is-in > i { transform: scaleX(var(--v, .6)); }
+  .draw { stroke-dasharray: var(--len, 600); stroke-dashoffset: var(--len, 600); }
+  .is-in .draw, .draw.is-in { stroke-dashoffset: 0; transition: stroke-dashoffset 1.4s var(--ease-out); }
+  .fade-area { opacity: 0; }
+  .is-in .fade-area, .fade-area.is-in { opacity: 1; transition: opacity 1s var(--ease-out) .5s; }
+
+  /* Xung báo trạng thái (chấm online) */
+  @keyframes pulse-ring { from { transform: scale(.6); opacity: .8; } to { transform: scale(2.2); opacity: 0; } }
+  .pulse { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+  .pulse[data-live]::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--ok); animation: pulse-ring 1.8s ease-out infinite; animation-play-state: paused; }
+  .pulse[data-live].is-live::after { animation-play-state: running; }
+
+  /* Hiện toast */
+  @keyframes toast-in { from { opacity: 0; transform: translate3d(0, 12px, 0); } to { opacity: 1; transform: none; } }
+  .toast { animation: toast-in var(--t-base) var(--ease-spring) both; }
+
+  /* Tôn trọng người dùng giảm chuyển động */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .001ms; animation-iteration-count: 1; transition-duration: .001ms; scroll-behavior: auto; }
+    .js [data-reveal] { opacity: 1; transform: none; }
+    .bar > i { transform: scaleX(var(--v, .6)); }
+    .draw { stroke-dashoffset: 0; }
+    .fade-area { opacity: 1; }
+  }
+}

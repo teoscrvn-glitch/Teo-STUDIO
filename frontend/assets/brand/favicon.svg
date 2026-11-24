@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#17234A"/><stop offset="1" stop-color="#080C18"/></linearGradient>
+  <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6EA8FF" stop-opacity=".9"/><stop offset="1" stop-color="#38BDF8" stop-opacity=".15"/></linearGradient>
+  <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8DB8FF"/><stop offset=".55" stop-color="#4C8DFF"/><stop offset="1" stop-color="#2DD4EE"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE29A"/><stop offset="1" stop-color="#F0B13C"/></linearGradient>
+</defs>
+<g id="mark">
+  <rect x="1" y="1" width="62" height="62" rx="17" fill="url(#bg)"/>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="16.5" fill="none" stroke="url(#rim)" stroke-width="1.2"/>
+  <path d="M18 27 L18 17.5 L25.5 22.5 L32 13.5 L38.5 22.5 L46 17.5 L46 27 Z" fill="url(#gold)"/>
+  <path d="M14.5 31 H49.5 L46.2 38.5 H36.2 V52 H27.8 V38.5 H17.8 Z" fill="url(#blue)"/>
+  <path d="M14.5 31 H49.5 L48.6 33.1 H15.4 Z" fill="#fff" fill-opacity=".38"/>
+  <ellipse cx="32" cy="43" rx="26" ry="7.5" transform="rotate(-16 32 43)" fill="none" stroke="#38BDF8" stroke-opacity=".7" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="54 30" stroke-dashoffset="-6"/>
+</g></svg>
