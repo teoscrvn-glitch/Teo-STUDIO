@@ -1,5 +1,4 @@
 /* Account page migration: buyer role, token-only visual overrides. */
-@layer page {
   html:has(body.teo-account-page-mode),
   body.teo-account-page-mode { width:100%; min-width:0; max-width:100%; overflow-x:clip; }
   body.teo-account-page-mode { min-height:100dvh; background:var(--bg); color:var(--text); font-family:var(--font); }
@@ -57,4 +56,15 @@
     .account-error-actions .teo-primary { width:100%; }
   }
   @media(prefers-reduced-motion:reduce) { .teo-account-page-mode * { scroll-behavior:auto; } }
-}
+
+/* Override legacy account styles that previously won through cascade-layer order. */
+.teo-account-page-mode .teo-account-page-top a { color:var(--accent); }
+.teo-account-page-mode .teo-account-page-intro>span { color:var(--accent); }
+.teo-account-page-mode .teo-profile { background:var(--surface-2); border-color:var(--line); }
+.teo-account-page-mode .teo-balance { background:var(--surface-3); border-color:var(--line); }
+.teo-account-page-mode .teo-ai-consent-card { background:var(--surface-2); border-color:var(--line); }
+.teo-account-page-mode .teo-ai-consent-row input { accent-color:var(--accent); }
+.teo-account-page-mode .teo-account-tabs button.active { background:var(--accent-soft); border-color:var(--accent); color:var(--text); }
+.teo-account-page-mode .teo-primary { background:var(--accent); color:var(--on-accent); }
+.teo-account-page-mode .teo-link { color:var(--accent-2); }
+.teo-account-page-mode .teo-message { background:var(--accent-soft); border-color:var(--line-strong); color:var(--text); }

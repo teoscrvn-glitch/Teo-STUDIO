@@ -178,6 +178,7 @@
   .recent-sales-live { display: inline-flex; align-items: center; gap: 8px; color: var(--ok); font-size: var(--fs-xs); font-weight: 700; }
   .recent-sales-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s3); }
   .recent-sales-track, .recent-sales-group { display: contents; }
+  .recent-sales-group[aria-hidden="true"] { display:none; }
   .recent-sale-card { min-width: 0; padding: var(--s3); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-1); }
   .recent-sale-buyer-row { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s2); }
   .recent-sale-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; }
@@ -465,6 +466,28 @@
     .product-card { grid-template-columns: 100px minmax(0,1fr); }
     .product-thumb { min-height: 132px; }
     .product-foot { align-items: flex-start; flex-direction: column; }
+  }
+  /* Android Chrome desktop-site mode can expose a ~980px CSS viewport. */
+  @media (hover: none) and (pointer: coarse) and (max-width: 1024px) {
+    .site-header__in { min-width:0; gap:var(--s2); }
+    .site-nav, .header-login { display:none; }
+    .mobile-menu-btn { display:grid; }
+    .site-brand { min-width:0; }
+    .site-brand .logo { width:clamp(112px,28vw,142px); height:auto; }
+    .site-header__actions { min-width:0; gap:6px; }
+    .hero__grid { grid-template-columns:minmax(0,1fr); gap:var(--s4); }
+    .mascot { width:min(54vw,260px); grid-row:1; }
+    .hero__copy { grid-row:2; min-width:0; }
+    .product-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .recent-sales-grid { grid-template-columns:repeat(2,minmax(0,1fr)); mask-image:none; }
+    .recent-sales-grid .recent-sales-track,
+    .recent-sales-grid .recent-sales-group { display:contents; width:auto; animation:none; }
+    .recent-sales-grid .recent-sales-group[aria-hidden="true"] { display:none; }
+    .recent-sales-grid .recent-sale-card { width:auto; min-width:0; flex:initial; }
+  }
+  @media (hover:none) and (pointer:coarse) and (max-width:560px) {
+    .product-grid { grid-template-columns:minmax(0,1fr); }
+    .recent-sales-grid { grid-template-columns:minmax(0,1fr); }
   }
   @media (prefers-reduced-motion: reduce) {
     .site-header *, .drawer, .drawer-backdrop, .product-card, .product-thumb img, .modal-overlay, .notice-modal, .small-modal, .teo-ai-wrap *, .teo-community-dock * { transition-duration: .001ms; animation-duration: .001ms; animation-iteration-count: 1; }

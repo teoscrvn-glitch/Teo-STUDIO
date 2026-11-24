@@ -1,0 +1,39 @@
+/* Mobile/touch layout corrections shared by Detail, Share and Tenant Detail. */
+.teo-account-launcher { max-width:calc(100vw - 32px); min-width:0; }
+.teo-account-launcher > .i { display:block; width:20px; height:20px; flex:0 0 20px; }
+.teo-account-launcher > span { min-width:0; overflow-wrap:anywhere; }
+.brand .brand-wordmark { display:block; width:min(160px,38vw); height:auto; max-height:34px; object-fit:contain; }
+
+@media (hover:none) and (pointer:coarse) and (max-width:1024px) {
+  .detail-page { width:min(calc(100% - 20px),980px); min-width:0; padding:16px 0 42px; }
+  .detail-page .detail-card { grid-template-columns:minmax(0,1fr); min-width:0; }
+  .detail-page .detail-thumb { display:grid; place-items:center; min-width:0; max-height:54dvh; overflow:hidden; background:var(--surface-2,var(--surface)); }
+  .detail-page .detail-thumb img { display:block; width:auto; height:auto; max-width:100%; max-height:54dvh; object-fit:contain; margin-inline:auto; }
+  .detail-page .detail-body { min-width:0; padding:clamp(14px,3vw,24px); overflow-wrap:anywhere; }
+  .detail-page .detail-body h1 { font-size:clamp(24px,5vw,34px); line-height:1.15; text-wrap:balance; }
+  .detail-page .detail-info { flex-wrap:wrap; min-width:0; }
+  .detail-page .detail-share-actions { grid-template-columns:minmax(0,1fr) auto; min-width:0; }
+  .detail-page .detail-share-actions input { grid-column:1/-1; min-width:0; }
+  .detail-page .detail-share-actions .btn { min-width:0; white-space:normal; }
+  .tenant-detail-grid { grid-template-columns:minmax(0,1fr); min-width:0; }
+  .tenant-detail-thumb { width:100%; max-width:none; max-height:54dvh; aspect-ratio:auto; display:grid; place-items:center; }
+  .tenant-detail-thumb img { width:auto; height:auto; max-width:100%; max-height:54dvh; object-fit:contain; }
+  .tenant-detail-hero { display:grid; place-items:center; max-height:54dvh; aspect-ratio:auto; }
+  .tenant-detail-hero img { width:auto; height:auto; max-width:100%; max-height:54dvh; object-fit:contain; }
+  .product-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .recent-sales-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; mask-image:none; overflow:visible; }
+  .recent-sales-grid .recent-sales-track,
+  .recent-sales-grid .recent-sales-group { display:contents; width:auto; animation:none; }
+  .recent-sales-grid .recent-sale-card { width:auto; min-width:0; flex:initial; padding:10px; }
+  .recent-sales-grid .recent-sale-order { min-width:0; align-items:flex-start; }
+  .recent-sales-grid .recent-sale-thumb { width:60px; height:60px; flex:0 0 60px; }
+  .teo-account-launcher { z-index:10040; max-width:calc(100vw - 96px); }
+}
+@media (hover:none) and (pointer:coarse) and (max-width:560px) {
+  .product-grid { grid-template-columns:minmax(0,1fr); }
+  .recent-sales-grid { grid-template-columns:minmax(0,1fr); }
+  .detail-page .detail-body { padding:14px; }
+  .detail-page .detail-share-box { padding:12px; }
+  .tenant-detail-content { padding:14px; }
+  .tenant-detail-content h1 { font-size:clamp(24px,6vw,32px); }
+}
