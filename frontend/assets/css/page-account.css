@@ -1,0 +1,60 @@
+/* Account page migration: buyer role, token-only visual overrides. */
+@layer page {
+  html:has(body.teo-account-page-mode),
+  body.teo-account-page-mode { width:100%; min-width:0; max-width:100%; overflow-x:clip; }
+  body.teo-account-page-mode { min-height:100dvh; background:var(--bg); color:var(--text); font-family:var(--font); }
+  .teo-account-page-top { width:min(100%,var(--content-max)); min-width:0; margin-inline:auto; padding:12px clamp(14px,3vw,28px); display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; gap:12px; border-bottom:1px solid var(--line); }
+  .teo-account-page-top > a { min-width:0; color:var(--text-2); font-size:var(--fs-xs); font-weight:700; }
+  .teo-account-page-top > a:first-child { justify-self:start; }
+  .teo-account-page-top .account-brand { justify-self:center; display:flex; align-items:center; }
+  .account-brand img { display:block; width:clamp(112px,22vw,150px); height:auto; max-height:34px; object-fit:contain; }
+  .teo-account-page-top .account-seller-link { justify-self:end; color:var(--accent); }
+  .teo-account-page-main { width:min(100%,900px); min-width:0; margin-inline:auto; padding:clamp(22px,5vw,48px) clamp(14px,3vw,24px) 80px; }
+  .teo-account-page-intro { margin:0 0 22px; }
+  .teo-account-page-intro>span { color:var(--accent); font-size:11px; letter-spacing:.16em; font-weight:800; }
+  .teo-account-page-intro h1 { margin:8px 0; font-size:clamp(26px,6vw,40px); overflow-wrap:anywhere; }
+  .teo-account-page-intro p { color:var(--text-2); font-size:var(--fs-sm); line-height:1.6; }
+  .teo-account-page-mode .teo-modal-overlay { width:100%; min-width:0; max-width:100%; padding:0; overflow:visible; }
+  .teo-account-page-mode .teo-account-panel { width:100%; min-width:0; max-width:100%; border:1px solid var(--line-strong); border-radius:var(--r-lg); background:var(--surface-1); box-shadow:var(--shadow-1); overflow:hidden; }
+  .teo-account-page-mode .teo-modal-head { min-width:0; padding:18px clamp(14px,3vw,24px); background:var(--surface-2); border-bottom:1px solid var(--line); }
+  .teo-account-page-mode .teo-modal-head h2 { font-size:21px; }
+  .teo-account-page-mode .teo-modal-head small { color:var(--text-3); }
+  .teo-account-page-mode .teo-modal-body { min-width:0; padding:clamp(14px,3vw,24px); }
+  .teo-account-page-mode .teo-form { width:100%; min-width:0; gap:14px; }
+  .teo-account-page-mode .teo-form label { min-width:0; color:var(--text); font-size:var(--fs-sm); }
+  .teo-account-page-mode .teo-form input:not([type=checkbox]),
+  .teo-account-page-mode .teo-form select,
+  .teo-account-page-mode .teo-form textarea { display:block; width:100%; max-width:100%; min-width:0; min-height:48px; box-sizing:border-box; border:1px solid var(--line-strong); border-radius:var(--r-md); background:var(--surface-2); color:var(--text); padding:12px 14px; font-size:16px; }
+  .teo-account-page-mode .teo-form input:focus-visible { border-color:var(--accent); }
+  .teo-account-page-mode .teo-primary { width:100%; min-height:48px; border:1px solid transparent; border-radius:var(--r-md); background:var(--accent); color:var(--on-accent); font-size:var(--fs-sm); }
+  .teo-account-page-mode .teo-secondary { min-height:44px; border:1px solid var(--line-strong); border-radius:var(--r-md); background:var(--surface-2); color:var(--text); }
+  .teo-account-page-mode .teo-link { min-height:40px; color:var(--accent-2); font-size:var(--fs-xs); }
+  .teo-account-page-mode .teo-message { border:1px solid color-mix(in srgb,var(--accent) 34%,transparent); background:var(--accent-soft); color:var(--text); border-radius:var(--r-md); overflow-wrap:anywhere; }
+  .teo-account-page-mode .teo-terms-consent { display:flex; align-items:flex-start; gap:10px; line-height:1.5; }
+  .teo-account-page-mode .teo-terms-consent input { flex:none; width:18px; height:18px; margin-top:2px; accent-color:var(--accent); }
+  .teo-account-page-mode .teo-row-actions { gap:8px 18px; flex-wrap:wrap; }
+  .teo-account-page-mode #teo-auth-captcha { width:100%; max-width:100%; min-height:58px; overflow:hidden; }
+  .teo-account-page-mode #teo-auth-captcha iframe { max-width:100%; }
+  .teo-account-page-mode .teo-profile { min-width:0; border:1px solid var(--line); border-radius:var(--r-lg); background:var(--surface-2); }
+  .teo-account-page-mode .teo-balance { background:var(--surface-3); border:1px solid var(--line); border-radius:var(--r-lg); }
+  .teo-account-page-mode .teo-account-tabs { flex-wrap:nowrap; max-width:100%; padding-bottom:8px; overscroll-behavior-x:contain; }
+  .teo-account-page-mode .teo-account-tabs button { min-height:44px; border-color:var(--line); background:var(--surface-2); color:var(--text-2); }
+  .teo-account-page-mode .teo-account-tabs button.active { border-color:var(--accent); background:var(--accent-soft); color:var(--text); }
+  .account-load-error { display:grid; gap:12px; padding:clamp(16px,3vw,24px); border:1px solid color-mix(in srgb,var(--warn) 35%,transparent); border-radius:var(--r-md); background:var(--surface-2); }
+  .account-load-error h3 { font-size:var(--fs-lg); }
+  .account-load-error p,.account-load-error small { color:var(--text-2); overflow-wrap:anywhere; }
+  .account-error-actions { display:flex; flex-wrap:wrap; gap:10px; }
+  .account-error-actions .teo-primary { width:auto; min-width:120px; }
+  @media(max-width:520px) {
+    .teo-account-page-top { grid-template-columns:minmax(0,1fr) auto; }
+    .teo-account-page-top .account-brand { grid-column:1; grid-row:1; justify-self:start; }
+    .teo-account-page-top > a:first-child { grid-column:1; grid-row:2; }
+    .teo-account-page-top .account-seller-link { grid-column:2; grid-row:1 / span 2; }
+    .teo-account-page-main { padding-top:24px; }
+    .teo-account-page-mode .teo-modal-head h2 { font-size:19px; }
+    .teo-account-page-mode .teo-row-actions { display:flex; }
+    .account-error-actions { display:grid; grid-template-columns:1fr; }
+    .account-error-actions .teo-primary { width:100%; }
+  }
+  @media(prefers-reduced-motion:reduce) { .teo-account-page-mode * { scroll-behavior:auto; } }
+}

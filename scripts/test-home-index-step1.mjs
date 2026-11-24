@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const html=fs.readFileSync('frontend/index.html','utf8');
+const ids=['menuBtn','drawer','drawerBackdrop','drawerClose','studioAvatar','studioName','heroTitle','heroText','searchInput','tagRail','statFiles','statViews','statTags','subTagRail','productGrid','emptyState','publicProductMore','newestBtn','recentSalesSection','recentSalesFeed','commentForm','commentAccountStatus','commentAccountBtn','publicCommentText','commentCaptcha','commentCaptchaStatus','commentsList','publicCommentMore','socialChannels','supportBox','groupBox','donateBtn','donateModal','donateTitle','donateText','donateQr','notificationBtn','notificationModal','noticeModal','noticeTitle','noticeText','noticeCount','muteNotice','closeNotice','toast','avatarMedia'];
+for(const id of ids) assert.match(html,new RegExp(`\\bid=["']${id}["']`),`missing required home hook #${id}`);
+const css=[...html.matchAll(/<link\b[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)/g)].map(x=>x[1].split('?')[0]);
+assert.deepEqual(css,['/assets/css/tokens.css','/assets/css/components.css','/assets/css/motion.css','/assets/css/page-home.css'],'index must load only the four foundation/home stylesheets');
+for(const feature of ['searchInput','tagRail','subTagRail','noticeModal','donateModal','commentForm','commentsList']) assert.ok(html.includes(`id="${feature}"`),`feature hook missing: ${feature}`);
+assert.match(html,/data-count=/,'home KPI counters are not wired');
+assert.match(html,/data-reveal/,'home reveal motion is not wired');
+assert.match(html,/data-live/,'viewport-gated infinite motion is not wired');
+assert.match(html,/assets\/icons\.svg#/,'SVG icon sprite is not used');
+console.log(`PASS Home Step 1: ${ids.length} required hooks, four CSS files, search/filter/notice/donate/comments and motion hooks.`);

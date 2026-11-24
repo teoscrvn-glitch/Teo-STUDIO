@@ -12,7 +12,7 @@ topup = (root / 'frontend/topup.html').read_text()
 assert "BUILD_VERSION='v60.3-phase0-performance-guard'" in w
 assert "provider=step===1?'bumx':'link4m'" in w
 assert 'free_bypass_last_at' in w and '86400000' in w
-assert 'now+7*86400000' in w
+assert 'newExpiry=Math.max(now,Number.isFinite(expiryMs)?expiryMs:now)+7*86400000' in w
 assert 'step===1' in w and 'step===2' in w and 'provider:short.provider' in w
 assert 'BYPASS_SESSION_MISMATCH' in w and 'sha256(returnSession)' in w
 assert 'tenantFromFreeBypassSession' in w
@@ -23,13 +23,14 @@ assert "canonical keys matches" in w
 assert 'v60.3-phase0-performance-guard' in (root / 'frontend/assets/js/config.js').read_text()
 assert 'tenant-admin.js?v=60.3' in (root / 'frontend/tenant-admin.html').read_text()
 assert "authorization:'Bearer '+tenantToken" in k
-assert 'LINK4M_REWARDED_TRAFFIC_APPROVED' in w
+assert 'providerCompletionVerified:completionVerified' in w and 'adCompletionVerified:false' in w
+assert "verificationMode:'one-time-return-state-key'" in w
 assert 'FREE_BYPASS_VERIFY_URL' not in w and 'FREE_BYPASS_API_KEY' not in w
 assert 'FREE_BYPASS_REWARDED_TRAFFIC_APPROVED' not in w
-assert 'Đã hoàn tất lượt BumX 1/2' in w
+assert 'Đã ghi nhận BumX lượt 1/2' in w
 assert '7 ngày Free' in t and '24 giờ' in t and 'Vượt Link4M' in t
-assert 'Key đã ẩn khỏi màn hình' in k
-assert 'BumX' in page and '7 ngày Free' in page
+assert "issuedKey='';if(input)input.value='';if(result)result.hidden=true;if(copy)copy.disabled=true" in k
+assert 'MÃ NHẬN 7 NGÀY FREE' in page and 'freeKeyProvider' in page
 assert '(?:account|topup)' in a and 'isTopupPage()' in a
 assert "location.href='/topup.html?method=card'" in a
 assert 'name="guardianConsent" required' in a
@@ -69,4 +70,4 @@ db.execute('UPDATE tenant_accounts SET free_bypass_count=0,free_admin_unlocked=1
 row = db.execute('SELECT free_bypass_count,free_admin_unlocked,free_bypass_last_at,expires_at FROM tenant_accounts WHERE id=?', ('t1',)).fetchone()
 assert row == (0, 1, None, str(expiry)), row
 
-print('PASS V57.7: two-provider cumulative Free path, 24-hour interval, 7-day grant, Link4M permission gate, standalone top-up page, guardian acknowledgement and provider-confirmed credit.')
+print('PASS V57.7: two-provider cumulative Free path, 24-hour interval, 7-day grant, Link4M permission gate, one-time return-state key issuance, standalone top-up page and guardian acknowledgement. Provider ad-completion is not asserted or verified.')
