@@ -26,7 +26,7 @@ assert 'DELETE FROM free_bypass_keys' in worker
 assert 'tenantHasTimeLeft(t)' in worker
 assert "limited(r,'tenant-bypass-api-test',2,60000)" in worker
 assert 'showFreeBypassGate' in tenant and 'freeGateStart' in tenant
-assert 'freeGateCheck' in tenant and '/api/tenant/bypass/test' in tenant
+assert 'freeGateStart' in tenant and '/api/rental/free/bypass/start' in tenant and '/api/rental/free/bypass/redeem' in tenant
 
 # Master tenant API data minimization and password privacy
 assert "email:clean(x.email||'',320)" in worker

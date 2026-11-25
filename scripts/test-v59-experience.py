@@ -15,7 +15,7 @@ assert 'community-dock.js?v=60.3' in share
 assert 'teo-audio-dock' in dock_css and 'teo-route-progress' in css
 assert "musicBtn.addEventListener('click',playMusic)" in dock and 'audioEl.play()' in dock
 html=list(front.glob('*.html'))
-missing=[p.name for p in html if 'teo-experience.css' not in p.read_text(errors='ignore') or 'teo-experience.js' not in p.read_text(errors='ignore')]
+missing=[p.name for p in html if ('teo-experience.js' not in p.read_text(errors='ignore')) or (p.name != 'index.html' and 'teo-experience.css' not in p.read_text(errors='ignore')) or (p.name == 'index.html' and ('page-home.css' not in p.read_text(errors='ignore') or 'teo-experience.css' in p.read_text(errors='ignore')))]
 assert not missing, f'Experience layer missing from: {missing}'
 assert 'prefers-reduced-motion:reduce' in dock_css
 assert '.teo-audio-dock,.teo-music-dock{display:none!important}' in dock_css
