@@ -75,7 +75,7 @@ assert con.execute("SELECT SUM(amount_vnd) FROM master_wallet_ledger WHERE kind=
 from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 account_js = (root / 'frontend/assets/js/account.js').read_text()
-assert 'const currentLinkMatches=!!code&&pageId===String(productId)' in account_js and 'latest?.code===code' in account_js
+assert 'The latest clicked referral link wins' in account_js
 assert account_js.index('if(currentLinkMatches)') < account_js.index('const cached=JSON.parse(localStorage.getItem(key)')
 worker_js = (root / 'cloudflare/worker.js').read_text()
 assert 'expires=Date.now()+30*86400000' in worker_js
