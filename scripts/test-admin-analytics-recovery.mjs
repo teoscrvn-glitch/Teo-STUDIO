@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const worker=fs.readFileSync('cloudflare/worker.js','utf8');
+const route=worker.slice(worker.indexOf("if(p==='/api/admin/analytics'"),worker.indexOf("const reportImageMatch=p.match",worker.indexOf("if(p==='/api/admin/analytics'")));
+assert.ok(route.includes('await ensureV55Schema(e);await ensureCardExchangeSchema(e);'),'Analytics must initialize card top-up schema before reading it');
+assert.match(route,/buyer_purchases summary[\s\S]*?return \{orders:0,gross:0,commission:0,platform:0,sellerNet:0\}/);
+assert.match(route,/wallet topups[\s\S]*?return \{count:0,amount:0\}/);
+assert.match(route,/purchases by day[\s\S]*?return \{results:\[\]\}/);
+assert.match(route,/view_daily[\s\S]*?return \{results:\[\]\}/);
+assert.match(route,/tenant seller totals[\s\S]*?return \{results:\[\]\}/);
+console.log('PASS Admin analytics recovery: required card schema is initialized and optional legacy reporting queries fail soft instead of breaking the entire dashboard.');
