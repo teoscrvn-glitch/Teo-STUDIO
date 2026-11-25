@@ -3369,7 +3369,20 @@ export default{async scheduled(controller,e){const cron=String(controller?.cron|
   if(p==='/api/rental/free/bypass/complete'&&r.method==='POST')return J({ok:false,error:'BYPASS_FLOW_REPLACED',message:'Luồng cũ đã được thay bằng key một lần. Hãy tạo link mới từ Admin Free.'},410);
   if(p==='/api/rental/orders/create'&&r.method==='POST')return await handleRentalOrderCreate(r,e);
   const rentalOrderMatch=p.match(/^\/api\/rental\/orders\/([^/]+)$/);if(rentalOrderMatch&&r.method==='GET')return await handleRentalOrderStatus(r,e,rentalOrderMatch[1]);
-  if(p==='/api/health'){const cs=runtimeConfigStatus(e);return J({ok:true,service:'teo-studio-api',version:BUILD_VERSION,frontendVersion:BUILD_VERSION,auth:'admin-key-session',payment:paymentConfig(e),config:{d1:cs.database.configured,aiConfigured:cs.ai.ready,emailConfigured:cs.email.configured,telegramConfigured:cs.telegram.configured,turnstileConfigured:cs.turnstile.configured,sepayConfigured:cs.sepay.configured,cardExchangePartnerConfigured:cs.cardExchange.partnerConfigured,cardMerchantTokenConfigured:cs.cardExchange.merchantTokenConfigured,cardWithdrawalMode:cs.cardExchange.withdrawalMode,cardWithdrawalEncryptionConfigured:cs.cardExchange.withdrawalEncryptionConfigured}})}
+  if(p==='/api/health'){
+    const cs=runtimeConfigStatus(e);let dbProbe={binding:!!e?.DB,queryOk:false,requiredTables:{}};
+    if(e?.DB){
+      try{
+        await e.DB.prepare('SELECT 1 AS ok').first();dbProbe.queryOk=true;
+        const names=['products','tags','settings','tenant_accounts','tenant_products','tenant_sessions','admin_sessions'];
+        const marks=names.map(()=>'?').join(',');
+        const rows=(await e.DB.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name IN (${marks})`).bind(...names).all()).results||[];
+        const found=new Set(rows.map(x=>String(x.name)));
+        for(const name of names)dbProbe.requiredTables[name]=found.has(name);
+      }catch(err){dbProbe.error='D1_QUERY_FAILED';console.error('[health] D1 probe failed',String(err?.message||err));}
+    }else dbProbe.error='D1_BINDING_MISSING';
+    return J({ok:true,service:'teo-studio-api',version:BUILD_VERSION,frontendVersion:BUILD_VERSION,auth:'admin-key-session',database:dbProbe,payment:paymentConfig(e),config:{d1:dbProbe.queryOk,aiConfigured:cs.ai.ready,emailConfigured:cs.email.configured,telegramConfigured:cs.telegram.configured,turnstileConfigured:cs.turnstile.configured,sepayConfigured:cs.sepay.configured,cardExchangePartnerConfigured:cs.cardExchange.partnerConfigured,cardMerchantTokenConfigured:cs.cardExchange.merchantTokenConfigured,cardWithdrawalMode:cs.cardExchange.withdrawalMode,cardWithdrawalEncryptionConfigured:cs.cardExchange.withdrawalEncryptionConfigured}})
+  }
   if(p==='/api/public/leaderboards'&&r.method==='GET'){
     const rl=limited(r,'public-leaderboards',40,60000);if(rl)return rl;
     await ensureV55Schema(e);await ensureTenantSchema(e);
@@ -3987,4 +4000,9 @@ export default{async scheduled(controller,e){const cron=String(controller?.cron|
   if(p==='/api/admin/settings'&&r.method==='GET')return J({ok:true,settings:await settings(e)});
   if(p==='/api/admin/settings'&&r.method==='PUT'){const b=await r.json().catch(()=>({}));for(const [k,v0] of Object.entries(b)){if(!['siteName','studio','heroTitle','heroText','avatar','heroBackground','registerTutorialVideoUrl','announcementTitle','announcementText','announcementEnabled','groupLink','adminContact','rentZalo','donateTitle','donateText','donateQr','socialTikTokUrl','socialYoutubeUrl','socialTikTokMeta','socialYoutubeMeta','themeConfig','backgroundMusicUrl','communityBoxes'].includes(k))continue;let v=v0;if(k==='communityBoxes')v=normalizeCommunityBoxes(v0);if(k==='registerTutorialVideoUrl'){v=safeYouTubeUrl(v0||'',1000);if(v0&&!v)return J({ok:false,error:'INVALID_YOUTUBE_URL',field:k,message:'Link video phải là URL YouTube hợp lệ.'},400)}if(k==='backgroundMusicUrl'&&v0&&!/^https:\/\//i.test(String(v0)))return J({ok:false,error:'HTTPS_REQUIRED',field:k,message:'Nhạc nền cần liên kết HTTPS.'},400);if(['groupLink','adminContact','rentZalo','socialTikTokUrl','socialYoutubeUrl','backgroundMusicUrl'].includes(k)){v=safeOptionalLink(v0,4000);if(v0&&v0!=='#'&&!v)return J({ok:false,error:'INVALID_SETTING_URL',field:k},400)}if(['avatar','donateQr'].includes(k)&&v0){v=safeImageValue(v0,1500000);if(!v)return J({ok:false,error:'INVALID_IMAGE',field:k},400)}await e.DB.prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind(k,JSON.stringify(v)).run()}return J({ok:true})}
   if(e.ASSETS){const asset=await e.ASSETS.fetch(r);const headers=new Headers(asset.headers);for(const [k,v] of Object.entries({'x-content-type-options':'nosniff','x-frame-options':'SAMEORIGIN','referrer-policy':'strict-origin-when-cross-origin','permissions-policy':'camera=(),microphone=(),geolocation=()','x-permitted-cross-domain-policies':'none','cross-origin-opener-policy':'same-origin','content-security-policy':C['content-security-policy']}))headers.set(k,v);if(/\.html?$/i.test(p)||!p.includes('.'))headers.set('cache-control','no-store');else if(p.startsWith('/assets/'))headers.set('cache-control','public, max-age=3600, stale-while-revalidate=86400');return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers})}return J({ok:false,error:'NOT_FOUND'},404)
-}catch(x){console.error('TeoStudio Worker request failed',String(x?.name||'Error'),String(x?.message||'unknown'));return J({ok:false,error:'SERVER_ERROR'},500)}}};
+}catch(x){
+  const requestId=crypto.randomUUID();
+  const safePath=u.pathname.slice(0,180);
+  console.error('[worker-request-error]',JSON.stringify({requestId,method:r.method,path:safePath,name:String(x?.name||'Error'),message:String(x?.message||'unknown').slice(0,500),stack:String(x?.stack||'').slice(0,1800)}));
+  return J({ok:false,error:'SERVER_ERROR',requestId,message:'Máy chủ gặp lỗi khi xử lý yêu cầu. Gửi mã yêu cầu này cho Admin để tra log.'},500,{'x-teostudio-request-id':requestId});
+}}};
