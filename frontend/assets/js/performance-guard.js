@@ -1,6 +1,10 @@
 /* V60.3: pause infinite CSS animations off-screen and when the tab is hidden. */
 (()=>{
   'use strict';
+  // Admin pages contain very large management DOM trees. Scanning every node
+  // and calling getAnimations() on each one can block mobile browsers during
+  // startup. Keep this optimization on public pages only.
+  if (document.body?.classList.contains('admin-body')) return;
   if(!('IntersectionObserver' in window)||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
   const states=new Map();
   const animationStates=new WeakMap();

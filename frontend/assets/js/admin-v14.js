@@ -5,10 +5,13 @@ function setLocked(v){document.body.classList.toggle('admin-locked',v);const g=$
 function loginMessage(t){const x=$('#adminLoginMsg');if(x)x.textContent=t||''}
 async function validateToken(t){
   if(!t)return false;
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),5000);
   try{
-    const r=await fetch(api('/api/admin/stats?days=1'),{headers:{authorization:'Bearer '+t},cache:'no-store'});
+    const r=await fetch(api('/api/admin/stats?days=1'),{headers:{authorization:'Bearer '+t},cache:'no-store',signal:controller.signal});
     return r.ok;
   }catch{return false}
+  finally{clearTimeout(timer)}
 }
 async function doLogin(adminKey){
   const endpoint=api('/api/admin/login');
