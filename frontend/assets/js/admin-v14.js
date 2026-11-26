@@ -11,11 +11,29 @@ async function validateToken(t){
   }catch{return false}
 }
 async function doLogin(adminKey){
-  const r=await fetch(api('/api/admin/login'),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({adminKey}),cache:'no-store'});
-  const x=await r.json().catch(()=>({}));
-  if(!r.ok||!x.token)throw Error(x.error||'LOGIN_FAILED');
-  sessionStorage.setItem('TEO_ADMIN_SESSION',x.token);
-  return x.token;
+  const endpoint=api('/api/admin/login');
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),12000);
+  try{
+    let r;
+    try{
+      r=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json','accept':'application/json'},body:JSON.stringify({adminKey}),cache:'no-store',credentials:'same-origin',signal:controller.signal});
+    }catch(err){
+      if(err?.name==='AbortError')throw Error('LOGIN_TIMEOUT: Máy chủ không phản hồi sau 12 giây. Kiểm tra Worker/API và thử lại.');
+      throw Error('LOGIN_NETWORK: Không gọi được API Admin: '+String(err?.message||err));
+    }
+    const raw=await r.text();
+    let x={};try{x=raw?JSON.parse(raw):{}}catch{}
+    if(!r.ok||!x.token){
+      const code=String(x.error||'');
+      if(code)throw Error(code);
+      if(r.status===404)throw Error('LOGIN_API_404: Không tìm thấy API /api/admin/login. Có thể Worker chưa deploy đúng route.');
+      if(r.status>=500)throw Error('LOGIN_SERVER_'+r.status+': Worker/D1 trả lỗi máy chủ. Kiểm tra log Worker.');
+      throw Error('LOGIN_HTTP_'+r.status+': API không trả token hợp lệ.');
+    }
+    sessionStorage.setItem('TEO_ADMIN_SESSION',x.token);
+    return x.token;
+  }finally{clearTimeout(timer)}
 }
 async function login(){
   // Never silently trust a stale session. If it is invalid, the visible login gate is mandatory.
@@ -37,14 +55,16 @@ async function login(){
         const token=await doLogin(adminKey);
         setLocked(false);loginMessage('');resolve(token);
       }catch(err){
-        loginMessage(err.message==='INVALID_ADMIN_KEY'?'Admin Key không đúng.':err.message==='ADMIN_KEY_MISSING'?'Cloudflare chưa có Secret ADMIN_KEY.':err.message==='CANONICAL_HOST_REQUIRED'?'Bạn đang mở link thử nghiệm workers.dev. Hãy mở https://teostudio.top/admin.html.':err.message==='CROSS_SITE_REQUEST_BLOCKED'?'Yêu cầu bị chặn do tên miền không hợp lệ. Hãy mở https://teostudio.top/admin.html.':'Không kết nối được máy chủ Admin. Kiểm tra https://teostudio.top/api/health rồi thử lại.');
+        const messageMap={INVALID_ADMIN_KEY:'Admin Key không đúng.',INVALID_PASSWORD:'Admin Key không đúng.',ADMIN_KEY_MISSING:'Cloudflare chưa có Secret ADMIN_KEY.',CANONICAL_HOST_REQUIRED:'Bạn đang mở link thử nghiệm workers.dev. Hãy mở https://teostudio.top/admin.html.',CROSS_SITE_REQUEST_BLOCKED:'Yêu cầu bị chặn do tên miền không hợp lệ. Hãy mở https://teostudio.top/admin.html.'};
+        const detail=String(err?.message||'LOGIN_FAILED');
+        loginMessage(messageMap[detail]||detail.replace(/^LOGIN_TIMEOUT:/,'Hết thời gian chờ:').replace(/^LOGIN_NETWORK:/,'Lỗi mạng:').replace(/^LOGIN_API_404:/,'Thiếu API:').replace(/^LOGIN_SERVER_/,'Lỗi Worker: '));
         input.value='';input.focus();
       }finally{busy=false;input.disabled=false;$('#adminLoginButton').disabled=false}
     };
     input.focus();
   });
 }
-async function req(p,o={}){const h={'content-type':'application/json',...(o.headers||{}),authorization:'Bearer '+key()};const r=await fetch(api(p),{...o,headers:h,cache:'no-store'});let x={};try{x=await r.json()}catch{}if(r.status===401){sessionStorage.removeItem('TEO_ADMIN_SESSION');setLocked(true);throw Error('ADMIN_REQUIRED')}if(!r.ok){const err=Error(x.message||x.error||`API ${r.status}`);err.code=x.error||'';err.details=x;throw err}return x}
+async function req(p,o={}){const h={'content-type':'application/json',...(o.headers||{}),authorization:'Bearer '+key()};const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);try{let r;try{r=await fetch(api(p),{...o,headers:h,cache:'no-store',signal:controller.signal})}catch(e){if(e?.name==='AbortError')throw Error('API_TIMEOUT: '+p+' không phản hồi sau 15 giây. Kiểm tra Worker/D1 và Cloudflare Logs.');throw Error('API_NETWORK: '+p+' · '+(e?.message||e))}let x={};try{x=await r.json()}catch{}if(r.status===401){sessionStorage.removeItem('TEO_ADMIN_SESSION');setLocked(true);throw Error('ADMIN_REQUIRED')}if(!r.ok){const err=Error(x.message||x.error||`API ${r.status}`);err.code=x.error||'';err.details=x;throw err}return x}finally{clearTimeout(timeout)}}
 let withdrawalSpeedFilter='priority';
 async function loadWithdrawals(){try{const status=$('#withdrawalStatus')?.value||'',x=await req('/api/admin/withdrawals'+(status?'?status='+encodeURIComponent(status):''));const allRows=x.withdrawals||[];const rows=withdrawalSpeedFilter==='all'?allRows:allRows.filter(w=>w.speed===(withdrawalSpeedFilter==='priority'?'priority':'normal'));$('#withdrawalList').innerHTML=rows.map(w=>{const p=w.payout||{};const detail=w.method==='bank'?`Ngân hàng: ${p.bank_name||''}\nSố tài khoản: ${p.account_number||''}\nChủ tài khoản: ${p.account_holder||''}`:`Ví: ${p.wallet_provider||''}\nTài khoản/số điện thoại: ${p.account_number||''}\nChủ tài khoản: ${p.account_holder||''}`;return `<div class="admin-card"><div class="card-head"><div><h3>${esc(w.slug||w.tenant_key||w.tenant_id||'Tenant')} · ${Number(w.payout_vnd).toLocaleString('vi-VN')}đ</h3><small>${esc(w.id)} · ${esc(w.status)} · ${esc(w.speed==='priority'?'Ưu tiên 24h':'Thông thường 7–10 ngày')}</small></div><b>${esc(w.status)}</b></div><p>Yêu cầu: ${Number(w.gross_vnd).toLocaleString('vi-VN')}đ · Phí: ${Number(w.fee_vnd).toLocaleString('vi-VN')}đ · Thực nhận: ${Number(w.payout_vnd).toLocaleString('vi-VN')}đ</p><pre class="payout-details">${esc(detail)}</pre>${w.qrUrl?`<div class="payout-qr"><b>Ảnh QR nhận tiền do Studio tải lên</b><img src="${esc(w.qrUrl)}" alt="QR rút tiền ${esc(w.id)}" loading="lazy" style="display:block;width:220px;max-width:100%;margin:10px auto;border-radius:12px;background:#fff"></div>`:'<p class="muted small">Yêu cầu cũ chưa có ảnh QR. Liên hệ Studio để xác nhận thông tin nhận tiền.</p>'}<button class="btn ghost" onclick="copyPayout('${esc(w.id)}')">📋 Sao chép thông tin</button> ${w.status==='pending'?`<button class="btn primary" onclick="payoutAction('${esc(w.id)}','approve')">Duyệt</button>`:''} ${['pending','approved'].includes(w.status)?`<button class="btn primary" onclick="payoutAction('${esc(w.id)}','paid')">Đánh dấu đã chuyển</button><button class="btn ghost" onclick="payoutAction('${esc(w.id)}','reject')">Từ chối / hoàn số dư</button>`:''}${w.admin_note?`<p class="muted small">${esc(w.admin_note)}</p>`:''}</div>`}).join('')||'<p class="muted">Chưa có yêu cầu rút tiền.</p>'}catch(e){$('#withdrawalList').textContent='Không tải được yêu cầu rút: '+e.message}}
 window.copyPayout=async id=>{try{const x=await req('/api/admin/withdrawals'),w=(x.withdrawals||[]).find(v=>v.id===id);if(!w)return;const p=w.payout||{},text=[`Tenant: ${w.slug||w.tenant_id}`,`Số tiền chuyển: ${Number(w.payout_vnd).toLocaleString('vi-VN')} VND`,`Phương thức: ${w.method}`,w.method==='bank'?`Ngân hàng: ${p.bank_name||''}`:`Ví: ${p.wallet_provider||''}`,`Số tài khoản: ${p.account_number||''}`,`Chủ tài khoản: ${p.account_holder||''}`,`Mã yêu cầu: ${w.id}`].join('\n');await navigator.clipboard.writeText(text);toast('Đã sao chép thông tin chuyển khoản.')}catch(e){toast('Không sao chép được: '+e.message)}};
@@ -133,7 +153,7 @@ $('#securityBlocksRefresh')?.addEventListener('click',loadSecurityBlocks);
 $('#securityBlockForm')?.addEventListener('submit',async e=>{e.preventDefault();const f=e.currentTarget,kind=f.elements.namedItem('kind').value,value=f.elements.namedItem('value').value.trim(),reason=f.elements.namedItem('reason').value.trim();if(!confirm(`Chặn vĩnh viễn ${kind==='ip'?'IP':'email'} này?`))return;const btn=f.querySelector('button[type=submit]');btn.disabled=true;try{const x=await req('/api/admin/security/blocks',{method:'POST',body:JSON.stringify({kind,value,reason})});toast(x.message||'Đã chặn.');f.reset();await loadSecurityBlocks()}catch(err){toast(err.message)}finally{btn.disabled=false}});
 $('#v55AnalyticsMonth')?.addEventListener('change',()=>{if($('#statsRange'))$('#statsRange').value=$('#v55AnalyticsMonth').value;loadV55Analytics();loadStats()});$('#v55RefreshAnalytics')?.addEventListener('click',loadV55Analytics);$('#v55RefreshReports')?.addEventListener('click',loadV55SupportReports);
 
-(async()=>{try{await login();await req('/api/health');await loadProducts();await loadSettings();await loadStats();await loadV55Analytics();await loadV55SupportReports();await loadRuntimeConfig();await loadMonetizationAdmin();await loadComments();setInterval(loadStats,180000);setInterval(loadV55Analytics,300000);toast('Admin đã kết nối Cloud.')}catch(e){toast(e.message)}})();
+(async()=>{try{await login();const health=await req('/api/health');const tasks=[['Danh sách file',loadProducts],['Cài đặt',loadSettings],['Thống kê',loadStats],['Phân tích',loadV55Analytics],['Báo cáo hỗ trợ',loadV55SupportReports],['Cấu hình máy chủ',loadRuntimeConfig],['Kiếm tiền',loadMonetizationAdmin],['Bình luận',loadComments]];const results=await Promise.allSettled(tasks.map(([,fn])=>Promise.resolve().then(fn)));const failed=results.map((r,i)=>r.status==='rejected'?tasks[i][0]+': '+(r.reason?.message||'lỗi không rõ'):null).filter(Boolean);setInterval(loadStats,180000);setInterval(loadV55Analytics,300000);if(failed.length)toast('Admin đã mở; một số mục lỗi: '+failed.join(' | '));else toast('Admin đã kết nối Cloud · '+(health.version||'Worker OK'));}catch(e){toast(e.message)}})();
 
 document.querySelector('#withdrawalPriorityTab')?.addEventListener('click',()=>{withdrawalSpeedFilter='priority';loadWithdrawals()});document.querySelector('#withdrawalNormalTab')?.addEventListener('click',()=>{withdrawalSpeedFilter='normal';loadWithdrawals()});document.querySelector('#withdrawalAllTab')?.addEventListener('click',()=>{withdrawalSpeedFilter='all';loadWithdrawals()});
 
