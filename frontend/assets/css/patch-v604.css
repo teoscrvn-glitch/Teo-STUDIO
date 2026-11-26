@@ -27,3 +27,33 @@
 @keyframes teo-sales-hue{0%,100%{filter:hue-rotate(0deg)}50%{filter:hue-rotate(35deg)}}
 @media(prefers-reduced-motion:reduce){.teo-sales-track{animation:none;filter:none}}
 .admin-header-create{background:linear-gradient(135deg,#1d7fca,#2865b8);border-color:rgba(96,165,250,.55);color:white;font-weight:900;cursor:pointer}.admin-header-create:hover{filter:brightness(1.1)}
+
+/* V60.4 — shared file media viewer (main + tenant Share pages) */
+.teo-media-viewer{width:100%;height:100%;min-width:0;display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:8px;padding:10px;box-sizing:border-box;background:linear-gradient(145deg,rgba(15,23,42,.96),rgba(6,12,22,.98));overflow:hidden}
+.teo-media-stage{position:relative;display:grid;place-items:center;min-height:220px;max-height:680px;width:100%;flex:1;overflow:hidden;border-radius:14px;background:#050a12}
+.teo-media-stage>img,.teo-media-stage>video{display:block;width:100%;height:100%;max-height:680px;min-height:220px;object-fit:contain;background:#050a12}
+.teo-media-stage>[hidden]{display:none!important}
+.teo-media-video-toggle{position:absolute;right:12px;bottom:12px;border:1px solid rgba(255,255,255,.24);border-radius:999px;padding:9px 13px;background:rgba(8,14,26,.84);color:#fff;font-weight:800;backdrop-filter:blur(10px)}
+.teo-media-controls{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;color:var(--muted,#b5bfd2);font-size:12px}
+.teo-media-controls button{width:34px;height:32px;border-radius:10px;border:1px solid var(--line,rgba(255,255,255,.14));background:rgba(148,163,184,.12);color:var(--text,#fff);font-size:21px;line-height:1}
+.teo-media-controls small{flex-basis:100%;text-align:center;font-size:10px}
+.tenant-detail-hero>.teo-media-viewer{min-height:250px}
+.detail-thumb>.teo-media-viewer{min-height:300px}
+@media(max-width:760px){.teo-media-viewer{padding:7px}.teo-media-stage,.teo-media-stage>img,.teo-media-stage>video{min-height:190px;max-height:48dvh}.detail-thumb>.teo-media-viewer,.tenant-detail-hero>.teo-media-viewer{min-height:230px}.teo-media-controls{gap:8px}}
+
+/* V60.4 — ad-gated download state and configurable continuation links */
+.download-ad-placeholder{display:grid;gap:6px;min-height:92px;margin:12px 0;padding:16px;place-content:center;text-align:center;border:1px dashed rgba(148,163,184,.42);border-radius:14px;background:linear-gradient(135deg,rgba(30,41,59,.56),rgba(15,23,42,.82));color:var(--text,#f8fafc)}
+.download-ad-placeholder b{font-size:11px;letter-spacing:.18em;color:#fbbf24}
+.download-ad-placeholder span{font-size:13px;font-weight:800}
+.download-ad-placeholder small{font-size:10px;color:var(--muted,#aab4c8)}
+.download-custom-free-list{display:grid;gap:9px;margin:12px 0;padding:14px;border:1px solid var(--line,rgba(148,163,184,.16));border-radius:14px;background:rgba(15,23,42,.45)}
+.download-custom-free-list h3{margin:0 0 3px;font-size:14px}
+.download-custom-free{display:flex;align-items:center;justify-content:center;min-height:46px;text-align:center;white-space:normal;overflow-wrap:anywhere}
+
+/* Smooth left-to-right ticker; hue changes continuously over each 2-second cycle. */
+.teo-sales-track{animation:teo-sales-marquee-ltr 44s linear infinite,teo-sales-hue-fast 2s ease-in-out infinite;will-change:transform,filter}
+@keyframes teo-sales-marquee-ltr{from{transform:translateX(-45%)}to{transform:translateX(0)}}
+@keyframes teo-sales-hue-fast{0%,100%{filter:hue-rotate(0deg)}50%{filter:hue-rotate(55deg)}}
+.recent-sales-track.is-looping{animation:recent-sales-marquee 54s linear infinite,recent-sales-hue 2s ease-in-out infinite}
+@keyframes recent-sales-hue{0%,100%{filter:hue-rotate(0deg)}50%{filter:hue-rotate(40deg)}}
+@media(prefers-reduced-motion:reduce){.teo-sales-track,.recent-sales-track.is-looping{animation:none;filter:none}}
