@@ -9,8 +9,9 @@ echo '[2/40] Frontend JavaScript syntax'
 find frontend/assets/js -type f -name '*.js' -exec node --check '{}' \;
 echo '[3/40] Version and image asset'
 grep -q "ensureAssistantActivitySchema" cloudflare/worker.js
-grep -q "v60.3-phase0-performance-guard" cloudflare/worker.js
-grep -q "v60.3-phase0-performance-guard" frontend/assets/js/config.js
+BUILD_ID=$(cat VERSION.txt)
+grep -q "const BUILD_VERSION='$BUILD_ID';" cloudflare/worker.js
+grep -q "BUILD_VERSION:'$BUILD_ID'" frontend/assets/js/config.js
 test -s frontend/assets/img/teo-linh.webp
 grep -q "new URL('../img/teo-linh.webp',SCRIPT_URL)" frontend/assets/js/assistant.js
 grep -q 'safeYouTubeUrl' cloudflare/worker.js
@@ -134,5 +135,6 @@ node scripts/test-v60.2-master-product-edit-save.mjs
 echo '[39/40] V60.3 Phase 0/1 baseline, archive, cache and performance guard'
 node scripts/test-v60.3-phase0-performance.mjs
 echo '[40/40] Redesign foundation assets, metadata and viewport-gated motion'
+node scripts/build-detail-foundation.mjs --check
 node scripts/test-redesign-step0.mjs
 node scripts/sync-build-id.mjs --check

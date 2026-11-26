@@ -1,0 +1,1 @@
+PASS local static references: 59 HTML/CSS files checked

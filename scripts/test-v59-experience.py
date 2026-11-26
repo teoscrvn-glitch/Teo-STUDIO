@@ -11,11 +11,19 @@ assert "localStorage.getItem('teo:clickSound')" in dock
 assert 'prefers-reduced-motion' in js
 assert 'teo-route-progress' in js and 'data-loading-label' in js
 assert 'backgroundMusicUrl' in dock and 'const playMusic=' in dock
-assert 'community-dock.js?v=60.3' in share
+assert 'community-dock.js?v=60.5' in share
 assert 'teo-audio-dock' in dock_css and 'teo-route-progress' in css
 assert "musicBtn.addEventListener('click',playMusic)" in dock and 'audioEl.play()' in dock
 html=list(front.glob('*.html'))
-missing=[p.name for p in html if ('teo-experience.js' not in p.read_text(errors='ignore')) or (p.name != 'index.html' and 'teo-experience.css' not in p.read_text(errors='ignore')) or (p.name == 'index.html' and ('page-home.css' not in p.read_text(errors='ignore') or 'teo-experience.css' in p.read_text(errors='ignore')))]
+def experience_assets_missing(p):
+    source=p.read_text(errors='ignore')
+    if 'teo-experience.js' not in source:
+        return True
+    if p.name in {'index.html','detail.html','product-detail-view.html'}:
+        expected='page-home.css' if p.name == 'index.html' else 'page-detail.css'
+        return expected not in source or 'teo-experience.css' in source
+    return 'teo-experience.css' not in source
+missing=[p.name for p in html if experience_assets_missing(p)]
 assert not missing, f'Experience layer missing from: {missing}'
 assert 'prefers-reduced-motion:reduce' in dock_css
 assert '.teo-audio-dock,.teo-music-dock{display:none!important}' in dock_css

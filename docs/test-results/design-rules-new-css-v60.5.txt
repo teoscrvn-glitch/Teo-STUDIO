@@ -1,0 +1,12 @@
+
+=== TỔNG ===
+✓ important       0
+✓ transition-all  0
+✓ big-blur        0
+✓ purple-pink     0
+✓ backdrop        0
+✓ infinite        0
+✓ hex-color       0
+
+CSS files: 2
+PASS

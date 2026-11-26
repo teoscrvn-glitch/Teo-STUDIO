@@ -1,0 +1,7 @@
+/* TeoStudio global interface constraints — base layer, no page-specific overrides. */
+@layer base {
+  svg:not([width]):not([height]) { width: 1.25em; height: 1.25em; }
+  .i { width: 20px; height: 20px; }
+  button svg, a svg { flex: none; }
+  img { max-width: 100%; height: auto; }
+}

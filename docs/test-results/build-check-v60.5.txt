@@ -1,0 +1,229 @@
+[1/40] Worker syntax
+[2/40] Frontend JavaScript syntax
+[3/40] Version and image asset
+[4/40] Chat history
+[5/40] Sales isolation
+[6/40] Tenant detail social preview
+[7/40] Tag and registration video settings
+[8/40] Security guardrails
+[9/40] AI guardrail behavior
+PASS AI guardrails: YouTube allowlist, secret redaction, role filtering and recent-history bounds.
+[10/40] Unified tenant session regression checks
+PASS unified tenant session static checks: exact slug resolution, verified owner SSO, account switching, Share comments, AI context and no Share rewrite.
+[11/40] V56.64 Seller hardening and responsive UI checks
+PASS V56.64: Seller referral/token formats, locked-seller checks, expiry cleanup, scoped action limits, verified payout identity, main/tenant seller CTAs, responsive Seller UI, generated art assets, and no automatic IP bans.
+[12/40] Card exchange security regression checks
+PASS V56.68 manual card workflow: provider-confirmed topups, Admin-only manual delivery, 105% reserve, encrypted card/serial storage, atomic rejection refund, persistent caps, source-grounded rates, and Cloudflare edge limits.
+[13/40] Card tariff normalization tests
+PASS API-driven card rate normalization, dynamic denominations, exact net settlement and idempotency.
+[14/40] SQLite wallet and bypass tests
+PASS SQLite smoke tests: 105% manual reservation, idempotent rejection refund, Admin manual delivery field, persistent limits, duplicate top-up callback protection, and V57.3 one-time Free-key claim/replay/expiry/delete.
+[15/40] Card callback signature helper tests
+PASS V56.67 MD5 callback/request signature vectors.
+[16/40] V56.69 seller analytics and Free bypass regression checks
+PASS V57.12: one-time Free key, 5-minute expiry, active-rental bypass, TeoStudio Link4M destination-page flow, and Seller analytics regression checks.
+[17/40] V57 legal, privacy and design checks
+PASS: V57 legal acknowledgement, policy pages, privacy rights endpoints/UI, design/accessibility checks
+[18/40] V57 D1 migration smoke test
+PASS: legal migration creates D1 tables/indexes and acceptance deduplication works
+[19/40] V57.8 two-cycle Free bypass security and standalone top-up checks
+PASS V57.8 Free bypass cycle simulation: 2 cycles per rolling 24h, third blocked, oldest slot reopens at 24h, +7 days per completed pair (cumulative), and same-session one-time key checks.
+[20/40] V57.9 identity-based authentication security checks
+PASS: client IP uses CF-Connecting-IP
+PASS: client IP never trusts spoofable forwarding headers
+PASS: account/IP/network failure thresholds are explicit
+PASS: persistent D1 login-throttle table is created additively
+PASS: D1 stores HMAC-SHA-256 keyed subject hashes, not raw identifiers
+PASS: buyer throttle is bound to stable account ID
+PASS: tenant throttle is bound to stable tenant/account ID
+PASS: failed logins increment persistent IP/network buckets
+PASS: both tenant login and saved-device security login are protected
+PASS: saved-device Admin re-auth requires Turnstile
+PASS: saved-device Admin password has a stable tenant cooldown
+PASS: network prefix is normalized for IPv4/IPv6
+PASS: frontend config cache token is bumped
+PASS: forged X-Forwarded-For does not override Cloudflare IP
+PASS: missing Cloudflare IP does not fall back to X-Forwarded-For
+PASS: IPv4 octets are normalized
+PASS: invalid IPv4 rejected
+PASS: malformed IP rejected
+PASS: IPv4 addresses in same /24 share prefix
+PASS: IPv6 addresses in same /64 share prefix
+PASS: different IPv6 /64 networks remain separate
+PASS: 8 failures lock the stable buyer account bucket for 15 minutes
+PASS: switching login alias or source IP cannot reset the stable account bucket
+PASS: persistent exact-IP and /24-or-/64 buckets use higher shared-network thresholds
+PASS: expired 15-minute failure window resets without a permanent lock
+PASS: V57.9 identity, IP parsing, and persistent throttle tests completed.
+[21/40] V57.10 Link4M shortlink API diagnostic checks
+PASS: Worker build version bumped
+PASS: shortener destination is TeoStudio result page
+PASS: Link4M flow no longer waits on an unused approval flag
+PASS: provider probe uses the server-side credentials
+PASS: response returns host only, not the full generated short URL
+PASS: provider errors redact API secrets
+PASS: shortener success is not reported as ad-completion verification
+PASS: diagnostic distinguishes return-page flow from ad-completion proof
+PASS: diagnostic tests both providers
+PASS: diagnostic does not open the shortlink or create rewards
+PASS: Free tenant UI maps provider/API failures to a public-safe message
+PASS: Tenant UI does not expose provider HTTP/API diagnostics
+PASS: tenant admin version meta is updated
+PASS: 13/13 V57.10 Link4M diagnostics checks.
+[22/40] V57.13 Free key 5-minute link/key expiry and destination page checks
+PASS: Worker build version bumped
+PASS: new return-link state expires after five minutes
+PASS: return page receives the server expiry timestamp for its visible countdown
+PASS: issuing a key consumes the state atomically and aligns its expiry to the key expiry
+PASS: issued key receives its own five-minute validity window
+PASS: redemption rejects used or expired key rows
+PASS: the same state cannot issue a second key
+PASS: return page checks the server-provided link expiry
+PASS: sensitive URL query is scrubbed and expired state invalidated
+PASS: key timer remains active and key stays available for recopy after copy
+PASS: valid return page automatically issues the key
+PASS: front-end version meta is updated
+PASS: local SQLite simulation confirms separate five-minute link/key windows and one-time state/key claims.
+NOTE: this is a static/local SQL simulation; it does not exercise a live Cloudflare Worker or production D1 database.
+[23/40] V57.13 destination page return behavior
+PASS V57.13 destination-page behavior: valid redirect automatically calls Worker, binds tenant session/state/proof, shows one-time key and scrubs return parameters.
+[24/40] V58.1 Note designer, secure flow, mobile layout and Studio entitlement checks
+PASS: Worker and frontend versions are V58.3
+PASS: account modal mounts inside the account page main content
+PASS: account page exposes the in-flow mount before footer injection
+PASS: account layout avoids a viewport-sized spacer
+PASS: account form is part of document flow and is not clipped
+PASS: Studio cap is derived server-side from active paid ownership
+PASS: client-selected paid plan cannot grant VIP Studio entitlement
+PASS: account UI explains confirmed VIP entitlement
+PASS: additive D1 Notes table and index are declared
+PASS: server-side Note progress table and index are declared
+PASS: Master Admin Note APIs require Admin authentication
+PASS: tenant Note updates are scoped to the owning tenant
+PASS: public Share only receives visible Notes
+PASS: tenant and master-admin Note CRUD routes exist
+PASS: Note sessions are signed with a server-side HMAC key
+PASS: visitor identity is issued by Worker as a scoped HttpOnly cookie
+PASS: Note progress no longer trusts a client-editable device header
+PASS: Note session cookie is HttpOnly, Secure, SameSite=Lax and scoped per Note
+PASS: step redirect requires the signed session and visitor-bound ticket
+PASS: step redirect tickets are single-use
+PASS: completion is checked server-side after the minimum wait
+PASS: Note progress is no longer held in localStorage
+PASS: public Note uses project-owned custom SVG art
+PASS: designer preview uses the same custom SVG art pack
+PASS: Studio editor includes platform quick-add controls
+PASS: Studio editor offers distinct design themes
+PASS: placeholder for future provider-neutral ad slot exists
+PASS: Note editor stores future ad placement choices without claiming ad delivery
+PASS: safe plain-text URLs in Note body are rendered as links
+PASS: a Note flow can finish without requiring a final destination URL
+PASS: existing Free task state remains unchanged
+PASS: Share page has a Notes section
+PASS: Each public Note has its own shareable page URL
+PASS: Standalone Note page loads its dedicated renderer
+PASS: Standalone Note page supports secure step flow and native sharing
+PASS: tenant owner has Note editor and controls
+PASS: Master Admin can manage Notes per Studio
+PASS: Master Admin Note UI calls protected endpoints
+PASS: SQLite Notes/progress DDL, tenant isolation and unique visitor progress
+PASS: account.html has no duplicate static IDs
+PASS: share.html has no duplicate static IDs
+PASS: tenant-admin.html has no duplicate static IDs
+PASS: admin.html has no duplicate static IDs
+PASS: note.html has no duplicate static IDs
+PASS: JavaScript syntax cloudflare/worker.js
+PASS: JavaScript syntax frontend/assets/js/tenant-note-page.js
+PASS: JavaScript syntax frontend/assets/js/note-studio.js
+PASS: JavaScript syntax frontend/assets/js/tenant-share.js
+PASS: JavaScript syntax frontend/assets/js/tenant-admin.js
+PASS: JavaScript syntax frontend/assets/js/rental-master.js
+PASS: JavaScript syntax frontend/assets/js/account.js
+PASS: original SVG art notebook
+PASS: original SVG art editorial
+PASS: original SVG art arcade
+PASS: original SVG art midnight
+PASS: original SVG art pastel
+PASS V58.3: 38 static checks, D1 smoke test, HTML IDs, JS syntax and 5 original SVGs.
+[25/40] V58.4 card gateway, Merchant, ads and Agent checks
+PASS version marker
+PASS provider fee API refresh
+PASS exact provider amount credit
+PASS idempotent card ledger
+PASS dynamic amount validation
+PASS card status check command
+PASS Merchant overview admin route
+PASS Merchant withdraw admin route
+PASS Merchant unknown-order reconciliation
+PASS Merchant atomic single-open withdrawal guard
+PASS Merchant provider bank code not hardcoded
+PASS Merchant Token server secret
+PASS merchant panel exists
+PASS ad placements panel exists
+PASS ad placement endpoints
+PASS agent endpoint
+PASS agent actions read-only wallet
+PASS topup frontend removes manual member fee
+PASS topup shows no 1000 floor rounding
+PASS API-managed read only rates UI
+PASS keep dashboard vars on deploy
+PASS hourly tariff synchronization
+PASS Merchant token documented
+PASS existing D1 binding preserved
+PASS existing rate limit preserved
+PASS Note designer retained
+PASS Key vault retained
+PASS SQLite Merchant invariant: only one open/submitting/unknown/pending/processing withdrawal at a time; new request allowed after completion.
+PASS: 27 V58.4 integration checks
+[26/40] V58.8 regressions: Seller Free gate, tenant support inbox, AI auth, Share return, music and Note mobile layout
+PASS: V58.8 stability regression checks
+[27/40] V58.9 Seller persistence, pre-download flow, external-task return guard and top-up notifications
+PASS V58.9 regression checks: persistent Seller attribution, catalog media/details, pre-download landing, Seller drawer entry, leave-and-return task gate, 5-second hand-off and idempotent Telegram card-topup notices.
+[28/40] V58.11 AI tool-calling, read-only permissions, fallback and RAG wiring checks
+PASS AI tools: scoped registry, opt-in gates, mocked OpenAI tool-call parsing, 404 chat fallback, tenant isolation and allowlisted navigation.
+[29/40] V58.12 AI knowledge ranking and GitHub repository tool checks
+PASS V58.12 AI brain: short technical tokens, Vietnamese query expansion, ranked D1 knowledge retrieval and safe GitHub repo search.
+[30/40] V58.10 page-specific visual system and lightweight depth checks
+PASS: V58.10 visual system is wired into 26 frontend pages; page skins, reduced-motion, capped depth and no heavy 3D dependency verified.
+[31/40] V58.14 share fallback and Seller navigation / thumbnail checks
+PASS V58.14: bare /share fallback, expanded public navigation, Seller drawer sections and larger responsive file thumbnails.
+[32/40] V58.15 Seller analytics, leaderboards and Studio navigation checks
+PASS: V58.15 Seller attribution analytics, public leaderboards and Studio navigation checks
+[33/40] V58.15 reporting SQL and daily unique visit deduplication
+PASS V58.15 reporting SQL: Seller performance + Studio, Seller and top-up leaderboards execute; daily visit deduplication holds.
+[34/40] V59 interaction experience, opt-in audio and reduced-motion checks
+PASS V59/V60 experience: 26 frontend pages wired; opt-in music and click sound in the community hub, route progress, reveal motion and reduced-motion support.
+[35/40] V59.1 unified account, Studio membership, secure Note gating and SQLite wallet checks
+PASS: additive membership schema and unique idempotency
+PASS: membership purchase uses single buyer identity and verified email
+PASS: tenant scoped membership plan create/read/edit
+PASS: member-only products require an enabled plan
+PASS: purchase endpoint enforces active membership before issuing download
+PASS: public product endpoint redacts member-only URLs before returning JSON
+PASS: attached member-only Note enforces membership before revealing final URL
+PASS: download client forwards unified account token
+PASS: tenant Share renders membership plans and invokes common account purchase API
+PASS: account hub exposes single account entitlements and membership list
+PASS: tenant admin provides membership plans, list and member-only/update controls
+PASS: Messenger is recognized in Note task editor
+PASS: Seller performance API returns persistent referral codes and tenant slugs
+PASS: Seller performance has copy, QR, destination and per-link stats UI
+PASS: Seller center separates catalog, performance, payout and ledger into views
+PASS: Master and tenant admin both provide leaderboard navigation
+PASS: SQLite wallet debit activates membership and preserves expected balance
+PASS: SQLite request key blocks duplicate membership purchase
+PASS: SQLite tenant isolation prevents cross-Studio membership unlock
+PASS: SQLite insufficient wallet does not create paid membership
+V59.1 membership checks: 20/20 passed
+[36/40] V60.1 community hub, root landing, tenant-aware ranking, music dock, cache and HTTPS-only links
+PASS: V60.1 community hub, root landing, tenant-aware ranking, membership nav, music controls, touch styling and HTTPS-only custom links.
+[37/40] V60.1 regression checks: tenant Share null guard, uploaded payout QR, Top 100/self-rank, shared dock, Note and touch controls
+PASS V60.1 regressions: tenant Share null dereference, payout QR upload/server gate/admin preview, Top 100 + own rank, shared dock, Note, touch behavior and cache versions.
+PASS: local syntax, helper, static and SQLite simulation checks only. Live Cloudflare D1, actual payment/provider callbacks, Telegram delivery, cross-device UI and platform follow verification are NOT tested here.
+[38/40] V60.2 Master Admin paid-link edit/save regression
+PASS: V60.2 paid-product edits prefer the newly edited visible link, persist it to both legacy URL fields, verify the canonical URL, reset stale edit IDs, and refresh cache keys.
+[39/40] V60.3 Phase 0/1 baseline, archive, cache and performance guard
+PASS V60.3 Phase 0/1: unified build id, archive preservation, mobile compositor guard and offscreen animation pausing.
+[40/40] Redesign foundation assets, metadata and viewport-gated motion
+PASS: frontend/assets/css/detail-foundation.css matches 4 source stylesheets
+PASS Redesign Step 0: 26 HTML heads, PWA/brand assets, tokenized foundation CSS and viewport-gated motion.

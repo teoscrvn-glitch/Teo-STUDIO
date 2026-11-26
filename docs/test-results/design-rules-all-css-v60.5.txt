@@ -1,0 +1,36 @@
+✗ frontend/assets/css/admin-redesign-v59.css: 113 × Cấm !important (dùng @layer)
+✗ frontend/assets/css/admin.css: 12 × Cấm !important (dùng @layer)
+✗ frontend/assets/css/admin.css: 1 × Cấm màu tím/hồng cũ
+✗ frontend/assets/css/community-dock.css: 6 × Cấm !important (dùng @layer)
+✗ frontend/assets/css/interaction-polish-v60.css: 4 × Cấm !important (dùng @layer)
+✗ frontend/assets/css/intro.css: 5 × Cấm !important (dùng @layer)
+✗ frontend/assets/css/note-modern-v60.css: 94 × Cấm !important (dùng @layer)
+✗ frontend/assets/css/note-studio.css: 7 × Cấm !important (dùng @layer)
+✗ frontend/assets/css/patch-v604.css: 1 × Cấm !important (dùng @layer)
+✗ frontend/assets/css/performance-guard.css: 1 × Cấm !important (dùng @layer)
+✗ frontend/assets/css/pre-public-polish.css: 11 × Cấm !important (dùng @layer)
+✗ frontend/assets/css/rankings-modern-v60.css: 37 × Cấm !important (dùng @layer)
+✗ frontend/assets/css/rankings-modern.css: 54 × Cấm !important (dùng @layer)
+✗ frontend/assets/css/seller-performance.css: 6 × Cấm !important (dùng @layer)
+✗ frontend/assets/css/seller-premium.css: 5 × Cấm !important (dùng @layer)
+✗ frontend/assets/css/seller-premium.css: 2 × Cấm màu tím/hồng cũ
+✗ frontend/assets/css/style.css: 69 × Cấm !important (dùng @layer)
+✗ frontend/assets/css/style.css: 7 × Cấm màu tím/hồng cũ
+✗ frontend/assets/css/teo-experience.css: 1 × Cấm !important (dùng @layer)
+✗ frontend/assets/css/teo-experience.css: 2 × Cấm màu tím/hồng cũ
+✗ frontend/assets/css/teo-file-admin-upgrade.css: 21 × Cấm !important (dùng @layer)
+✗ frontend/assets/css/teo-visual-system.css: 14 × Cấm !important (dùng @layer)
+✗ frontend/assets/css/teo-visual-system.css: 2 × Cấm màu tím/hồng cũ
+✗ frontend/assets/css/v60-theme.css: 51 × Cấm !important (dùng @layer)
+
+=== TỔNG ===
+✗ important       512
+✓ transition-all  0
+✓ big-blur        0
+✗ purple-pink     14
+! backdrop        25
+! infinite        25
+! hex-color       955
+
+CSS files: 32
+FAIL — 526 vi phạm luật cứng

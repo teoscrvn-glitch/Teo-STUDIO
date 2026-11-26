@@ -1,0 +1,215 @@
+@layer page {
+  :root {
+    --detail-width: 720px;
+    --detail-gap: 16px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font, "Be Vietnam Pro", Inter, system-ui, sans-serif);
+  }
+
+  .site-header {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 50;
+    min-height: 56px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+  }
+  .site-header .header-inner {
+    width: min(100% - 32px, var(--detail-width));
+    min-height: 56px;
+    margin-inline: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .site-header .icon-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    flex: none;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 22px;
+  }
+  .site-header .brand { display: flex; align-items: center; min-width: 0; }
+  .site-header .brand-wordmark { display: block; width: 126px; max-height: 28px; object-fit: contain; object-position: left center; }
+  .site-header .header-actions { margin-inline-start: auto; display: flex; align-items: center; gap: 8px; }
+  .site-header .header-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--text-2);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  #detailPage.detail-page {
+    width: min(100% - 32px, var(--detail-width));
+    margin: 16px auto calc(40px + env(safe-area-inset-bottom));
+    min-width: 0;
+  }
+  #detailPage > .detail-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+    width: 100%;
+    min-width: 0;
+  }
+  #detailPage .detail-thumb {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface-1);
+    aspect-ratio: 16 / 9;
+  }
+  #detailPage .detail-thumb > img,
+  #detailPage .teo-media-stage > img,
+  #detailPage .teo-media-stage > video,
+  #detailPage .teo-media-stage > iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  #detailPage .teo-media-viewer { width: 100%; height: 100%; min-width: 0; }
+  #detailPage .teo-media-stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--surface-2);
+    aspect-ratio: 16 / 9;
+  }
+  #detailPage .teo-media-stage [hidden] { display: none; }
+  #detailPage .teo-media-video-toggle {
+    position: absolute;
+    inset-inline-end: 12px;
+    inset-block-end: 12px;
+    min-height: 40px;
+    padding: 0 14px;
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 8px;
+    background: rgba(7,9,14,.88);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  #detailPage .teo-media-controls {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 8px;
+    border-top: 1px solid var(--line);
+    color: var(--text-2);
+    font-size: 12px;
+  }
+  #detailPage .teo-media-controls button {
+    width: 36px;
+    height: 32px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--text);
+  }
+  #detailPage .teo-media-controls small { margin-inline-start: auto; font-size: 11px; }
+  #detailPage .detail-body { display: grid; gap: 14px; min-width: 0; }
+  #detailPage .product-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--text-2); font-size: 12px; }
+  #detailPage .product-meta .type-pill,
+  #detailPage .product-meta .badge { min-height: 24px; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+  #detailPage h1 { color: var(--text); font-size: clamp(20px, 4vw, 24px); line-height: 1.25; letter-spacing: -.025em; overflow-wrap: anywhere; }
+  #detailPage .detail-description { color: var(--text-2); font-size: 14px; line-height: 1.65; white-space: normal; overflow-wrap: anywhere; }
+  #detailPage .detail-info { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; color: var(--text-3); font-size: 12px; }
+  #detailPage .detail-info span { display: inline-flex; align-items: center; gap: 6px; }
+  #detailPage .detail-info svg { width: 16px; height: 16px; }
+
+  #detailPage .rule-box,
+  #detailPage .admin-card.tag-tutorial-video,
+  #detailPage .detail-share-box {
+    min-width: 0;
+    padding: 14px 0;
+    border: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  #detailPage .rule-box.danger-rule { color: var(--text-2); }
+  #detailPage .rule-box b { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; color: var(--warn); font-size: 12px; }
+  #detailPage .rule-box div { font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+  #detailPage .tag-tutorial-video h2 { margin: 0 0 10px; font-size: 16px; }
+  #detailPage .video-frame { width: 100%; overflow: hidden; aspect-ratio: 16 / 9; border: 1px solid var(--line); border-radius: 12px; background: var(--video-surface, var(--bg)); }
+  #detailPage .video-frame iframe { display: block; width: 100%; height: 100%; border: 0; }
+
+  #detailPage .detail-share-heading .eyebrow { color: var(--text-3); font-size: 11px; letter-spacing: .08em; }
+  #detailPage .detail-share-heading h2 { margin: 4px 0; font-size: 16px; line-height: 1.3; }
+  #detailPage .detail-share-heading p { max-width: 58ch; color: var(--text-2); font-size: 13px; line-height: 1.5; }
+  #detailPage .detail-share-preview { display: flex; align-items: center; gap: 10px; min-width: 0; margin-top: 12px; }
+  #detailPage .detail-share-preview img { width: 56px; height: 56px; flex: none; object-fit: cover; border-radius: 8px; background: var(--surface-2); }
+  #detailPage .detail-share-preview > div { display: grid; gap: 3px; min-width: 0; }
+  #detailPage .detail-share-preview b { overflow: hidden; color: var(--text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+  #detailPage .detail-share-preview small { color: var(--text-3); font-size: 12px; }
+  #detailPage .detail-share-actions { display: grid; grid-template-columns: minmax(0,1fr) auto auto; gap: 8px; margin-top: 10px; }
+  #detailPage .detail-share-actions input { width: 100%; min-width: 0; min-height: 44px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-1); color: var(--text-2); font-size: 12px; }
+  #detailPage .detail-share-actions .btn { min-height: 44px; padding-inline: 12px; border-radius: 8px; white-space: nowrap; }
+  #detailPage .detail-share-actions .btn.primary { border-color: var(--brand); background: var(--brand); color: var(--on-accent); }
+  #detailPage #detailShareStatus { min-height: 18px; margin-top: 6px; font-size: 12px; }
+
+  #detailPage .seller-detail-invite {
+    display: grid;
+    grid-template-columns: auto minmax(0,1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  #detailPage .seller-detail-badge { color: var(--gold); font-size: 11px; font-weight: 700; white-space: nowrap; }
+  #detailPage .seller-detail-invite b { display: block; color: var(--text); font-size: 13px; }
+  #detailPage .seller-detail-invite p { margin-top: 3px; color: var(--text-2); font-size: 12px; line-height: 1.45; }
+  #detailPage .seller-detail-btn { min-height: 48px; padding-inline: 10px; border: 1px solid color-mix(in srgb, var(--gold) 55%, transparent); border-radius: 8px; color: var(--gold); font-size: 12px; white-space: nowrap; }
+
+  #detailPage .detail-choice-actions { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+  #detailPage .detail-choice-actions > :only-child { grid-column: 1 / -1; }
+  #detailPage .detail-buy-direct,
+  #detailPage .detail-free-action,
+  #detailPage > .detail-card .detail-body > .btn.full { display: inline-flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; padding: 0 16px; border: 1px solid var(--line-strong); border-radius: 12px; font-size: 13px; font-weight: 700; line-height: 1.25; text-align: center; }
+  #detailPage .detail-buy-direct,
+  #detailPage .detail-body > .detail-choice-actions .detail-buy-direct { border-color: var(--brand); background: var(--brand); color: var(--on-accent); }
+  #detailPage .detail-free-action { border-color: var(--line-strong); background: transparent; color: var(--text); }
+  #detailPage .detail-buy-direct svg,
+  #detailPage .detail-free-action svg { width: 18px; height: 18px; margin-inline-end: 8px; }
+  #detailPage .main-purchase-box { min-width: 0; }
+  #detailPage .admin-card { padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-1); }
+  #detailPage .admin-card h1 { margin-bottom: 8px; }
+  #detailPage .admin-card p { margin: 8px 0; color: var(--text-2); font-size: 14px; }
+  #detailPage .admin-card .btn { min-height: 44px; border-radius: 8px; }
+
+  #toast.toast { position: fixed; z-index: 100; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); translate: -50% 0; width: max-content; max-width: calc(100% - 32px); padding: 11px 14px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface-2); color: var(--text); font-size: 13px; }
+
+  @media (max-width: 480px), (hover:none) and (pointer:coarse) and (max-width:1024px) {
+    #detailPage .detail-share-actions { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+    #detailPage .detail-share-actions input { grid-column: 1 / -1; }
+    #detailPage .seller-detail-invite { grid-template-columns: minmax(0,1fr) auto; }
+    #detailPage .seller-detail-badge { grid-column: 1 / -1; }
+    #detailPage .seller-detail-btn { grid-column: 2; grid-row: 2 / span 2; }
+    #detailPage .teo-media-controls small { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #detailPage *, .site-header * { scroll-behavior: auto; transition-duration: 0.01ms; animation-duration: 0.01ms; animation-iteration-count: 1; }
+  }
+}

@@ -9,8 +9,8 @@ share_html=(root/'frontend/tenant-admin.html').read_text()
 note_css=(root/'frontend/assets/css/note-studio.css').read_text()
 config=(root/'frontend/assets/js/config.js').read_text()
 wrangler=(root/'cloudflare/wrangler.toml').read_text()
-assert "const BUILD_VERSION='v60.3-phase0-performance-guard'" in worker
-assert "BUILD_VERSION:'v60.3-phase0-performance-guard'" in config
+assert "const BUILD_VERSION='v60.5-ui-step2'" in worker
+assert "BUILD_VERSION:'v60.5-ui-step2'" in config
 # Seller toggle reads from the actual HTML form, not FormData.elements.
 assert "const sellerEnabled=form.elements?.namedItem?.('seller_enabled')" in tenant_js
 assert "const sellerEnabled=f.elements?.namedItem" not in tenant_js
@@ -38,7 +38,7 @@ assert 'alreadyLinked:true' in worker and 'Bot này đã được liên kết v�
 # Music is configurable for the main site and each tenant, and HTTPS only.
 assert 'backgroundMusicUrl' in worker and "if(k==='backgroundMusicUrl'&&v0&&!/^https:\\/\\//i.test(String(v0)))" in worker
 assert 'mountBackgroundMusic(site.backgroundMusicUrl)' not in (root/'frontend/assets/js/main.js').read_text()
-assert 'community-dock.js?v=60.3' in (root/'frontend/2.html').read_text()
+assert 'community-dock.js?v=60.5' in (root/'frontend/2.html').read_text()
 assert 'mountTenantMusicPlayer(s.backgroundMusicUrl)' not in (root/'frontend/assets/js/tenant-share.js').read_text()
 assert 'tcdMusic' in (root/'frontend/assets/js/community-dock.js').read_text()
 # Note preview/editor collapses before desktop-site mobile viewport widths.

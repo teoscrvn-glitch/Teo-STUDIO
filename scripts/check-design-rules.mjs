@@ -10,6 +10,8 @@ const files = [];
 (function walk(d) {
   for (const n of readdirSync(d)) {
     if (n === 'node_modules' || n === 'archive' || n.startsWith('.')) continue;
+    // Generated detail bundle duplicates source CSS; lint its source files, not the compiled duplicate.
+    if (n === 'detail-foundation.css') continue;
     const p = join(d, n); const s = statSync(p);
     s.isDirectory() ? walk(p) : extname(p) === '.css' && files.push(p);
   }
