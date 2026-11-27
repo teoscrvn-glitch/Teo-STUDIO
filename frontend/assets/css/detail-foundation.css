@@ -331,3 +331,135 @@
   img { max-width: 100%; height: auto; }
 }
 
+/* TeoStudio V60.6 — isolated styles for JS-injected account and assistant widgets.
+   This keeps migrated pages independent from the legacy global style.css. */
+@layer components {
+  .teo-account-launcher {
+    position: fixed; left: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 10040;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 44px; max-width: calc(100vw - 96px); padding: 0 13px;
+    border: 1px solid var(--line, #273247); border-radius: 999px;
+    background: var(--surface-2, #111827); color: var(--text, #f3f4f6);
+    font: inherit; font-size: 12px; font-weight: 700; box-shadow: 0 8px 24px rgba(0,0,0,.24);
+    cursor: pointer; touch-action: manipulation;
+  }
+  .teo-account-launcher > .i { width: 18px; height: 18px; flex: 0 0 18px; }
+  .teo-account-launcher > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .teo-launch-avatar { width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; background: #2456a8; color: #fff; }
+
+  .teo-modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 10050;
+    align-items: center; justify-content: center; padding: 16px;
+    background: rgba(3, 7, 15, .78); overscroll-behavior: contain;
+  }
+  .teo-modal-overlay.open { display: flex; }
+  .teo-account-panel {
+    width: min(560px, 100%); max-height: min(90dvh, 820px); overflow: auto;
+    border: 1px solid var(--line, #263247); border-radius: 16px;
+    background: var(--surface-1, #0e121b); color: var(--text, #f5f7fb);
+    box-shadow: 0 24px 64px rgba(0,0,0,.48); overscroll-behavior: contain;
+  }
+  .teo-modal-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 17px; border-bottom: 1px solid var(--line, #263247); background: var(--surface-1, #0e121b); }
+  .teo-modal-head small { color: var(--text-3, #8491a5); font-size: 10px; letter-spacing: .1em; }
+  .teo-modal-head h2 { margin: 4px 0 0; color: var(--text, #f5f7fb); font-size: 20px; line-height: 1.25; }
+  .teo-x { flex: 0 0 38px; width: 38px; height: 38px; border: 1px solid var(--line, #263247); border-radius: 8px; background: var(--surface-2, #151d2a); color: var(--text, #fff); font-size: 24px; cursor: pointer; }
+  .teo-modal-body { padding: 16px 17px 20px; }
+  .teo-form { display: grid; gap: 13px; }
+  .teo-form label, .teo-report-form label { display: grid; gap: 7px; min-width: 0; color: var(--text-2, #c2cad7); font-size: 13px; font-weight: 600; }
+  .teo-form input:not([type="checkbox"]), .teo-form textarea, .teo-form select,
+  .teo-report-form input, .teo-report-form textarea, .teo-report-form select {
+    box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px;
+    border: 1px solid var(--line, #2a3548); border-radius: 8px;
+    background: var(--bg, #07090e); color: var(--text, #f5f7fb); font: inherit; font-size: 14px;
+  }
+  .teo-form input:focus, .teo-form textarea:focus, .teo-form select:focus { outline: 2px solid rgba(76,141,255,.26); border-color: #4c8dff; }
+  .teo-form small, .teo-muted { color: var(--text-3, #8d99aa); font-size: 12px; line-height: 1.5; }
+  .teo-form .teo-terms-consent { display: flex; align-items: flex-start; gap: 9px; line-height: 1.5; }
+  .teo-terms-consent input { width: 18px; height: 18px; flex: 0 0 18px; margin: 1px 0 0; accent-color: #4c8dff; }
+  .teo-terms-consent span { min-width: 0; }
+  .teo-terms-consent a, .teo-link { color: #8bb5ff; }
+  .teo-primary, .teo-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 14px; border: 1px solid transparent; border-radius: 8px; font: inherit; font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer; }
+  .teo-primary { background: #4c8dff; color: #07111f; }
+  .teo-secondary { border-color: var(--line, #2a3548); background: var(--surface-2, #151d2a); color: var(--text, #f5f7fb); }
+  .teo-primary:disabled, .teo-secondary:disabled { opacity: .48; cursor: not-allowed; }
+  .teo-link { padding: 7px 0; border: 0; background: transparent; font: inherit; font-size: 12px; cursor: pointer; }
+  .teo-row-actions, .teo-wallet-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .teo-message, .teo-warning, .teo-error { font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+  .teo-message { margin: 0 0 12px; padding: 10px 12px; border: 1px solid rgba(76,141,255,.25); border-radius: 8px; background: rgba(76,141,255,.08); color: #c8dcff; }
+  .teo-error { color: #ffb4b4; }
+  .teo-warning { color: #f5d58a; }
+  .teo-toast { position: fixed; left: 50%; bottom: calc(82px + env(safe-area-inset-bottom)); z-index: 11000; max-width: calc(100vw - 28px); padding: 10px 14px; border: 1px solid var(--line, #2a3548); border-radius: 8px; background: #121a28; color: #fff; opacity: 0; pointer-events: none; transform: translate(-50%, 8px); transition: opacity .16s, transform .16s; }
+  .teo-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  .teo-ai-wrap { position: fixed; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 10030; font-family: inherit; }
+  .teo-ai-bubble { position: relative; display: grid; place-items: center; width: 50px; height: 50px; padding: 0; overflow: visible; border: 1px solid rgba(76,141,255,.55); border-radius: 50%; background: #15243a; color: #fff; box-shadow: 0 8px 22px rgba(0,0,0,.32); cursor: pointer; isolation: isolate; }
+  .teo-ai-bubble > img { position: absolute; inset: 0; z-index: 0; display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+  .teo-ai-bubble-label { position: absolute; z-index: 2; left: 50%; bottom: -4px; padding: 1px 7px; border: 1px solid #4c8dff; border-radius: 999px; background: #14243d; color: #d8e7ff; font-size: 10px; line-height: 1.4; transform: translateX(-50%); }
+  .teo-ai-panel { display: none; position: fixed; right: 12px; bottom: calc(136px + env(safe-area-inset-bottom)); z-index: 10031; width: min(390px, calc(100vw - 24px)); height: min(620px, calc(100dvh - 160px)); min-height: 300px; flex-direction: column; overflow: hidden; border: 1px solid var(--line, #2a3548); border-radius: 16px; background: #0e1420; color: #eff4fb; box-shadow: 0 18px 48px rgba(0,0,0,.5); }
+  .teo-ai-wrap.open .teo-ai-panel { display: flex; }
+  .teo-ai-wrap.open .teo-ai-bubble { visibility: hidden; pointer-events: none; }
+  .teo-ai-head { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; padding: 10px 12px; border-bottom: 1px solid var(--line, #2a3548); background: #111b2a; }
+  .teo-ai-head-brand { display: flex; align-items: center; gap: 9px; flex: 1 1 auto; min-width: 0; }
+  .teo-ai-head-brand > img { width: 38px; height: 38px; flex: 0 0 38px; border: 1px solid var(--line, #2a3548); border-radius: 9px; object-fit: cover; }
+  .teo-ai-head-brand > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .teo-ai-head-brand b { font-size: 13px; }
+  .teo-ai-head-brand small { color: #9caabe; font-size: 10px; }
+  .teo-ai-head-actions { display: flex; flex: 0 0 auto; gap: 5px; }
+  .teo-ai-head-actions button, .teo-ai-head > button { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--line, #2a3548); border-radius: 8px; background: #172235; color: #fff; font-size: 18px; }
+  .teo-ai-messages { display: flex; flex: 1 1 auto; flex-direction: column; gap: 9px; min-height: 0; padding: 12px; overflow: auto; overscroll-behavior: contain; }
+  .teo-ai-message { max-width: 92%; padding: 9px 11px; border: 1px solid var(--line, #2a3548); border-radius: 12px; background: #162235; color: #e8eff9; font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .teo-ai-message.mine { align-self: flex-end; background: #17345a; }
+  .teo-ai-message.bot { align-self: flex-start; }
+  .teo-ai-form { display: flex; flex: 0 0 auto; align-items: flex-end; gap: 7px; padding: 9px; border-top: 1px solid var(--line, #2a3548); }
+  .teo-ai-form textarea { flex: 1 1 auto; min-width: 0; min-height: 42px; max-height: 110px; resize: vertical; padding: 9px 10px; border: 1px solid var(--line, #2a3548); border-radius: 8px; background: #080e18; color: #fff; font: inherit; font-size: 16px; }
+  .teo-ai-form button { min-height: 42px; padding: 0 12px; border: 0; border-radius: 8px; background: #4c8dff; color: #07111f; font-weight: 700; }
+  .teo-ai-footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 7px; padding: 7px 10px; border-top: 1px solid var(--line, #2a3548); color: #8d9bb0; font-size: 10px; }
+  .teo-ai-footer button { border: 0; background: transparent; color: #bcd5ff; font: inherit; }
+  .teo-ai-history { position: absolute; top: 58px; left: 8px; right: 8px; z-index: 3; max-height: 45%; overflow: auto; padding: 8px; border: 1px solid var(--line, #2a3548); border-radius: 10px; background: #0b1421; }
+  .teo-ai-history[hidden], .teo-ai-image-preview[hidden] { display: none; }
+  .teo-ai-history-item { display: flex; justify-content: space-between; width: 100%; gap: 8px; padding: 9px; border: 0; border-radius: 7px; background: transparent; color: #e8eff9; text-align: left; }
+  .teo-ai-history-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .teo-ai-history-item.active { background: #162b47; }
+  .teo-report-form { display: grid; gap: 11px; min-height: 0; padding: 12px; overflow: auto; }
+  .teo-honey { position: absolute; left: -10000px; opacity: 0; }
+  .teo-ai-primary { min-height: 42px; padding: 9px 12px; border: 0; border-radius: 8px; background: #4c8dff; color: #07111f; font-weight: 700; }
+  @media (max-width: 560px) {
+    .teo-modal-overlay { align-items: flex-end; padding: 8px; }
+    .teo-account-panel { width: 100%; max-height: min(92dvh, 820px); border-radius: 14px; }
+    .teo-modal-head { padding: 13px 14px; }
+    .teo-modal-body { padding: 13px 14px 18px; }
+    .teo-ai-wrap { right: 10px; bottom: calc(76px + env(safe-area-inset-bottom)); }
+    .teo-ai-bubble { width: 48px; height: 48px; }
+    .teo-ai-panel { left: 6px; right: 6px; top: max(6px, env(safe-area-inset-top)); bottom: max(6px, env(safe-area-inset-bottom)); width: auto; height: auto; max-height: none; border-radius: 14px; }
+    .teo-ai-wrap.open { inset: 0; right: 0; bottom: 0; z-index: 10050; pointer-events: none; }
+    .teo-ai-wrap.open .teo-ai-panel { pointer-events: auto; }
+    .teo-ai-wrap.open .teo-ai-bubble { display: none; }
+  }
+}
+
+
+
+/* V60.7 — hard fallback for JS-injected widgets on migrated detail pages.
+   Unlayered, narrowly scoped rules prevent page-level cascade layers from
+   leaving injected controls as ordinary document content. */
+#teoAccountLauncher{position:fixed;left:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:10040;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 13px;border:1px solid #273247;border-radius:999px;background:#111827;color:#f3f4f6;font:inherit;font-size:12px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.24);cursor:pointer}
+#teoAccountModal.teo-modal-overlay{display:none;position:fixed;inset:0;z-index:10050;align-items:center;justify-content:center;padding:16px;background:rgba(3,7,15,.78);overscroll-behavior:contain}
+#teoAccountModal.teo-modal-overlay.open{display:flex}
+#teoAccountModal .teo-account-panel{display:block;width:min(560px,100%);max-height:min(90dvh,820px);overflow:auto;border:1px solid #263247;border-radius:16px;background:#0e121b;color:#f5f7fb;box-shadow:0 24px 64px rgba(0,0,0,.48);overscroll-behavior:contain}
+#teoAccountModal .teo-modal-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 17px;border-bottom:1px solid #263247;background:#0e121b}
+#teoAccountModal .teo-modal-body{padding:16px 17px 20px}
+#teoAccountModal .teo-form{display:grid;gap:13px}
+#teoAccountModal .teo-form label{display:grid;gap:7px;color:#c2cad7;font-size:13px;font-weight:600}
+#teoAccountModal .teo-form input:not([type=checkbox]),#teoAccountModal .teo-form textarea,#teoAccountModal .teo-form select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;padding:10px 12px;border:1px solid #2a3548;border-radius:8px;background:#07090e;color:#f5f7fb;font:inherit;font-size:14px}
+#teoAccountModal .teo-primary,#teoAccountModal .teo-secondary{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;border:1px solid transparent;border-radius:8px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+#teoAccountModal .teo-primary{background:#4c8dff;color:#07111f}
+#teoAccountModal .teo-secondary{border-color:#2a3548;background:#151d2a;color:#f5f7fb}
+#teoAiWrap{position:fixed;right:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:10030;font-family:inherit}
+#teoAiWrap .teo-ai-bubble{position:relative;display:grid;place-items:center;width:50px;height:50px;min-width:50px;min-height:50px;padding:0;overflow:visible;border:1px solid rgba(76,141,255,.55);border-radius:50%;background:#15243a;color:#fff;box-shadow:0 8px 22px rgba(0,0,0,.32);cursor:pointer;isolation:isolate}
+#teoAiWrap .teo-ai-bubble>img{position:absolute;inset:0;z-index:0;display:block;width:100%;height:100%;max-width:none;max-height:none;border-radius:50%;object-fit:cover}
+#teoAiWrap .teo-ai-bubble-label{position:absolute;z-index:2;left:50%;bottom:-4px;padding:1px 7px;border:1px solid #4c8dff;border-radius:999px;background:#14243d;color:#d8e7ff;font-size:10px;line-height:1.4;transform:translateX(-50%)}
+#teoAiWrap .teo-ai-panel{display:none;position:fixed;right:12px;bottom:calc(136px + env(safe-area-inset-bottom));z-index:10031;width:min(390px,calc(100vw - 24px));height:min(620px,calc(100dvh - 160px));min-height:300px;flex-direction:column;overflow:hidden;border:1px solid #2a3548;border-radius:16px;background:#0e1420;color:#eff4fb;box-shadow:0 18px 48px rgba(0,0,0,.5)}
+#teoAiWrap.open .teo-ai-panel{display:flex}
+#teoAiWrap .teo-ai-head-brand>img{display:block;width:38px;height:38px;max-width:38px;max-height:38px;flex:0 0 38px;border-radius:9px;object-fit:cover}
+@media(max-width:560px){#teoAccountModal.teo-modal-overlay{align-items:flex-end;padding:8px}#teoAccountModal .teo-account-panel{width:100%;max-height:min(92dvh,820px);border-radius:14px}#teoAiWrap{right:10px;bottom:calc(76px + env(safe-area-inset-bottom))}#teoAiWrap .teo-ai-bubble{width:48px;height:48px;min-width:48px;min-height:48px}#teoAiWrap .teo-ai-panel{left:6px;right:6px;top:max(6px,env(safe-area-inset-top));bottom:max(6px,env(safe-area-inset-bottom));width:auto;height:auto;max-height:none;border-radius:14px}#teoAiWrap.open{inset:0;right:0;bottom:0;z-index:10050;pointer-events:none}#teoAiWrap.open .teo-ai-panel{pointer-events:auto}#teoAiWrap.open .teo-ai-bubble{display:none}}
+

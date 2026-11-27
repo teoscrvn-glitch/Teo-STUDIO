@@ -123,9 +123,16 @@ async function load(){
   $('#commentCount').textContent=allComments.length;
   renderFiles();renderComments();renderTags();renderTenantNotes();renderProductNoteOptions();
   if(dashboardMsg&&failures.length){dashboardMsg.textContent='Một số dữ liệu chưa tải được ('+failures.join(' · ')+'). Các mục còn lại vẫn dùng được; thử nút Làm mới sau.';dashboardMsg.classList.remove('hidden');}
-  await loadStats();await loadAudit();await Promise.allSettled([loadSecurityBlocks(),loadTenantNotifications(),loadTenantSupportReports()]);
-  if(me.planType!=='free')await loadWallet();
-  else {const b=$('#availableWithdraw');if(b)b.textContent='—';}
+  const withdrawSummary=$('#availableWithdraw');if(me.planType==='free'&&withdrawSummary)withdrawSummary.textContent='—';
+  // Do not hold the Admin portal's first usable render on charts, audit history,
+  // notifications, support inbox or wallet history. Hydrate those panels after paint.
+  setTimeout(()=>{
+    Promise.resolve().then(()=>Promise.allSettled([loadStats(),loadAudit()])).then(()=>new Promise(resolve=>setTimeout(resolve,160))).then(()=>
+      Promise.allSettled([loadSecurityBlocks(),loadTenantNotifications(),loadTenantSupportReports()])
+    ).then(()=>{
+      if(me?.planType!=='free')return loadWallet();
+    }).catch(err=>console.debug('[TeoStudio tenant background load]',err?.message||err));
+  },180);
 }
 function fillTenantAccountInfo(){const email=$('#tenantAccountEmailCurrent'),label=$('#tenantAccountAuthLabel');if(email)email.textContent=accountAuth.email||me?.email||'Chưa có email';if(label)label.textContent=accountAuth.mode==='buyer'?'Đang dùng tài khoản TeoStudio chung (SSO). Đổi email/mật khẩu sẽ đồng bộ với tài khoản và các Studio liên kết.':'Tài khoản thuê cũ dùng ID riêng. Email cần được xác minh; mật khẩu thuê được quản lý riêng.';const id=$('#tenantAccountId');if(id)id.textContent=accountAuth.loginId||me?.slug||'-';}
 async function fetchAccountApi(path,body){const r=await fetch(api(path),{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify(body||{}),cache:'no-store'}),x=await r.json().catch(()=>({}));if(!r.ok)throw Error(x.message||x.detail||x.error||('API '+r.status));return x}

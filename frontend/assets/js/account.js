@@ -66,7 +66,8 @@
     if(!r.ok){const e=Error(x.message||x.detail||x.error||`API ${r.status}`);e.data=x;e.status=r.status;throw e}return x;
   }
   async function config(){if(publicConfig)return publicConfig;try{publicConfig=await request('/api/support/config')}catch{publicConfig={turnstileEnabled:true}}return publicConfig}
-  function ensureAccountUI(){let launch=qs('#teoAccountLauncher');if(!launch){launch=document.createElement('button');launch.id='teoAccountLauncher';launch.className='teo-account-launcher';launch.type='button';launch.innerHTML=icon('user')+'<span>Tài khoản</span>';launch.setAttribute('aria-label','Mở tài khoản TeoStudio');document.body.appendChild(launch)}if(!launch.dataset.teoBound){launch.addEventListener('click',openModal);launch.dataset.teoBound='1'}let overlay=qs('#teoAccountModal');if(!overlay){overlay=document.createElement('div');overlay.id='teoAccountModal';overlay.className='teo-modal-overlay';overlay.innerHTML='<section id="teoAccountPanel" class="teo-account-panel" role="dialog" aria-modal="true"></section>'}const accountMount=isAccountPage()?qs('#teoAccountMount'):null;const parent=accountMount||document.body;if(overlay.parentElement!==parent)parent.appendChild(overlay);if(!overlay.dataset.teoBound){overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal()});overlay.dataset.teoBound='1'}return {launch,overlay}}
+  function ensureModalCss(){if(document.getElementById('teoModalCss')||document.querySelector('link[href*="style.css"],link[href*="global-ui.css"],link[href*="detail-foundation.css"],link[href*="account-modal.css"]'))return;const l=document.createElement('link');l.id='teoModalCss';l.rel='stylesheet';l.href='/assets/css/account-modal.css?v=60.7';document.head.appendChild(l)}
+  function ensureAccountUI(){ensureModalCss();let launch=qs('#teoAccountLauncher');if(!launch){launch=document.createElement('button');launch.id='teoAccountLauncher';launch.className='teo-account-launcher';launch.type='button';launch.innerHTML=icon('user')+'<span>Tài khoản</span>';launch.setAttribute('aria-label','Mở tài khoản TeoStudio');document.body.appendChild(launch)}if(!launch.dataset.teoBound){launch.addEventListener('click',openModal);launch.dataset.teoBound='1'}let overlay=qs('#teoAccountModal');if(!overlay){overlay=document.createElement('div');overlay.id='teoAccountModal';overlay.className='teo-modal-overlay';overlay.innerHTML='<section id="teoAccountPanel" class="teo-account-panel" role="dialog" aria-modal="true"></section>'}const accountMount=isAccountPage()?qs('#teoAccountMount'):null;const parent=accountMount||document.body;if(overlay.parentElement!==parent)parent.appendChild(overlay);if(!overlay.dataset.teoBound){overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal()});overlay.dataset.teoBound='1'}return {launch,overlay}}
   const isAccountPage=()=>/^\/(?:account|topup)(?:\.html)?\/?$/i.test(location.pathname);
   const isTopupPage=()=>/^\/topup(?:\.html)?\/?$/i.test(location.pathname);
   function safeReturnPath(){let raw=new URLSearchParams(location.search).get('return')||'';if(!raw){let slug='';try{slug=new URLSearchParams(location.search).get('tenant')||localStorage.getItem('TEO_TENANT_ID')||''}catch{}raw=slug&&/^[a-z0-9_-]{2,80}$/i.test(slug)?'/share?tenant='+encodeURIComponent(slug):'/'}try{const u=new URL(raw,location.origin);return u.origin===location.origin&&raw.startsWith('/')&&!raw.startsWith('//')?u.pathname+u.search+u.hash:'/'}catch{return '/'}}
@@ -149,10 +150,23 @@
     try{const x=await request('/api/account/me');user=x.user;localStorage.setItem(LAST_ACTIVE_KEY,String(Date.now()));return !!user}catch{return false}
   }
   async function buy(scope,productId,title,price,tenant=''){
+    // Unauthenticated buyers go to the dedicated Account page, not an injected
+    // inline modal on a product page. Preserve the same-origin return URL.
+    if(!token)token=readSession();
+    if(!token){
+      const returnTo=location.pathname+location.search+location.hash;
+      location.assign('/account.html?auth=login&return='+encodeURIComponent(returnTo));
+      return false;
+    }
     const ui=ensureAccountUI();ui.overlay.classList.add('open');
     try{
       const ok=await ensureBuyer();
-      if(!ok){showAuth('login','Hãy đăng nhập bằng ID/email và tài khoản đã xác minh email trước khi mua file.');return false;}
+      if(!ok){
+        token='';user=null;saveSession('');
+        const returnTo=location.pathname+location.search+location.hash;
+        location.assign('/account.html?auth=login&return='+encodeURIComponent(returnTo));
+        return false;
+      }
       const idem=purchaseKey(scope,tenant,productId);activePurchase={scope,productId,title,price,tenant,idempotencyKey:idem.key,storageKey:idem.storageKey};
       if(topupTimer){clearInterval(topupTimer);topupTimer=null}
       shell('Xác nhận mua file',`<p class="teo-loading">Đang kiểm tra số dư và thông tin sản phẩm…</p>`);

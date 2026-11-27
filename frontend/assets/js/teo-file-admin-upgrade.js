@@ -3,7 +3,7 @@ const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelecto
 const isTenant=!!$('#fileFormCard'),form=$('#productForm'),card=$('#fileFormCard')||$('#productFormCard');if(!form||!card)return;
 const premium=()=>!isTenant||document.body.dataset.plan!=='free';
 function showNotice(msg){if(typeof window.toast==='function')window.toast(msg);else alert(msg)}
-function modalize(){if(!card.classList.contains('hidden'))card.classList.add('teo-editor-open');else card.classList.remove('teo-editor-open')}
+function modalize(){const open=!card.classList.contains('hidden');if(card.classList.contains('teo-editor-open')!==open)card.classList.toggle('teo-editor-open',open)} // idempotent: avoid redundant class mutations
 if(card){const observer=new MutationObserver(modalize);observer.observe(card,{attributes:true,attributeFilter:['class']});if(!$('.teo-editor-close',card)){const b=document.createElement('button');b.type='button';b.className='teo-editor-close';b.textContent='Đóng ✕';b.addEventListener('click',()=>{const cancel=$('#cancelFile')||$$('[onclick="cancelProduct()"]',card)[0];if(cancel)cancel.click();else card.classList.add('hidden')});card.prepend(b)}}
 // Persist the classic/new visual preference without changing product data.
 function applyUi(){let mode='new';try{mode=localStorage.getItem('teostudio-admin-ui')||'new'}catch{}document.body.classList.toggle('teo-admin-classic',mode==='classic');$$('[data-teo-ui-toggle]').forEach(b=>{b.textContent=mode==='classic'?'Giao diện: Cũ':'Giao diện: Mới';b.setAttribute('aria-pressed',mode==='new'?'true':'false')})}

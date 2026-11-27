@@ -1,0 +1,10 @@
+/* V60.5a perf-fix: nạp CUỐI CÙNG ở mọi trang. Bỏ hiệu ứng nền nặng; không !important. */
+html.teo-tab-hidden *,html.teo-tab-hidden *::before,html.teo-tab-hidden *::after{animation-play-state:paused}
+body::before,body::after{animation:none;filter:none;will-change:auto}
+body::after{box-shadow:none}
+@media (hover:none) and (pointer:coarse),(max-width:900px){
+  html body [class][class]{backdrop-filter:none;-webkit-backdrop-filter:none}
+  body::before{display:none}
+
+}
+.admin-body .admin-panel:not(.active){display:none}

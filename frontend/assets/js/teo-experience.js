@@ -19,5 +19,7 @@
   doc.addEventListener('click',e=>{const b=e.target.closest('button[data-loading-label]');if(!b||b.disabled)return;const label=b.dataset.loadingLabel||'Đang xử lý…';b.dataset.originalLabel=b.textContent;b.textContent=label;b.classList.add('teo-is-loading');b.setAttribute('aria-busy','true');b.disabled=true;const restore=()=>{if(!b.isConnected)return;b.textContent=b.dataset.originalLabel||b.textContent;b.classList.remove('teo-is-loading');b.removeAttribute('aria-busy');b.disabled=false};b.addEventListener('teo:complete',restore,{once:true});setTimeout(restore,15000)},{capture:true});
 
   // Low-cost reveal for cards; IntersectionObserver avoids animating off-screen nodes.
-  if(!reduced&&'IntersectionObserver'in window){const targets=doc.querySelectorAll('.product-card,.tenant-note-card,.seller-performance-card,.admin-card,.stat-card,.creator-hub-card');const io=new IntersectionObserver(entries=>entries.forEach(x=>{if(x.isIntersecting){x.target.classList.add('teo-revealed');io.unobserve(x.target)}}),{threshold:.08});targets.forEach((el,i)=>{if(i<80){el.classList.add('teo-reveal');io.observe(el)}})}
+  // Large Admin/Studio portals already contain many forms and tables. Skip
+  // per-card reveal observers there so authentication and first paint stay responsive.
+  if(!body.classList.contains('admin-body')&&!reduced&&'IntersectionObserver'in window){const targets=doc.querySelectorAll('.product-card,.tenant-note-card,.seller-performance-card,.stat-card,.creator-hub-card');const io=new IntersectionObserver(entries=>entries.forEach(x=>{if(x.isIntersecting){x.target.classList.add('teo-revealed');io.unobserve(x.target)}}),{threshold:.08});targets.forEach((el,i)=>{if(i<48){el.classList.add('teo-reveal');io.observe(el)}})}
 })();

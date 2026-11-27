@@ -39,32 +39,45 @@ async function doLogin(adminKey){
   }finally{clearTimeout(timer)}
 }
 async function login(){
-  // Never silently trust a stale session. If it is invalid, the visible login gate is mandatory.
   setLocked(true);
-  const old=key();
-  if(old&&await validateToken(old)){setLocked(false);return old}
-  sessionStorage.removeItem('TEO_ADMIN_SESSION');
-  const form=$('#adminLoginForm'),input=$('#adminLoginKey');
+  const form=$('#adminLoginForm'),input=$('#adminLoginKey'),button=$('#adminLoginButton');
   if(!form||!input)throw Error('LOGIN_UI_MISSING');
-  return await new Promise((resolve,reject)=>{
-    let busy=false;
+  let busy=false,settled=false;
+  const old=key();
+  return await new Promise(resolve=>{
+    const finish=token=>{
+      if(settled)return;
+      settled=true;setLocked(false);loginMessage('');resolve(token);
+    };
     form.onsubmit=async e=>{
       e.preventDefault();
-      if(busy)return;
+      if(busy||settled)return;
       const adminKey=input.value.trim();
-      if(!adminKey){loginMessage('Vui lòng nhập Admin Key.');return}
-      busy=true;input.disabled=true;$('#adminLoginButton').disabled=true;loginMessage('Đang kết nối máy chủ...');
+      if(!adminKey){loginMessage('Vui lòng nhập Admin Key.');input.focus();return;}
+      busy=true;input.disabled=true;if(button)button.disabled=true;loginMessage('Đang kết nối máy chủ...');
       try{
         const token=await doLogin(adminKey);
-        setLocked(false);loginMessage('');resolve(token);
+        finish(token);
       }catch(err){
         const messageMap={INVALID_ADMIN_KEY:'Admin Key không đúng.',INVALID_PASSWORD:'Admin Key không đúng.',ADMIN_KEY_MISSING:'Cloudflare chưa có Secret ADMIN_KEY.',CANONICAL_HOST_REQUIRED:'Bạn đang mở link thử nghiệm workers.dev. Hãy mở https://teostudio.top/admin.html.',CROSS_SITE_REQUEST_BLOCKED:'Yêu cầu bị chặn do tên miền không hợp lệ. Hãy mở https://teostudio.top/admin.html.'};
         const detail=String(err?.message||'LOGIN_FAILED');
         loginMessage(messageMap[detail]||detail.replace(/^LOGIN_TIMEOUT:/,'Hết thời gian chờ:').replace(/^LOGIN_NETWORK:/,'Lỗi mạng:').replace(/^LOGIN_API_404:/,'Thiếu API:').replace(/^LOGIN_SERVER_/,'Lỗi Worker: '));
-        input.value='';input.focus();
-      }finally{busy=false;input.disabled=false;$('#adminLoginButton').disabled=false}
+        input.value='';
+      }finally{
+        busy=false;input.disabled=false;if(button)button.disabled=false;
+        if(!settled)input.focus();
+      }
     };
-    input.focus();
+    // Do not wait for a stale stored token check before binding the input.
+    input.disabled=false;if(button)button.disabled=false;input.focus();
+    if(old){
+      validateToken(old).then(valid=>{
+        if(settled||busy)return;
+        if(valid){finish(old);return;}
+        sessionStorage.removeItem('TEO_ADMIN_SESSION');
+        loginMessage('Phiên cũ đã hết hạn. Hãy nhập Admin Key để tiếp tục.');
+      }).catch(()=>{if(!settled&&!busy)sessionStorage.removeItem('TEO_ADMIN_SESSION')});
+    }
   });
 }
 async function req(p,o={}){const h={'content-type':'application/json',...(o.headers||{}),authorization:'Bearer '+key()};const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);try{let r;try{r=await fetch(api(p),{...o,headers:h,cache:'no-store',signal:controller.signal})}catch(e){if(e?.name==='AbortError')throw Error('API_TIMEOUT: '+p+' không phản hồi sau 15 giây. Kiểm tra Worker/D1 và Cloudflare Logs.');throw Error('API_NETWORK: '+p+' · '+(e?.message||e))}let x={};try{x=await r.json()}catch{}if(r.status===401){sessionStorage.removeItem('TEO_ADMIN_SESSION');setLocked(true);throw Error('ADMIN_REQUIRED')}if(!r.ok){const err=Error(x.message||x.error||`API ${r.status}`);err.code=x.error||'';err.details=x;throw err}return x}finally{clearTimeout(timeout)}}
@@ -156,7 +169,18 @@ $('#securityBlocksRefresh')?.addEventListener('click',loadSecurityBlocks);
 $('#securityBlockForm')?.addEventListener('submit',async e=>{e.preventDefault();const f=e.currentTarget,kind=f.elements.namedItem('kind').value,value=f.elements.namedItem('value').value.trim(),reason=f.elements.namedItem('reason').value.trim();if(!confirm(`Chặn vĩnh viễn ${kind==='ip'?'IP':'email'} này?`))return;const btn=f.querySelector('button[type=submit]');btn.disabled=true;try{const x=await req('/api/admin/security/blocks',{method:'POST',body:JSON.stringify({kind,value,reason})});toast(x.message||'Đã chặn.');f.reset();await loadSecurityBlocks()}catch(err){toast(err.message)}finally{btn.disabled=false}});
 $('#v55AnalyticsMonth')?.addEventListener('change',()=>{if($('#statsRange'))$('#statsRange').value=$('#v55AnalyticsMonth').value;loadV55Analytics();loadStats()});$('#v55RefreshAnalytics')?.addEventListener('click',loadV55Analytics);$('#v55RefreshReports')?.addEventListener('click',loadV55SupportReports);
 
-(async()=>{try{await login();const health=await req('/api/health');const tasks=[['Danh sách file',loadProducts],['Cài đặt',loadSettings],['Thống kê',loadStats],['Phân tích',loadV55Analytics],['Báo cáo hỗ trợ',loadV55SupportReports],['Cấu hình máy chủ',loadRuntimeConfig],['Kiếm tiền',loadMonetizationAdmin],['Bình luận',loadComments]];const results=await Promise.allSettled(tasks.map(([,fn])=>Promise.resolve().then(fn)));const failed=results.map((r,i)=>r.status==='rejected'?tasks[i][0]+': '+(r.reason?.message||'lỗi không rõ'):null).filter(Boolean);setInterval(loadStats,180000);setInterval(loadV55Analytics,300000);if(failed.length)toast('Admin đã mở; một số mục lỗi: '+failed.join(' | '));else toast('Admin đã kết nối Cloud · '+(health.version||'Worker OK'));}catch(e){toast(e.message)}})();
+(async()=>{try{
+  await login();
+  // Load only the three pieces needed for a useful first dashboard paint.
+  const essential=[['Danh sách file',loadProducts],['Cài đặt',loadSettings],['Thống kê',loadStats]];
+  const first=await Promise.allSettled(essential.map(([,fn])=>Promise.resolve().then(fn)));
+  const failed=first.map((r,i)=>r.status==='rejected'?essential[i][0]+': '+(r.reason?.message||'lỗi không rõ'):null).filter(Boolean);
+  toast(failed.length?'Admin đã mở; một số dữ liệu chính chưa tải: '+failed.join(' | '):'Admin đã mở. Các mục phụ đang tải nền.');
+  // Optional data is deliberately staggered to avoid hammering Worker/D1 at once.
+  const optional=[loadV55Analytics,loadV55SupportReports,loadRuntimeConfig,loadMonetizationAdmin,loadComments];
+  setTimeout(async()=>{for(let i=0;i<optional.length;i+=2){await Promise.allSettled(optional.slice(i,i+2).map(fn=>Promise.resolve().then(fn)));await new Promise(r=>setTimeout(r,180));}},250);
+  setInterval(loadStats,180000);setInterval(loadV55Analytics,300000);
+}catch(e){toast(e.message)}})();
 
 document.querySelector('#withdrawalPriorityTab')?.addEventListener('click',()=>{withdrawalSpeedFilter='priority';loadWithdrawals()});document.querySelector('#withdrawalNormalTab')?.addEventListener('click',()=>{withdrawalSpeedFilter='normal';loadWithdrawals()});document.querySelector('#withdrawalAllTab')?.addEventListener('click',()=>{withdrawalSpeedFilter='all';loadWithdrawals()});
 
