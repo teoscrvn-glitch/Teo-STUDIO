@@ -3,11 +3,11 @@ set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$ROOT"
 command -v node >/dev/null 2>&1 || { echo "ERROR: Node.js required (Termux: pkg install nodejs)"; exit 2; }
-echo '[1/40] Worker syntax'
+echo '[1/41] Worker syntax'
 node --check cloudflare/worker.js
-echo '[2/40] Frontend JavaScript syntax'
+echo '[2/41] Frontend JavaScript syntax'
 find frontend/assets/js -type f -name '*.js' -exec node --check '{}' \;
-echo '[3/40] Version and image asset'
+echo '[3/41] Version and image asset'
 grep -q "ensureAssistantActivitySchema" cloudflare/worker.js
 BUILD_ID=$(cat VERSION.txt)
 grep -q "const BUILD_VERSION='$BUILD_ID';" cloudflare/worker.js
@@ -17,7 +17,7 @@ grep -q "new URL('../img/teo-linh.webp',SCRIPT_URL)" frontend/assets/js/assistan
 grep -q 'safeYouTubeUrl' cloudflare/worker.js
 grep -q 'registerTutorialVideoUrl' frontend/assets/js/account.js
 grep -q 'image_data,image_type,image_size' cloudflare/worker.js
-echo '[4/40] Chat history'
+echo '[4/41] Chat history'
 grep -q 'teo_ai_chats_v1' frontend/assets/js/assistant.js
 grep -q 'teoAiHistoryToggle' frontend/assets/js/assistant.js
 grep -q 'teoAiNew' frontend/assets/js/assistant.js
@@ -28,21 +28,21 @@ grep -q 'Không tiết lộ đơn hàng, khách hàng' cloudflare/worker.js
 grep -q 'tenantRecentActivity' cloudflare/worker.js
 grep -q 'accountRecentPurchases' cloudflare/worker.js
 grep -q 'compressReportImage' frontend/assets/js/assistant.js
-echo '[5/40] Sales isolation'
+echo '[5/41] Sales isolation'
 grep -q "bp.scope='main' AND (bp.tenant_id IS NULL OR bp.tenant_id='') AND bp.status='paid'" cloudflare/worker.js
 grep -q "p.scope='tenant' AND p.status='paid'" cloudflare/worker.js
 grep -q 'JOIN tenant_products tp ON tp.id=p.product_id AND tp.tenant_id=p.tenant_id AND tp.tenant_id IN' cloudflare/worker.js
-echo '[6/40] Tenant detail social preview'
+echo '[6/41] Tenant detail social preview'
 grep -q "p==='/tenant-detail'||p==='/tenant-detail.html'" cloudflare/worker.js
 grep -q 'tenantDetailShareUrl' frontend/assets/js/tenant-detail.js
 grep -q '/media/tenant-product/' frontend/assets/js/tenant-detail.js
-echo '[7/40] Tag and registration video settings'
+echo '[7/41] Tag and registration video settings'
 grep -q "registerTutorialVideoUrl" cloudflare/worker.js
 grep -q "registerTutorialVideoUrl" frontend/assets/js/admin-v14.js
 grep -q "window.editTag" frontend/assets/js/tenant-admin.js
 grep -q 'video_url' frontend/admin.html
 grep -q 'https://www.youtube-nocookie.com' cloudflare/worker.js
-echo '[8/40] Security guardrails'
+echo '[8/41] Security guardrails'
 grep -q 'REPORT_IMAGE_MIME_MISMATCH' cloudflare/worker.js
 grep -q 'api/admin/support/reports/' frontend/assets/js/admin-v14.js
 grep -q 'X-Content-Type-Options' cloudflare/worker.js || grep -q 'x-content-type-options' cloudflare/worker.js
@@ -65,76 +65,78 @@ grep -q 'AI_MODEL = "openrouter/free"' cloudflare/wrangler.toml
 ! grep -q '<option value="both"' frontend/tenant-admin.html
 grep -q 'tp.tenant_id=p.tenant_id' cloudflare/worker.js
 grep -q 'TAVILY_API_KEY' docs/archive/release-history/DEPLOY_V56.44_AI_WEB_ACTIVITY.md
-echo '[9/40] AI guardrail behavior'
+echo '[9/41] AI guardrail behavior'
 node scripts/test-ai-guardrails.mjs
-echo '[10/40] Unified tenant session regression checks'
+echo '[10/41] Unified tenant session regression checks'
 node scripts/test-unified-tenant-session.mjs
-echo '[11/40] V56.64 Seller hardening and responsive UI checks'
+echo '[11/41] V56.64 Seller hardening and responsive UI checks'
 python scripts/test-v56.64-security-polish.py
-echo '[12/40] Card exchange security regression checks'
+echo '[12/41] Card exchange security regression checks'
 python scripts/test-v56.67-card-security.py
-echo '[13/40] Card tariff normalization tests'
+echo '[13/41] Card tariff normalization tests'
 node scripts/test-v56.67-card-rates.mjs
-echo '[14/40] SQLite wallet and bypass tests'
+echo '[14/41] SQLite wallet and bypass tests'
 python scripts/test-v56.67-ledger.py
-echo '[15/40] Card callback signature helper tests'
+echo '[15/41] Card callback signature helper tests'
 node scripts/test-v56.67-md5.mjs
-echo '[16/40] V56.69 seller analytics and Free bypass regression checks'
+echo '[16/41] V56.69 seller analytics and Free bypass regression checks'
 python scripts/test-v56.69-analytics-bypass.py
-echo '[17/40] V57 legal, privacy and design checks'
+echo '[17/41] V57 legal, privacy and design checks'
 node scripts/test-v57-legal-design.mjs
-echo '[18/40] V57 D1 migration smoke test'
+echo '[18/41] V57 D1 migration smoke test'
 python scripts/test-v57-migration.py
-echo '[19/40] V57.8 two-cycle Free bypass security and standalone top-up checks'
+echo '[19/41] V57.8 two-cycle Free bypass security and standalone top-up checks'
 python scripts/test-v57.8-free-bypass-cycles.py
-echo '[20/40] V57.9 identity-based authentication security checks'
+echo '[20/41] V57.9 identity-based authentication security checks'
 python scripts/test-v57.9-identity-security.py
-echo '[21/40] V57.10 Link4M shortlink API diagnostic checks'
+echo '[21/41] V57.10 Link4M shortlink API diagnostic checks'
 python scripts/test-v57.10-link4m-diagnostic.py
-echo '[22/40] V57.13 Free key 5-minute link/key expiry and destination page checks'
+echo '[22/41] V57.13 Free key 5-minute link/key expiry and destination page checks'
 python scripts/test-v57.13-free-key-five-minute-ttl.py
-echo '[23/40] V57.13 destination page return behavior'
+echo '[23/41] V57.13 destination page return behavior'
 node scripts/test-v57.13-free-key-return-page.mjs
-echo '[24/40] V58.1 Note designer, secure flow, mobile layout and Studio entitlement checks'
+echo '[24/41] V58.1 Note designer, secure flow, mobile layout and Studio entitlement checks'
 python scripts/test-v58-mobile-notes-limits.py
-echo '[25/40] V58.4 card gateway, Merchant, ads and Agent checks'
+echo '[25/41] V58.4 card gateway, Merchant, ads and Agent checks'
 python scripts/test-v58.4-integrations.py
-echo '[26/40] V58.8 regressions: Seller Free gate, tenant support inbox, AI auth, Share return, music and Note mobile layout'
+echo '[26/41] V58.8 regressions: Seller Free gate, tenant support inbox, AI auth, Share return, music and Note mobile layout'
 python scripts/test-v58.8-stability.py
-echo '[27/40] V58.9 Seller persistence, pre-download flow, external-task return guard and top-up notifications'
+echo '[27/41] V58.9 Seller persistence, pre-download flow, external-task return guard and top-up notifications'
 python3 scripts/test-v58.9-regressions.py
-echo '[28/40] V58.11 AI tool-calling, read-only permissions, fallback and RAG wiring checks'
+echo '[28/41] V58.11 AI tool-calling, read-only permissions, fallback and RAG wiring checks'
 node scripts/test-ai-tools.mjs
-echo '[29/40] V58.12 AI knowledge ranking and GitHub repository tool checks'
+echo '[29/41] V58.12 AI knowledge ranking and GitHub repository tool checks'
 node scripts/test-ai-brain.mjs
-echo '[30/40] V58.10 page-specific visual system and lightweight depth checks'
+echo '[30/41] V58.10 page-specific visual system and lightweight depth checks'
 python3 scripts/test-v58.10-visual-system.py
-echo '[31/40] V58.14 share fallback and Seller navigation / thumbnail checks'
+echo '[31/41] V58.14 share fallback and Seller navigation / thumbnail checks'
 node scripts/test-v58.14-share-seller-ux.mjs
 
-echo '[32/40] V58.15 Seller analytics, leaderboards and Studio navigation checks'
+echo '[32/41] V58.15 Seller analytics, leaderboards and Studio navigation checks'
 node scripts/test-v58.15-commerce-intelligence.mjs
 
-echo '[33/40] V58.15 reporting SQL and daily unique visit deduplication'
+echo '[33/41] V58.15 reporting SQL and daily unique visit deduplication'
 python3 scripts/test-v58.15-reporting-sql.py
-echo '[34/40] V59 interaction experience, opt-in audio and reduced-motion checks'
+echo '[34/41] V59 interaction experience, opt-in audio and reduced-motion checks'
 python3 scripts/test-v59-experience.py
 
-echo '[35/40] V59.1 unified account, Studio membership, secure Note gating and SQLite wallet checks'
+echo '[35/41] V59.1 unified account, Studio membership, secure Note gating and SQLite wallet checks'
 python3 scripts/test-v59.1-memberships.py
 
 
-echo '[36/40] V60.1 community hub, root landing, tenant-aware ranking, music dock, cache and HTTPS-only links'
+echo '[36/41] V60.1 community hub, root landing, tenant-aware ranking, music dock, cache and HTTPS-only links'
 python3 scripts/test-v60-community-hub.py
 
-echo '[37/40] V60.1 regression checks: tenant Share null guard, uploaded payout QR, Top 100/self-rank, shared dock, Note and touch controls'
+echo '[37/41] V60.1 regression checks: tenant Share null guard, uploaded payout QR, Top 100/self-rank, shared dock, Note and touch controls'
 python3 scripts/test-v60.1-regressions.py
 echo 'PASS: local syntax, helper, static and SQLite simulation checks only. Live Cloudflare D1, actual payment/provider callbacks, Telegram delivery, cross-device UI and platform follow verification are NOT tested here.'
-echo '[38/40] V60.2 Master Admin paid-link edit/save regression'
+echo '[38/41] V60.2 Master Admin paid-link edit/save regression'
 node scripts/test-v60.2-master-product-edit-save.mjs
-echo '[39/40] V60.3 Phase 0/1 baseline, archive, cache and performance guard'
+echo '[39/41] V60.3 Phase 0/1 baseline, archive, cache and performance guard'
 node scripts/test-v60.3-phase0-performance.mjs
-echo '[40/40] Redesign foundation assets, metadata and viewport-gated motion'
+echo '[40/41] Redesign foundation assets, metadata and viewport-gated motion'
 node scripts/build-detail-foundation.mjs --check
 node scripts/test-redesign-step0.mjs
 node scripts/sync-build-id.mjs --check
+echo '[41/41] V60.9 mobile catalog, recent-sales ticker and stable navigation regression'
+python3 scripts/test-v60.9-mobile-navigation.py

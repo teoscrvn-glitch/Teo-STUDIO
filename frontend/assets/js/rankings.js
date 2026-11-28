@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const rankParams=new URLSearchParams(location.search);if(rankParams.get('embed')==='admin'){document.body.dataset.embed='admin';document.body.classList.add('rank-embedded-admin');}
+const rankParams=new URLSearchParams(location.search);if(rankParams.get('embed')==='admin'){document.body.dataset.embed='admin';document.body.classList.add('rank-embedded-admin');}else if(rankParams.get('embed')==='app'){document.body.dataset.embed='app';document.body.classList.add('rank-embedded-app');}
 const api=p=>(window.TEO_CONFIG?.API_BASE_URL||location.origin).replace(/\/$/,'')+p,$=s=>document.querySelector(s),money=v=>Math.max(0,Number(v)||0).toLocaleString('vi-VN')+'đ',esc=v=>String(v??'').replace(/[&<>\'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 let data=null,period='day',kind='owners',loading=false;
 const rankingTenant=new URLSearchParams(location.search).get('tenant')||'';

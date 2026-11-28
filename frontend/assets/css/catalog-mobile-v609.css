@@ -1,0 +1,35 @@
+/* V60.9 catalog and home feed: 2 columns on phones/coarse Android, 3 on desktop. */
+#productGrid.product-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch;gap:14px}
+#productGrid.product-grid>.product-card{display:flex;flex-direction:column;align-items:stretch;min-width:0;height:100%;overflow:hidden;border:1px solid #202b3c;border-radius:14px;background:#0e131d;color:#edf3fc;text-decoration:none}
+#productGrid .product-card>.product-thumb{position:relative;display:block;flex:0 0 auto;width:100%;height:auto;min-height:0;aspect-ratio:16/9;overflow:hidden;background:#131b28}
+#productGrid .product-thumb img{position:absolute;inset:0;display:block;width:100%;height:100%;max-width:none;object-fit:cover;object-position:center}
+#productGrid .product-thumb-fallback{display:grid;place-items:center;width:100%;height:100%;min-height:0}
+#productGrid .product-card>.product-body{position:relative;display:flex;flex:1 1 auto;flex-direction:column;gap:7px;min-width:0;min-height:118px;padding:12px;color:#edf3fc;visibility:visible;opacity:1}
+#productGrid .product-meta{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;color:#91a0b7;font-size:11px;line-height:1.35}
+#productGrid .product-meta>*{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#productGrid .product-body h3{display:-webkit-box;min-width:0;margin:0;color:#f4f7fc;font-size:14px;font-weight:750;line-height:1.35;overflow:hidden;overflow-wrap:anywhere;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+#productGrid .product-description-preview{display:-webkit-box;min-width:0;min-height:0;margin:0;color:#aab6c8;font-size:11px;line-height:1.45;overflow:hidden;overflow-wrap:anywhere;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+#productGrid .product-foot{display:flex;align-items:center;justify-content:space-between;gap:7px;min-width:0;margin-top:auto;padding-top:8px;border-top:1px solid #202b3c;color:#94a3b8;font-size:10px;line-height:1.35}
+#productGrid .product-foot span{display:inline-flex;align-items:center;gap:4px;min-width:0;white-space:nowrap}
+#productGrid .product-foot .i{width:13px;height:13px;flex:0 0 13px}
+#productGrid .type-pill{max-width:100%;min-height:21px;padding:3px 7px;font-size:10px;line-height:1.2}
+
+/* Recent purchases: continuous left-to-right ticker with a slowly changing edge. */
+#recentSalesFeed.recent-sales-grid{position:relative;display:block;width:100%;max-width:100%;min-width:0;overflow:hidden;padding:10px;border:1px solid transparent;border-radius:16px;background:linear-gradient(#0b111b,#0b111b) padding-box,conic-gradient(from 0deg,#4c8dff,#35c7b2,#9c82ff,#4c8dff) border-box;box-shadow:0 0 16px rgba(76,141,255,.10);animation:teoSalesEdge 18s linear infinite;mask-image:linear-gradient(to right,transparent 0,#000 2%,#000 98%,transparent 100%)}
+#recentSalesFeed>.recent-sales-track{display:flex;align-items:stretch;width:max-content;min-width:max-content;gap:0;will-change:transform;animation:teoSalesRight 52s linear infinite}
+#recentSalesFeed .recent-sales-group{display:flex;flex:0 0 auto;align-items:stretch;gap:12px;width:max-content;padding-right:12px}
+#recentSalesFeed .recent-sale-card{display:flex;flex:0 0 clamp(260px,29vw,320px);flex-direction:column;gap:10px;min-width:0;padding:12px;border:1px solid #253249;border-radius:12px;background:#111925;color:#edf3fc}
+#recentSalesFeed .recent-sale-buyer{color:#edf3fc}
+#recentSalesFeed .recent-sale-order{min-width:0;color:#edf3fc}
+#recentSalesFeed .recent-sale-thumb{width:66px;height:62px;flex:0 0 66px;object-fit:cover}
+#recentSalesFeed .recent-sale-title{color:#edf3fc}
+#recentSalesFeed .recent-sale-time,#recentSalesFeed .recent-sale-email{color:#94a3b8}
+#recentSalesFeed .recent-sale-price{color:#78ddb5}
+#recentSalesFeed:hover>.recent-sales-track{animation-play-state:paused}
+@keyframes teoSalesRight{from{transform:translateX(-50%)}to{transform:translateX(0)}}
+@keyframes teoSalesEdge{0%{box-shadow:0 0 10px rgba(76,141,255,.13)}33%{box-shadow:0 0 14px rgba(53,199,178,.18)}66%{box-shadow:0 0 14px rgba(156,130,255,.17)}100%{box-shadow:0 0 10px rgba(76,141,255,.13)}}
+@media(max-width:800px){#productGrid.product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}
+@media(max-width:560px){#productGrid.product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}#productGrid .product-card>.product-thumb{aspect-ratio:16/10}#productGrid .product-card>.product-body{gap:6px;min-height:116px;padding:9px}#productGrid .product-body h3{font-size:12px;line-height:1.35}#productGrid .product-description-preview{font-size:10px;-webkit-line-clamp:2}#productGrid .product-meta{font-size:9px}#productGrid .type-pill{font-size:9px;padding:3px 5px}#productGrid .product-foot{align-items:flex-start;flex-direction:column;gap:4px;font-size:9px}#recentSalesFeed.recent-sales-grid{padding:7px;border-radius:13px}#recentSalesFeed .recent-sale-card{flex-basis:min(78vw,290px);padding:10px}#recentSalesFeed .recent-sale-avatar{width:36px;height:36px;flex-basis:36px}#recentSalesFeed .recent-sale-thumb{width:58px;height:56px;flex-basis:58px}}
+/* Android Chrome desktop-site: treat a coarse 980px CSS viewport as a phone/tablet. */
+@media(hover:none) and (pointer:coarse) and (max-width:1024px){#productGrid.product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}#productGrid .product-card>.product-thumb{aspect-ratio:16/10}#productGrid .product-card>.product-body{min-height:120px}#recentSalesFeed.recent-sales-grid{display:block;overflow:hidden}#recentSalesFeed>.recent-sales-track{display:flex;width:max-content;animation:teoSalesRight 52s linear infinite}#recentSalesFeed .recent-sales-group{display:flex;width:max-content}#recentSalesFeed .recent-sale-card{flex-basis:clamp(250px,42vw,300px)}}
+@media(prefers-reduced-motion:reduce){#recentSalesFeed.recent-sales-grid{animation:none}#recentSalesFeed>.recent-sales-track{animation:none;transform:none}}

@@ -3,16 +3,16 @@ import assert from 'node:assert/strict';
 const version=fs.readFileSync('VERSION.txt','utf8').trim();
 const worker=fs.readFileSync('cloudflare/worker.js','utf8');
 const config=fs.readFileSync('frontend/assets/js/config.js','utf8');
-assert.match(version,/^v60\.8-admin-routing-responsive$/);
+assert.match(version,/^v60\.9-mobile-catalog-ticker-navigation$/);
 assert.ok(worker.includes(`const BUILD_VERSION='${version}'`));
 assert.ok(config.includes(`BUILD_VERSION:'${version}'`));
 for(const page of ['index.html','2.html','admin.html','tenant-admin.html','seller.html','share.html','rankings.html','account.html']){
  const html=fs.readFileSync(`frontend/${page}`,'utf8');
  if(page==='index.html'){
-  for(const asset of ['tokens.css?v=60.8','components.css?v=60.8','motion.css?v=60.8','page-home.css?v=60.8']) assert.ok(html.includes(asset),`index.html: missing redesigned asset ${asset}`);
-  assert.ok(!html.includes('performance-guard.css?v=60.8'),'index.html: legacy performance CSS must not be reloaded');
- }else assert.ok(html.includes('performance-guard.css?v=60.8'),`${page}: performance CSS missing`);
- assert.ok(html.includes('performance-guard.js?v=60.8'),`${page}: performance JS missing`);
+  for(const asset of ['tokens.css?v=60.9','components.css?v=60.9','motion.css?v=60.9','page-home.css?v=60.9']) assert.ok(html.includes(asset),`index.html: missing redesigned asset ${asset}`);
+  assert.ok(!html.includes('performance-guard.css?v=60.9'),'index.html: legacy performance CSS must not be reloaded');
+ }else assert.ok(html.includes('performance-guard.css?v=60.9'),`${page}: performance CSS missing`);
+ assert.ok(html.includes('performance-guard.js?v=60.9'),`${page}: performance JS missing`);
 }
 const perf=fs.readFileSync('frontend/assets/js/performance-guard.js','utf8');
 assert.ok(perf.includes('IntersectionObserver'));

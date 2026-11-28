@@ -22,21 +22,21 @@ for p in htmls:
     s=p.read_text()
     if p.name == 'index.html':
         # Homepage is migrated to the approved redesign kit; do not reintroduce the legacy visual stylesheet.
-        for asset in ['tokens.css?v=60.8', 'components.css?v=60.8', 'motion.css?v=60.8', 'page-home.css?v=60.8']:
+        for asset in ['tokens.css?v=60.9', 'components.css?v=60.9', 'motion.css?v=60.9', 'page-home.css?v=60.9']:
             assert asset in s, f'index.html missing redesigned asset: {asset}'
-        assert 'teo-visual-system.css?v=60.8' not in s and 'teo-visual-system.js?v=60.8' not in s, 'index.html must not load legacy visual system after migration'
+        assert 'teo-visual-system.css?v=60.9' not in s and 'teo-visual-system.js?v=60.9' not in s, 'index.html must not load legacy visual system after migration'
     elif p.name in {'detail.html', 'product-detail-view.html'}:
         # Step 2 migration: new page-specific design replaces legacy visual CSS.
-        for asset in ['detail-foundation.css?v=60.8', 'membership-commerce.css?v=60.8', 'page-detail.css?v=60.8']:
+        for asset in ['detail-foundation.css?v=60.9', 'membership-commerce.css?v=60.9', 'page-detail.css?v=60.9']:
             assert asset in s, f'{p.name} missing redesigned asset: {asset}'
         css_refs = re.findall(r'href="([^"]+\.css[^"]*)"', s)
         assert len(css_refs) == 3, f'{p.name} must stay within the 3-file CSS budget'
         for legacy in ['style.css', 'teo-experience.css', 'pre-public-polish.css', 'v60-theme.css', 'patch-v604.css']:
             assert legacy not in s, f'{p.name} still loads legacy stylesheet {legacy}'
-        assert 'teo-visual-system.css?v=60.8' not in s, f'{p.name} must not load legacy visual CSS after migration'
+        assert 'teo-visual-system.css?v=60.9' not in s, f'{p.name} must not load legacy visual CSS after migration'
     else:
-        assert 'teo-visual-system.css?v=60.8' in s, f'{p.name} missing legacy visual CSS before its migration'
-        assert 'teo-visual-system.js?v=60.8' in s, f'{p.name} missing legacy visual JS before its migration'
+        assert 'teo-visual-system.css?v=60.9' in s, f'{p.name} missing legacy visual CSS before its migration'
+        assert 'teo-visual-system.js?v=60.9' in s, f'{p.name} missing legacy visual JS before its migration'
 for asset in ['visual-home.svg','visual-share.svg','visual-admin.svg','visual-studio.svg','visual-download.svg','visual-wallet.svg','visual-earn.svg','visual-builder.svg','visual-ai.svg']:
     assert (front/'assets/img/teo'/asset).exists(), f'missing local page artwork: {asset}'
 print(f'PASS: V58.10 visual system is wired into {len(htmls)} frontend pages; page skins, reduced-motion, capped depth and no heavy 3D dependency verified.')

@@ -45,7 +45,7 @@ assert "esc=v=>String(v??'')" in seller_js
 assert "navigator.share" in seller_js
 assert "sellerCreatedLink" in seller_js
 assert "prompt(" not in seller_js and "alert(" not in seller_js
-assert "seller-premium.css?v=60.8" in seller_html
+assert "seller-premium.css?v=60.9" in seller_html
 assert "seller-hero.svg" in seller_html
 assert "mỗi file có mức hoa hồng riêng" in seller_html.lower() or "hoa hồng theo từng file" in seller_html.lower()
 
