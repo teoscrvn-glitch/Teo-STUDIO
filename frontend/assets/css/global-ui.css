@@ -114,7 +114,7 @@
 
 
 
-/* V60.7 — hard fallback for JS-injected widgets on migrated detail pages.
+/* V60.8 — hard fallback for JS-injected widgets on migrated detail pages.
    Unlayered, narrowly scoped rules prevent page-level cascade layers from
    leaving injected controls as ordinary document content. */
 #teoAccountLauncher{position:fixed;left:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:10040;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 13px;border:1px solid #273247;border-radius:999px;background:#111827;color:#f3f4f6;font:inherit;font-size:12px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.24);cursor:pointer}
